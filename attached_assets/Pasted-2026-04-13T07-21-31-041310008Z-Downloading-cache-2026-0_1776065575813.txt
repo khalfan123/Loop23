@@ -1,0 +1,84 @@
+2026-04-13T07:21:31.041310008Z ==> Downloading cache...
+2026-04-13T07:21:31.082397152Z ==> Cloning from https://github.com/khalfan123/Loop23
+2026-04-13T07:21:43.840687118Z ==> Checking out commit f14c010de514959384d82be4509d9bf824dc4dbd in branch main
+2026-04-13T07:21:52.226063282Z ==> Downloaded 278MB in 4s. Extraction took 7s.
+2026-04-13T07:21:59.827271788Z ==> Using Node.js version 22.22.0 (default)
+2026-04-13T07:21:59.860823781Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-04-13T07:21:59.978532337Z ==> Running build command 'npm install; npm run build'...
+2026-04-13T07:22:11.050947408Z 
+2026-04-13T07:22:11.050963918Z changed 1 package, and audited 844 packages in 11s
+2026-04-13T07:22:11.051005109Z 
+2026-04-13T07:22:11.05101365Z 90 packages are looking for funding
+2026-04-13T07:22:11.05104987Z   run `npm fund` for details
+2026-04-13T07:22:11.069192673Z 
+2026-04-13T07:22:11.069220223Z 8 vulnerabilities (2 moderate, 5 high, 1 critical)
+2026-04-13T07:22:11.069223853Z 
+2026-04-13T07:22:11.069227404Z To address issues that do not require attention, run:
+2026-04-13T07:22:11.069230564Z   npm audit fix
+2026-04-13T07:22:11.069233374Z 
+2026-04-13T07:22:11.069237054Z To address all issues possible (including breaking changes), run:
+2026-04-13T07:22:11.069240864Z   npm audit fix --force
+2026-04-13T07:22:11.069243684Z 
+2026-04-13T07:22:11.069246874Z Some issues need review, and may require choosing
+2026-04-13T07:22:11.069250044Z a different dependency.
+2026-04-13T07:22:11.069253024Z 
+2026-04-13T07:22:11.069256904Z Run `npm audit` for details.
+2026-04-13T07:22:11.247782353Z 
+2026-04-13T07:22:11.247812493Z > rest-express@1.0.0 build
+2026-04-13T07:22:11.247816333Z > tsx script/build.ts
+2026-04-13T07:22:11.247818484Z 
+2026-04-13T07:22:11.986362234Z building client...
+2026-04-13T07:22:12.051987536Z vite v7.3.1 building client environment for production...
+2026-04-13T07:22:12.597241582Z transforming...
+2026-04-13T07:22:15.471206849Z 
+2026-04-13T07:22:15.471237419Z A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+2026-04-13T07:22:23.679585969Z ✓ 3853 modules transformed.
+2026-04-13T07:22:25.878846167Z rendering chunks...
+2026-04-13T07:22:25.931364962Z computing gzip size...
+2026-04-13T07:22:26.072604842Z ../dist/public/index.html                                   1.55 kB │ gzip:     0.69 kB
+2026-04-13T07:22:26.072634663Z ../dist/public/assets/image_1774715374305-DzFSELB9.png     14.23 kB
+2026-04-13T07:22:26.072717695Z ../dist/public/assets/index-pVv8dwfi.css                  300.35 kB │ gzip:    43.45 kB
+2026-04-13T07:22:26.072848898Z ../dist/public/assets/index-83vDigZa.js                 5,562.35 kB │ gzip: 1,327.59 kB
+2026-04-13T07:22:26.07294658Z 
+2026-04-13T07:22:26.07295487Z (!) Some chunks are larger than 500 kB after minification. Consider:
+2026-04-13T07:22:26.07296057Z - Using dynamic import() to code-split the application
+2026-04-13T07:22:26.072965821Z - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2026-04-13T07:22:26.072970801Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+2026-04-13T07:22:26.073190456Z ✓ built in 13.82s
+2026-04-13T07:22:26.073298178Z building server...
+2026-04-13T07:22:26.096617228Z ▲ [WARNING] Suspicious assignment to defined constant "process.env.NODE_ENV" [assign-to-define]
+2026-04-13T07:22:26.096635699Z 
+2026-04-13T07:22:26.096639139Z     server/index.ts:371:4:
+2026-04-13T07:22:26.096642059Z       371 │     process.env.NODE_ENV = "production";
+2026-04-13T07:22:26.096644629Z           ╵     ~~~~~~~~~~~~~~~~~~~~
+2026-04-13T07:22:26.096646469Z 
+2026-04-13T07:22:26.096649319Z   The expression "process.env.NODE_ENV" has been configured to be replaced with a constant using the "define" feature. If this expression is supposed to be a compile-time constant, then it doesn't make sense to assign to it here. Or if this expression is supposed to change at run-time, this "define" substitution should be removed.
+2026-04-13T07:22:26.096654379Z 
+2026-04-13T07:22:26.989931417Z 1 warning
+2026-04-13T07:22:26.989954697Z 
+2026-04-13T07:22:26.989959798Z   dist/index.mjs  4.7mb ⚠️
+2026-04-13T07:22:26.989963348Z 
+2026-04-13T07:22:26.990010259Z ⚡ Done in 897ms
+2026-04-13T07:22:26.991530693Z wrote dist/index.cjs ESM loader wrapper
+2026-04-13T07:22:29.26902216Z ==> Uploading build...
+2026-04-13T07:23:04.764462582Z ==> Uploaded in 22.0s. Compression took 13.5s
+2026-04-13T07:23:05.009287768Z ==> Build successful 🎉
+2026-04-13T07:23:07.250788674Z ==> Deploying...
+2026-04-13T07:23:07.311584597Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-04-13T07:24:05.305198405Z ==> Running 'npm run start'
+2026-04-13T07:24:05.616838233Z 
+2026-04-13T07:24:05.616869534Z > rest-express@1.0.0 start
+2026-04-13T07:24:05.616874824Z > NODE_ENV=production node dist/index.cjs
+2026-04-13T07:24:05.616877404Z 
+2026-04-13T07:24:08.795628295Z Error: DATABASE_URL must be set. Did you forget to provision a database?
+2026-04-13T07:24:08.795660525Z     at file:///opt/render/project/src/dist/index.mjs:87:215338
+2026-04-13T07:24:08.795665765Z     at file:///opt/render/project/src/dist/index.mjs:3:467
+2026-04-13T07:24:08.795669265Z     at file:///opt/render/project/src/dist/index.mjs:87:230052
+2026-04-13T07:24:08.795672866Z     at file:///opt/render/project/src/dist/index.mjs:3:467
+2026-04-13T07:24:08.795675476Z     at file:///opt/render/project/src/dist/index.mjs:2943:415
+2026-04-13T07:24:08.795677546Z     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+2026-04-13T07:24:08.795681796Z     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+2026-04-13T07:24:08.821153425Z ==> No open ports detected, continuing to scan...
+2026-04-13T07:24:08.891843667Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-04-13T07:24:30.305568635Z ==> Exited with status 1
+2026-04-13T07:24:30.307837981Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

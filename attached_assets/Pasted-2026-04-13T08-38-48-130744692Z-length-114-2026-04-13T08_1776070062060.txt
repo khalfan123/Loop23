@@ -1,0 +1,100 @@
+2026-04-13T08:38:48.130744692Z   length: 114,
+2026-04-13T08:38:48.130749152Z   severity: 'ERROR',
+2026-04-13T08:38:48.130751602Z   code: '42P01',
+2026-04-13T08:38:48.130754022Z   detail: undefined,
+2026-04-13T08:38:48.130756422Z   hint: undefined,
+2026-04-13T08:38:48.130758782Z   position: '77',
+2026-04-13T08:38:48.130762932Z   internalPosition: undefined,
+2026-04-13T08:38:48.130765393Z   internalQuery: undefined,
+2026-04-13T08:38:48.130767713Z   where: undefined,
+2026-04-13T08:38:48.130770033Z   schema: undefined,
+2026-04-13T08:38:48.130772403Z   table: undefined,
+2026-04-13T08:38:48.130774823Z   column: undefined,
+2026-04-13T08:38:48.130777363Z   dataType: undefined,
+2026-04-13T08:38:48.130779703Z   constraint: undefined,
+2026-04-13T08:38:48.130782193Z   file: 'parse_relation.c',
+2026-04-13T08:38:48.130795113Z   line: '1466',
+2026-04-13T08:38:48.130797933Z   routine: 'parserOpenTable'
+2026-04-13T08:38:48.130800393Z }
+2026-04-13T08:38:48.131349748Z {"timestamp":"8:38:48 AM","level":"error","message":"[CallpilotWorker] Sweep error: relation \"ops_analysis_runs\" does not exist","source":"CallpilotWorker"}
+2026-04-13T08:38:48.33046018Z 📞 [Phone Billing] Error processing monthly billing: error: relation "phone_numbers" does not exist
+2026-04-13T08:38:48.33048286Z     at file:///opt/render/project/src/dist/index.mjs:81:15267
+2026-04-13T08:38:48.33048838Z     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2026-04-13T08:38:48.330492621Z     at async file:///opt/render/project/src/dist/index.mjs:87:38143
+2026-04-13T08:38:48.330495381Z     at async VDe (file:///opt/render/project/src/dist/index.mjs:5403:34419) {
+2026-04-13T08:38:48.330498381Z   length: 113,
+2026-04-13T08:38:48.330501401Z   severity: 'ERROR',
+2026-04-13T08:38:48.330504231Z   code: '42P01',
+2026-04-13T08:38:48.330506771Z   detail: undefined,
+2026-04-13T08:38:48.330509361Z   hint: undefined,
+2026-04-13T08:38:48.330511821Z   position: '341',
+2026-04-13T08:38:48.330515761Z   internalPosition: undefined,
+2026-04-13T08:38:48.330518201Z   internalQuery: undefined,
+2026-04-13T08:38:48.330520601Z   where: undefined,
+2026-04-13T08:38:48.330522992Z   schema: undefined,
+2026-04-13T08:38:48.330525321Z   table: undefined,
+2026-04-13T08:38:48.330527752Z   column: undefined,
+2026-04-13T08:38:48.330530112Z   dataType: undefined,
+2026-04-13T08:38:48.330532442Z   constraint: undefined,
+2026-04-13T08:38:48.330534812Z   file: 'parse_relation.c',
+2026-04-13T08:38:48.330537172Z   line: '1466',
+2026-04-13T08:38:48.330539522Z   routine: 'parserOpenTable'
+2026-04-13T08:38:48.330541822Z }
+2026-04-13T08:38:48.556744406Z {"timestamp":"8:38:48 AM","level":"error","message":"Failed to cleanup stale calls: relation \"calls\" does not exist","data":{"length":103,"name":"error","severity":"ERROR","code":"42P01","position":"8","file":"parse_relation.c","line":"1466","routine":"parserOpenTable"},"source":"StaleCallsCleanup"}
+2026-04-13T08:38:48.634795158Z ❌ [WebhookRetry] Error marking expired webhooks: error: relation "payment_webhook_queue" does not exist
+2026-04-13T08:38:48.634820199Z     at file:///opt/render/project/src/dist/index.mjs:81:15267
+2026-04-13T08:38:48.634824109Z     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2026-04-13T08:38:48.634827669Z     at async file:///opt/render/project/src/dist/index.mjs:87:38143
+2026-04-13T08:38:48.634830309Z     at async cK.markExpired (file:///opt/render/project/src/dist/index.mjs:4694:3883)
+2026-04-13T08:38:48.634833839Z     at async cK.processRetryableWebhooks (file:///opt/render/project/src/dist/index.mjs:4694:2190) {
+2026-04-13T08:38:48.634836729Z   length: 121,
+2026-04-13T08:38:48.634839909Z   severity: 'ERROR',
+2026-04-13T08:38:48.634842509Z   code: '42P01',
+2026-04-13T08:38:48.63484519Z   detail: undefined,
+2026-04-13T08:38:48.63484772Z   hint: undefined,
+2026-04-13T08:38:48.63485024Z   position: '264',
+2026-04-13T08:38:48.63485353Z   internalPosition: undefined,
+2026-04-13T08:38:48.63485607Z   internalQuery: undefined,
+2026-04-13T08:38:48.63485852Z   where: undefined,
+2026-04-13T08:38:48.63486109Z   schema: undefined,
+2026-04-13T08:38:48.63486361Z   table: undefined,
+2026-04-13T08:38:48.63486609Z   column: undefined,
+2026-04-13T08:38:48.63486867Z   dataType: undefined,
+2026-04-13T08:38:48.63487125Z   constraint: undefined,
+2026-04-13T08:38:48.63487392Z   file: 'parse_relation.c',
+2026-04-13T08:38:48.634891211Z   line: '1466',
+2026-04-13T08:38:48.634894121Z   routine: 'parserOpenTable'
+2026-04-13T08:38:48.634896671Z }
+2026-04-13T08:38:48.731802715Z {"timestamp":"8:38:48 AM","level":"error","message":"Failed to cleanup stale twilio_openai_calls: relation \"twilio_openai_calls\" does not exist","data":{"length":117,"name":"error","severity":"ERROR","code":"42P01","position":"8","file":"parse_relation.c","line":"1466","routine":"parserOpenTable"},"source":"StaleCallsCleanup"}
+2026-04-13T08:38:48.832536336Z ❌ [WebhookRetry] Error in processRetryableWebhooks: error: relation "payment_webhook_queue" does not exist
+2026-04-13T08:38:48.832561976Z     at file:///opt/render/project/src/dist/index.mjs:81:15267
+2026-04-13T08:38:48.832566697Z     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2026-04-13T08:38:48.832570487Z     at async file:///opt/render/project/src/dist/index.mjs:87:38143
+2026-04-13T08:38:48.832573487Z     at async cK.processRetryableWebhooks (file:///opt/render/project/src/dist/index.mjs:4694:2221) {
+2026-04-13T08:38:48.832576207Z   length: 121,
+2026-04-13T08:38:48.832579967Z   severity: 'ERROR',
+2026-04-13T08:38:48.832583127Z   code: '42P01',
+2026-04-13T08:38:48.832586307Z   detail: undefined,
+2026-04-13T08:38:48.832589247Z   hint: undefined,
+2026-04-13T08:38:48.832592597Z   position: '264',
+2026-04-13T08:38:48.832595997Z   internalPosition: undefined,
+2026-04-13T08:38:48.832598417Z   internalQuery: undefined,
+2026-04-13T08:38:48.832601148Z   where: undefined,
+2026-04-13T08:38:48.832607008Z   schema: undefined,
+2026-04-13T08:38:48.832609978Z   table: undefined,
+2026-04-13T08:38:48.832612748Z   column: undefined,
+2026-04-13T08:38:48.832615778Z   dataType: undefined,
+2026-04-13T08:38:48.832618448Z   constraint: undefined,
+2026-04-13T08:38:48.832620838Z   file: 'parse_relation.c',
+2026-04-13T08:38:48.832623318Z   line: '1466',
+2026-04-13T08:38:48.832626028Z   routine: 'parserOpenTable'
+2026-04-13T08:38:48.832628428Z }
+2026-04-13T08:38:49.034473061Z [Bedrock] ❌ Model "claude-sonnet-4-6" (us.anthropic.claude-sonnet-4-6) is NOT accessible: The provided model identifier is invalid.
+2026-04-13T08:38:49.034493841Z [Bedrock] ⚠️ No Bedrock models are accessible! Check AWS credentials and model access.
+2026-04-13T08:38:50.538129793Z ==> Your service is live 🎉
+2026-04-13T08:38:50.867614831Z ==> 
+2026-04-13T08:38:50.870011869Z ==> ///////////////////////////////////////////////////////////
+2026-04-13T08:38:50.872300904Z ==> 
+2026-04-13T08:38:50.874513418Z ==> Available at your primary URL https://loop9.onrender.com
+2026-04-13T08:38:50.876491438Z ==> 
+2026-04-13T08:38:50.878538758Z ==> ///////////////////////////////////////////////////////////

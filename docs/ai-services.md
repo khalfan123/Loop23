@@ -918,3 +918,110 @@ Different internal services resolve API keys through different paths. This secti
 ---
 
 *Document generated for AgentLabs platform. Last updated: April 2026.*
+
+---
+
+## Appendix: Render Orchestration (loop9.onrender.com/app)
+
+# AI Services Orchestration Runbook (Render)
+
+Target app URL: `https://loop9.onrender.com/app`
+
+This document explains how to orchestrate AI/telephony services using environment credentials on Render, and how to avoid "fresh install" behavior (missing tables, empty integrations).
+
+## 1) What "import to Render" does (and does NOT do)
+
+When you import from GitHub to Render:
+- Code is deployed.
+- Environment variables are **not** automatically migrated from previous hosting.
+- Database schema/data are **not** automatically migrated.
+
+If env and DB are not restored, the app starts but features behave like a fresh install.
+
+## 2) Minimum required environment variables (must be set)
+
+Set these in Render service environment:
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+
+Without these, startup health and core auth/database behavior will fail.
+
+## 3) Core integration credentials (recommended for `/app` to work fully)
+
+### Telephony
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+
+### OpenAI path
+- `OPENAI_API_KEY`
+
+### ElevenLabs path (if used)
+- `ELEVENLABS_API_KEY`
+
+### Bedrock/Polly path (if used)
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- Optional model override:
+  - `BEDROCK_CLAUDE_MODEL_ID`
+
+Use a model ID that is actually enabled in your AWS account/region.
+
+## 4) Database orchestration (critical)
+
+Your logs with Postgres error `42P01` (`relation does not exist`) mean schema was never applied in Render DB.
+
+Run schema migration after setting `DATABASE_URL`:
+
+```bash
+npm run db:push
+```
+
+Recommended Render deployment flow:
+1. Set env vars in Render.
+2. Ensure service points to intended Postgres database.
+3. Run `npm run db:push`.
+4. Restart/redeploy service.
+
+If you need old data, import it separately (dump/restore); migration only creates/updates schema.
+
+## 5) Bedrock model accessibility fix
+
+If logs show invalid model identifier (for example `claude-sonnet-4-6`):
+- Keep AWS credentials and region correct.
+- Set `BEDROCK_CLAUDE_MODEL_ID` to a model enabled in your account.
+- Redeploy.
+
+## 6) Service health checks after deploy
+
+After redeploy, verify:
+- `/api/health` returns OK
+- no `relation "... does not exist"` errors in logs
+- telephony credentials recognized
+- AI providers initialize without model/auth errors
+
+## 7) Optional but recommended envs
+
+- `APP_DOMAIN` (for callbacks/webhooks)
+- `APP_URL` (email links, absolute URLs)
+- `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLIC_KEY`, `STRIPE_WEBHOOK_SECRET` (payments)
+- SMTP vars if email is needed:
+  - `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, optional `SMTP_FROM`
+
+## 8) Fast recovery checklist for current Render issue
+
+1. Set/verify `DATABASE_URL` points to your intended database.
+2. Run `npm run db:push` on that database.
+3. Ensure `OPENAI_API_KEY`, Twilio vars, and any AWS vars are set.
+4. If Bedrock used, set a valid `BEDROCK_CLAUDE_MODEL_ID`.
+5. Redeploy and re-check logs.
+
+## 9) If you want me to finalize exact values
+
+Provide these (you can redact sensitive parts):
+- Which providers you want active now (OpenAI only vs OpenAI+Bedrock+ElevenLabs)
+- Render Postgres connection target (new DB vs migrated DB)
+- Preferred Bedrock model ID (if Bedrock remains enabled)
+
+I can then give you a precise final env matrix for your Render service.

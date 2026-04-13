@@ -85,6 +85,8 @@ export default function InstallWizard() {
       queryClient.invalidateQueries({ queryKey: ["/api/installer/status"] });
     },
     onError: (error: any) => {
+      // Return to form so the user can see the error and retry.
+      setStep("form");
       setErrors({ submit: error.message || t("install.validation.installFailed") });
     },
   });

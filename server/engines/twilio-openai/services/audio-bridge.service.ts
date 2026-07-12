@@ -28,6 +28,7 @@ import type {
 } from '../types';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/twilio-openai-config';
+import { resolveHumanAgentBridgeCallerId } from '../../../utils/phone-e164';
 import { openaiPoolManager } from '../../../infrastructure';
 import { db } from '../../../db';
 import { twilioOpenaiCalls, agents, calls, incomingConnections } from '@shared/schema';
@@ -39,6 +40,7 @@ import { RealtimeSentimentService } from '../../../services/realtime-sentiment.s
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { ConversationMemoryService } from '../../../services/conversation-memory';
+import { callErrorLogger } from '../../../services/call-error-logger';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
@@ -62,14 +64,90 @@ const UNRESOLVED_LOOP_ESCALATION_HINT =
   'Runtime policy: We have had repeated unresolved turns. Prioritize resolution now: offer transfer to a specialist or present one concrete escalation next step in <=2 short sentences.';
 const UNRESOLVED_LOOP_ESCALATION_THRESHOLD = 3;
 
+// Observability helpers (callSid-scoped; avoids FK dependencies).
+const firstAudioAtByResponse: Map<string, Map<string, number>> = new Map(); // callSid -> (responseId -> epoch ms)
+
+const EXPLICIT_HUMAN_REQUEST_PATTERNS: RegExp[] = [
+  // English
+  /\b(human|real person|someone real|representative|agent|operator)\b/i,
+  /\b(talk|speak) to (a )?(human|person|agent|representative)\b/i,
+  /\btransfer me\b/i,
+  // Arabic (broad)
+  /موظف/i,
+  /بشر/i,
+  /ممثل/i,
+  /خدمة العملاء/i,
+  /حوّلني/i,
+  /حولني/i,
+];
+
+function callerExplicitlyRequestedHuman(session: AudioBridgeSession): boolean {
+  const lastUser = [...session.transcriptParts].reverse().find((p) => p.role === 'user')?.text || '';
+  if (!lastUser) return false;
+  return EXPLICIT_HUMAN_REQUEST_PATTERNS.some((re) => re.test(lastUser));
+}
+
+function clamp16(x: number): number {
+  return Math.max(-32768, Math.min(32767, x | 0));
+}
+
+// µ-law encoding for 16-bit PCM -> 8-bit G.711 μ-law.
+function linear16ToMulaw(sample: number): number {
+  const BIAS = 0x84;
+  const CLIP = 32635;
+  let s = clamp16(sample);
+  const sign = (s < 0) ? 0x80 : 0x00;
+  if (s < 0) s = -s;
+  if (s > CLIP) s = CLIP;
+  s = s + BIAS;
+
+  let exponent = 7;
+  for (let expMask = 0x4000; (s & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {
+    // loop
+  }
+  const mantissa = (s >> (exponent + 3)) & 0x0f;
+  return (~(sign | (exponent << 4) | mantissa)) & 0xff;
+}
+
+function buildRingbackMulawFrame(frameIndex: number): Buffer {
+  // 20ms @ 8kHz = 160 samples.
+  const sampleRate = 8000;
+  const samples = 160;
+  const t0 = (frameIndex * samples) / sampleRate;
+
+  // Ringback: 2s on / 2s off, dual-tone (440Hz + 480Hz).
+  const cadenceSec = 4;
+  const onSec = 2;
+  const phaseInCadence = t0 % cadenceSec;
+  const isOn = phaseInCadence < onSec;
+
+  const out = Buffer.allocUnsafe(samples);
+  if (!isOn) {
+    out.fill(0xff); // μ-law silence
+    return out;
+  }
+
+  const f1 = 440;
+  const f2 = 480;
+  const amp = 7000; // conservative amplitude
+  for (let i = 0; i < samples; i++) {
+    const t = t0 + (i / sampleRate);
+    const v = (Math.sin(2 * Math.PI * f1 * t) + Math.sin(2 * Math.PI * f2 * t)) * 0.5;
+    out[i] = linear16ToMulaw(v * amp);
+  }
+  return out;
+}
+
 export class TwilioOpenAIAudioBridge {
   private static activeSessions: Map<string, AudioBridgeSession> = new Map();
   private static readonly OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime';
   private static credentialByCallSid: Map<string, string> = new Map();
   private static readonly BARGE_IN_CANCEL_COOLDOWN_MS = 350;
+  private static readonly ARABIC_CHAR_RE = /[\u0600-\u06FF]/;
+  private static readonly CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF]/;
 
   static async createSession(params: CreateSessionParams): Promise<AudioBridgeSession> {
-    const { callSid, openaiApiKey, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
+    const { callSid, openaiApiKey, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection, humanWizardCli } = params;
     
     console.log(`[TwilioOpenAI Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
     console.log(`[TwilioOpenAI Bridge] Voice: ${agentConfig.voice}, Model: ${agentConfig.model}`);
@@ -99,6 +177,7 @@ export class TwilioOpenAIAudioBridge {
       fromNumber,
       toNumber,
       callDirection,
+      humanWizardCli,
       pendingAudioQueue: [],
       softTimeoutId: null,
       hardTimeoutId: null,
@@ -117,6 +196,10 @@ export class TwilioOpenAIAudioBridge {
       kbLowConfidenceGateActive: false,
       unresolvedIntentStreak: 0,
       escalationCheckpointArmed: false,
+      ivrRouted: false,
+      ringbackIntervalId: null,
+      ringbackStartedAtMs: null,
+      ringbackFrameIndex: 0,
     };
 
     try {
@@ -125,6 +208,7 @@ export class TwilioOpenAIAudioBridge {
           behaviorConfig: agents.behaviorConfig,
           waitingMessages: agents.waitingMessages,
           userId: twilioOpenaiCalls.userId,
+          metadata: twilioOpenaiCalls.metadata,
         })
         .from(twilioOpenaiCalls)
         .innerJoin(agents, eq(agents.id, twilioOpenaiCalls.agentId))
@@ -135,6 +219,8 @@ export class TwilioOpenAIAudioBridge {
         session.behaviorConfig = agentRecord.behaviorConfig as any || null;
         session.waitingMessages = agentRecord.waitingMessages || null;
         session.userId = agentRecord.userId || undefined;
+        const meta = (agentRecord.metadata as Record<string, unknown> | null) || null;
+        session.ivrRouted = meta?.ivrRouted === true;
         console.log(`[TwilioOpenAI Bridge] Loaded behavior config for ${callSid}: softTimeout=${session.behaviorConfig?.softTimeoutSec ?? 4}s, hardTimeout=${session.behaviorConfig?.hardTimeoutSec ?? 15}s`);
       }
     } catch (err: any) {
@@ -229,10 +315,10 @@ export class TwilioOpenAIAudioBridge {
       
       console.log(`[TwilioOpenAI Bridge] Connecting to OpenAI: ${agentConfig.model}`);
       
+      // GA Realtime API (beta header retired 2026-05-12; sending it closes with beta_api_shape_disabled)
       const ws = new WebSocket(wsUrl, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
-          'OpenAI-Beta': 'realtime=v1',
         },
       });
 
@@ -342,6 +428,15 @@ export class TwilioOpenAIAudioBridge {
       behaviorPromptAdditions += `\n- If the caller is silent for a while, gently prompt them: "Are you still there?" or "Take your time, I'm here when you're ready."`;
     }
 
+    const hasSubmitForm = tools.some((t) => t.name === 'submit_form' || t.name.startsWith('submit_form'));
+    const hasSubmitDynamicForm = tools.some((t) => t.name === 'submit_dynamic_form');
+
+    const formSubmissionToolInstruction = hasSubmitForm
+      ? 'After collecting all form information from the user, you MUST call the submit_form function with the collected data.'
+      : hasSubmitDynamicForm
+        ? 'After collecting all form information from the user, you MUST call the submit_dynamic_form function with the collected data (use formId when available; otherwise omit it to create an ad-hoc form).'
+        : 'If you need to save structured information, first check which tools are available. If no form submission tool is available, do not claim you saved anything — instead ask for a callback/transfer to a specialist.';
+
     // Append mandatory function calling requirements to system prompt
     const functionCallingRequirements = `
 
@@ -355,7 +450,7 @@ CONVERSATION STYLE:
 - CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say something brief like "Hello, are you there?" Do NOT respond as if the user said something negative (e.g., "I understand you don't have...") unless you clearly heard them say that.
 
 IMPORTANT FUNCTION CALLING REQUIREMENTS:
-1. After collecting all form information from the user, you MUST call the submit_form function with the collected data. Do NOT just say "I have recorded your information" - you MUST actually call the submit_form function to save the data.
+1. ${formSubmissionToolInstruction} Do NOT just say "I have recorded your information" — you MUST actually call the correct function to save the data.
 2. After completing the main task (like form submission), say a friendly closing message and ask if there's anything else. Wait for the user to respond.
 3. Only call the end_call function AFTER the user confirms they are done or says goodbye. Do not hang up immediately after completing a task - give the user a chance to respond.
 4. When the user says goodbye or confirms they are done, THEN call the end_call function to disconnect.
@@ -372,25 +467,16 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     const sessionConfig = {
       type: 'session.update',
-      session: {
-        modalities: ['text', 'audio'],
+      session: this.buildGaRealtimeSession({
         instructions: enhancedInstructions,
         voice: agentConfig.voice,
-        input_audio_format: 'g711_ulaw',
-        output_audio_format: 'g711_ulaw',
-        input_audio_transcription: {
-          model: 'whisper-1',
-        },
-        turn_detection: turnDetection,
+        language: agentConfig.language,
+        turnDetection,
         tools,
-        tool_choice: tools.length > 0 ? 'auto' : 'none',
-        temperature: agentConfig.knowledgeBaseIds && agentConfig.knowledgeBaseIds.length > 0
-          ? Math.max(agentConfig.temperature ?? 0.6, 0.6)
-          : Math.max(agentConfig.temperature ?? 0.7, 0.6),
-      },
+      }),
     };
 
-    console.log(`[TwilioOpenAI Bridge] Configuring session with ${tools.length} tools`);
+    console.log(`[TwilioOpenAI Bridge] Configuring session with ${tools.length} tools (GA Realtime)`);
     if (tools.length > 0) {
       console.log(`[TwilioOpenAI Bridge] Tools configured:`, tools.map(t => t.name).join(', '));
     }
@@ -478,23 +564,52 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     const instructions = this.buildEmotionAdaptiveInstruction(session, session.runtimeInstructionBase || agentConfig.systemPrompt);
     session.openaiWs.send(JSON.stringify({
       type: 'session.update',
-      session: {
-        modalities: ['text', 'audio'],
+      session: this.buildGaRealtimeSession({
         instructions,
         voice: agentConfig.voice,
-        input_audio_format: 'g711_ulaw',
-        output_audio_format: 'g711_ulaw',
-        input_audio_transcription: { model: 'whisper-1' },
-        turn_detection: turnDetection,
+        language: agentConfig.language,
+        turnDetection,
         tools,
-        tool_choice: tools.length > 0 ? 'auto' : 'none',
-        temperature: agentConfig.knowledgeBaseIds && agentConfig.knowledgeBaseIds.length > 0
-          ? Math.max(agentConfig.temperature ?? 0.6, 0.6)
-          : Math.max(agentConfig.temperature ?? 0.7, 0.6),
-      },
+      }),
     }));
     session.lastSyncedSentimentMode = tone;
   }
+
+  /**
+   * Build GA Realtime session.update payload (beta flat shape retired 2026-05-12).
+   * Twilio Media Streams use G.711 µ-law (audio/pcmu).
+   */
+  private static buildGaRealtimeSession(opts: {
+    instructions: string;
+    voice: string;
+    language?: string;
+    turnDetection: Record<string, unknown>;
+    tools: unknown[];
+  }): Record<string, unknown> {
+    const lang = opts.language ? String(opts.language).slice(0, 2).toLowerCase() : undefined;
+    return {
+      type: 'realtime',
+      instructions: opts.instructions,
+      output_modalities: ['audio'],
+      tools: opts.tools,
+      tool_choice: opts.tools.length > 0 ? 'auto' : 'none',
+      audio: {
+        input: {
+          format: { type: 'audio/pcmu' },
+          turn_detection: opts.turnDetection,
+          transcription: {
+            model: 'whisper-1',
+            ...(lang ? { language: lang } : {}),
+          },
+        },
+        output: {
+          format: { type: 'audio/pcmu' },
+          voice: opts.voice,
+        },
+      },
+    };
+  }
+
   private static shouldThrottleBargeInCancel(session: AudioBridgeSession): boolean {
     const now = Date.now();
     const last = session.lastBargeInCancelAt || 0;
@@ -720,7 +835,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     openaiWs.send(JSON.stringify({
       type: 'response.create',
       response: {
-        modalities: ['text', 'audio'],
+        output_modalities: ['audio'],
         instructions: `IMPORTANT: Say ONLY the following greeting message word-for-word, then STOP and WAIT for the user to respond. Do NOT add any follow-up questions or additional content. Do NOT assume the user has said anything until you actually hear them speak. Just say this exact message and wait: "${text}"`,
       },
     }));
@@ -741,7 +856,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           console.log(`[TwilioOpenAI Bridge] Session updated for ${callSid}`);
           break;
 
+        case 'response.output_audio.delta':
         case 'response.audio.delta':
+          // Stop ringback as soon as the agent starts speaking.
+          this.stopRingback(session);
           this.clearLLMTimeouts(session);
           {
             const deltaResponseId = message.response_id || message.response?.id || null;
@@ -769,6 +887,26 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           }
           if (message.delta) {
             const deltaResponseId = message.response_id || message.response?.id || null;
+            // Time-to-first-audio (TTFA): first audio chunk after user speech stopped.
+            if (deltaResponseId) {
+              let byResp = firstAudioAtByResponse.get(callSid);
+              if (!byResp) {
+                byResp = new Map();
+                firstAudioAtByResponse.set(callSid, byResp);
+              }
+              if (!byResp.has(deltaResponseId)) {
+                const now = Date.now();
+                byResp.set(deltaResponseId, now);
+                const ttfaMs = Math.max(0, now - (session.lastUserSpeechTime || now));
+                callErrorLogger.logCallError({
+                  engineType: 'twilio-openai',
+                  errorCategory: 'latency',
+                  severity: ttfaMs > 1000 ? 'warning' : 'info',
+                  message: `ttfa_ms=${ttfaMs}`,
+                  metadata: { callSid, responseId: deltaResponseId, ttfaMs, model: session.agentConfig.model },
+                }).catch(() => undefined);
+              }
+            }
             if (
               session.pendingClearTimerId
               && (!session.activeResponseId || !deltaResponseId || session.activeResponseId === deltaResponseId)
@@ -792,6 +930,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           }
           break;
 
+        case 'response.output_audio.done':
         case 'response.audio.done':
           console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
           if (session.suppressResponseOutputUntilDone) {
@@ -812,10 +951,12 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           }
           break;
 
+        case 'response.output_text.delta':
         case 'response.text.delta':
           this.clearLLMTimeouts(session);
           break;
 
+        case 'response.output_audio_transcript.delta':
         case 'response.audio_transcript.delta':
           this.clearLLMTimeouts(session);
           if (message.delta && session.onTranscriptCallback) {
@@ -823,6 +964,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           }
           break;
 
+        case 'response.output_audio_transcript.done':
         case 'response.audio_transcript.done':
           if (message.transcript) {
             const assistantText = message.transcript as string;
@@ -890,6 +1032,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         case 'input_audio_buffer.speech_started':
           session.lastUserSpeechTime = Date.now();
           console.log(`[TwilioOpenAI Bridge] User started speaking (barge-in detected)`);
+          this.stopRingback(session);
           if (session.isResponseActive) {
             this.handleBargeIn(session);
           } else {
@@ -997,6 +1140,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.processedToolCallIds.add(callId);
 
     console.log(`[TwilioOpenAI Bridge] Tool call: ${toolName} for ${callSid}`);
+    const toolStart = Date.now();
 
     try {
       let params: Record<string, unknown> = {};
@@ -1057,6 +1201,23 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       // Handle transfer_call and transfer_* as built-in tools for flow agents
       else if (toolName === 'transfer_call' || toolName.startsWith('transfer_')) {
         console.log(`[TwilioOpenAI Bridge] Built-in transfer tool invoked: ${toolName} for ${callSid}`);
+
+        // Safety gate: only allow transfer when caller explicitly asked for a human.
+        if (!callerExplicitlyRequestedHuman(session)) {
+          console.warn(`[TwilioOpenAI Bridge] Transfer blocked (no explicit human request) for ${callSid}`);
+          callErrorLogger.logCallError({
+            engineType: 'twilio-openai',
+            errorCategory: 'tool_call_delay',
+            severity: 'warning',
+            message: 'transfer_blocked_no_explicit_human_request',
+            metadata: { callSid, toolName },
+          }).catch(() => undefined);
+          result = {
+            error: 'Transfer not allowed',
+            message: 'Transfer is only allowed when the caller explicitly asks for a human representative. Continue assisting as the customer support agent.',
+            transferBlocked: true,
+          };
+        } else {
         
         // Get target number from params or tool metadata
         let targetNumber = (params.destination as string) || (params.phoneNumber as string) || '';
@@ -1111,6 +1272,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
             phoneNumber: targetNumber,
             reason: (params.reason as string) || (params.context as string) || 'Transfer requested',
           };
+        }
         }
       }
       // Handle play_audio tool
@@ -1178,8 +1340,49 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         } else if (session.onToolCallback) {
           result = await session.onToolCallback(toolName, params);
         } else {
+          // Unknown tool call from the model (usually prompt/tooling mismatch).
+          // Log it explicitly so it shows up in /app/analytics troubleshooting.
+          const availableTools = Array.from(session.toolHandlers.keys());
+          callErrorLogger.logCallError({
+            engineType: 'twilio-openai',
+            errorCategory: 'tooling',
+            severity: 'warning',
+            message: `unknown_tool=${toolName}`,
+            metadata: {
+              callSid,
+              toolName,
+              availableTools,
+              paramsPreview: typeof params === 'object' ? JSON.stringify(params).slice(0, 500) : String(params).slice(0, 500),
+            },
+          }).catch(() => undefined);
           result = { error: `Unknown tool: ${toolName}` };
         }
+      }
+
+      const toolMs = Date.now() - toolStart;
+      callErrorLogger.logCallError({
+        engineType: 'twilio-openai',
+        errorCategory: toolMs > 1500 ? 'tool_call_delay' : 'latency',
+        severity: toolMs > 1500 ? 'warning' : 'info',
+        message: `tool_ms=${toolMs} tool=${toolName}`,
+        metadata: { callSid, toolName, toolMs },
+      }).catch(() => undefined);
+
+      if (toolName === 'transfer_call' || toolName.startsWith('transfer_')) {
+        callErrorLogger.logCallError({
+          engineType: 'twilio-openai',
+          errorCategory: 'latency',
+          severity: (typeof result === 'object' && result !== null && (result as any).transferBlocked)
+            ? 'warning'
+            : 'info',
+          message: 'transfer_tool_result',
+          metadata: {
+            callSid,
+            toolName,
+            transferBlocked: Boolean((result as any)?.transferBlocked),
+            action: (result as any)?.action,
+          },
+        }).catch(() => undefined);
       }
 
       await this.evaluateRuntimeQualityGuards(session, toolName, result);
@@ -1351,7 +1554,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     openaiWs.send(JSON.stringify({
       type: 'response.create',
       response: {
-        modalities: ['text', 'audio'],
+        output_modalities: ['audio'],
         instructions: this.buildEmotionAdaptiveInstruction(
           session,
           'Continue naturally. Keep it conversational and phone-friendly in 1-3 short sentences.'
@@ -1458,6 +1661,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           session.streamSid = event.start.streamSid;
           session.twilioStreamReady = true;
           console.log(`[TwilioOpenAI Bridge] Stream started: ${event.start.streamSid}, callSid: ${event.start.callSid}`);
+          this.startRingbackIfNeeded(session);
           this.trySendFirstMessage(session);
           
           // Process any pending audio requests that were queued before stream was ready
@@ -1479,6 +1683,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
       case 'stop':
         console.log(`[TwilioOpenAI Bridge] Stream stopped for ${callSid}`);
+        this.stopRingback(session);
         break;
 
       case 'mark':
@@ -1618,6 +1823,173 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     ];
   }
 
+  private static buildWaitingInstruction(session: AudioBridgeSession, preferredLang: string, message: string): string {
+    const lang = (preferredLang || 'en').toLowerCase();
+    const langNote = lang.startsWith('en')
+      ? 'English'
+      : lang.startsWith('ar')
+        ? 'Arabic'
+        : `the caller's language ("${preferredLang}")`;
+
+    // Avoid stiff "say exactly" phrasing (sounds robotic). We still keep the content constrained
+    // to one short waiting line to prevent the model from switching topics mid-processing.
+    return this.buildEmotionAdaptiveInstruction(
+      session,
+      [
+        `Language guard: Respond ONLY in ${langNote}. Do not switch languages.`,
+        'Say ONE short, natural, human-sounding waiting line and then stop.',
+        `Use this line (or a very close paraphrase that keeps the same meaning): "${message}"`,
+      ].join(' ')
+    );
+  }
+
+  private static inferPreferredLanguageFromContext(session: AudioBridgeSession): string {
+    // Explicit agent/IVR language always wins (including English). Do not override
+    // "en" just because the system prompt still contains Arabic policy examples.
+    const configured = String(session.agentConfig.language || '').toLowerCase().split(/[-_]/)[0];
+    if (configured) {
+      return configured;
+    }
+
+    // Heuristic: if we've observed Arabic in the recent transcript, stick to Arabic for
+    // waiting/timeout messages to avoid jarring mid-call language flips.
+    const recent = session.transcriptParts.slice(-8);
+    for (const part of recent) {
+      if (part?.text && this.ARABIC_CHAR_RE.test(part.text)) {
+        return 'ar';
+      }
+    }
+
+    // Also check prompts that may be Arabic even before transcript exists.
+    const seedText = `${session.agentConfig.firstMessage || ''}\n${session.agentConfig.systemPrompt || ''}`;
+    if (seedText && this.ARABIC_CHAR_RE.test(seedText)) {
+      return 'ar';
+    }
+    if (seedText && this.CJK_CHAR_RE.test(seedText)) {
+      // Covers Chinese/Japanese/Korean scripts; exact locale can be refined later.
+      return 'zh';
+    }
+
+    return 'en';
+  }
+
+  private static getDefaultWaitingMessagesForLanguage(lang?: string | null): string[] {
+    const code = (lang || 'en').toLowerCase();
+    if (code.startsWith('ar')) {
+      return [
+        'دقيقة بس، خلّني أتأكد لك.',
+        'لحظة عن إذنك… قاعد أشيّك لك.',
+        'تمام… ثواني وبردّ عليك.',
+        'حاضر… بس أتأكد لك من المعلومة.',
+      ];
+    }
+    if (code.startsWith('es')) {
+      return [
+        'Dame un momento, lo reviso ahora.',
+        'Un segundo, ya lo estoy comprobando.',
+        'Ahora mismo lo miro, un momentito.',
+        'Déjame confirmarlo y te digo.',
+      ];
+    }
+    if (code.startsWith('fr')) {
+      return [
+        'Un instant, je vérifie ça.',
+        'Deux secondes, je regarde.',
+        'Je m’en occupe, un petit moment.',
+        'Je confirme l’info et je reviens vers vous.',
+      ];
+    }
+    if (code.startsWith('de')) {
+      return [
+        'Einen Moment bitte, ich prüfe das kurz.',
+        'Sekunde, ich schaue eben nach.',
+        'Ich kümmere mich darum, einen kleinen Moment.',
+        'Ich kläre das kurz ab und sage Ihnen Bescheid.',
+      ];
+    }
+    if (code.startsWith('it')) {
+      return [
+        'Un attimo, controllo subito.',
+        'Solo un secondo, verifico.',
+        'Ci sto lavorando, un momento.',
+        'Fammi controllare e ti dico.',
+      ];
+    }
+    if (code.startsWith('pt')) {
+      return [
+        'Só um momento, vou verificar.',
+        'Um instante, já estou conferindo.',
+        'Estou vendo isso agora, só um minutinho.',
+        'Deixa eu confirmar e já te digo.',
+      ];
+    }
+    if (code.startsWith('tr')) {
+      return [
+        'Bir saniye, hemen kontrol ediyorum.',
+        'Kısa bir bekletiyorum, bakıyorum.',
+        'Hemen bakıp size söyleyeceğim.',
+        'Bir dakika, netleştirip döneyim.',
+      ];
+    }
+    if (code.startsWith('ru')) {
+      return [
+        'Секундочку, сейчас уточню.',
+        'Одну минуту, проверяю.',
+        'Сейчас посмотрю, подождите чуть-чуть.',
+        'Дайте секунду, я сверюсь и скажу.',
+      ];
+    }
+    if (code.startsWith('hi')) {
+      return [
+        'एक मिनट, मैं अभी देख रहा/रही हूँ।',
+        'थोड़ी देर रुको, मैं चेक करता/करती हूँ।',
+        'बस एक पल, मैं पुष्टि कर लेता/लेती हूँ।',
+        'अभी देख कर बताता/बताती हूँ।',
+      ];
+    }
+    if (code.startsWith('ur')) {
+      return [
+        'ایک منٹ، میں ابھی چیک کر لیتا/لیتی ہوں۔',
+        'ذرا سا وقت دیں، میں دیکھتا/دیکھتی ہوں۔',
+        'بس تھوڑی دیر، میں تصدیق کر کے بتاتا/بتاتی ہوں۔',
+        'ایک لمحہ، میں ابھی معلوم کرتا/کرتی ہوں۔',
+      ];
+    }
+    if (code.startsWith('fa')) {
+      return [
+        'یک لحظه، الان بررسی می‌کنم.',
+        'چند ثانیه صبر کنید، دارم چک می‌کنم.',
+        'الان نگاه می‌کنم، یک لحظه.',
+        'اجازه بدید تأیید کنم و بهتون می‌گم.',
+      ];
+    }
+    if (code.startsWith('zh')) {
+      return [
+        '稍等一下，我马上帮你确认。',
+        '我这边看一下，等我一下。',
+        '我正在查，稍等片刻。',
+        '我确认一下信息，马上回来。',
+      ];
+    }
+    if (code.startsWith('ja')) {
+      return [
+        '少々お待ちください、確認します。',
+        'すぐ確認しますので、少しだけお待ちください。',
+        'ただいま調べています、少々お待ちください。',
+        '確認して戻ります、少々お待ちください。',
+      ];
+    }
+    if (code.startsWith('ko')) {
+      return [
+        '잠시만요, 바로 확인해볼게요.',
+        '조금만 기다려 주세요, 확인 중이에요.',
+        '지금 확인하고 있어요, 잠시만요.',
+        '확인하고 바로 안내드릴게요.',
+      ];
+    }
+    return this.getDefaultWaitingMessages();
+  }
+
   private static startLLMTimeouts(session: AudioBridgeSession): void {
     this.clearLLMTimeouts(session);
 
@@ -1629,9 +2001,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       if (session.status !== 'connected') return;
       if (!session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) return;
 
+      const preferredLang = this.inferPreferredLanguageFromContext(session);
       const messages = (session.waitingMessages && session.waitingMessages.length > 0)
         ? session.waitingMessages
-        : this.getDefaultWaitingMessages();
+        : this.getDefaultWaitingMessagesForLanguage(preferredLang);
       const waitingMessage = messages[Math.floor(Math.random() * messages.length)];
 
       console.log(`[TwilioOpenAI Bridge] Soft timeout (${softTimeoutSec}s) reached for ${session.callSid}, sending waiting message: "${waitingMessage}"`);
@@ -1639,11 +2012,8 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       session.openaiWs.send(JSON.stringify({
         type: 'response.create',
         response: {
-          modalities: ['text', 'audio'],
-          instructions: this.buildEmotionAdaptiveInstruction(
-            session,
-            `Say exactly this to the caller while they wait: "${waitingMessage}"`
-          ),
+          output_modalities: ['audio'],
+          instructions: this.buildWaitingInstruction(session, preferredLang, waitingMessage),
         },
       }));
     }, softTimeoutSec * 1000);
@@ -1652,7 +2022,11 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       session.hardTimeoutId = null;
       if (session.status !== 'connected') return;
 
-      const errorMessage = "I apologize, but I'm having trouble processing your request. Could you please repeat that?";
+      const preferredLang = this.inferPreferredLanguageFromContext(session);
+      const errorMessage =
+        preferredLang.toLowerCase().startsWith('ar')
+          ? 'سمح لي… صار عندي تأخير بسيط. ممكن تعيد سؤالك مرة ثانية؟'
+          : "I apologize — I'm having trouble processing that. Could you please repeat your question?";
       console.error(`[TwilioOpenAI Bridge] Hard timeout (${hardTimeoutSec}s) reached for ${session.callSid} — cancelling response`);
 
       if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
@@ -1661,7 +2035,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         session.openaiWs.send(JSON.stringify({
           type: 'response.create',
           response: {
-            modalities: ['text', 'audio'],
+            output_modalities: ['audio'],
             instructions: `Say exactly this to the caller: "${errorMessage}"`,
           },
         }));
@@ -1684,6 +2058,52 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       clearTimeout(session.pendingClearTimerId);
       session.pendingClearTimerId = null;
     }
+  }
+
+  private static startRingbackIfNeeded(session: AudioBridgeSession): void {
+    if (!session.ivrRouted) return;
+    if (session.ringbackIntervalId) return;
+    if (!session.twilioWs || session.twilioWs.readyState !== WebSocket.OPEN || !session.streamSid) return;
+
+    session.ringbackStartedAtMs = Date.now();
+    session.ringbackFrameIndex = 0;
+    console.log(`[TwilioOpenAI Bridge] Starting ringback for ${session.callSid}`);
+
+    session.ringbackIntervalId = setInterval(() => {
+      try {
+        if (!session.twilioWs || session.twilioWs.readyState !== WebSocket.OPEN || !session.streamSid) {
+          this.stopRingback(session);
+          return;
+        }
+        // Stop as soon as the AI is actively responding.
+        if (session.isResponseActive) {
+          this.stopRingback(session);
+          return;
+        }
+
+        const frame = buildRingbackMulawFrame(session.ringbackFrameIndex || 0);
+        session.ringbackFrameIndex = (session.ringbackFrameIndex || 0) + 1;
+
+        session.twilioWs.send(JSON.stringify({
+          event: 'media',
+          streamSid: session.streamSid,
+          media: { payload: frame.toString('base64') },
+        }));
+      } catch {
+        this.stopRingback(session);
+      }
+    }, 20);
+  }
+
+  private static stopRingback(session: AudioBridgeSession): void {
+    if (!session.ringbackIntervalId) return;
+    clearInterval(session.ringbackIntervalId);
+    session.ringbackIntervalId = null;
+    session.ringbackFrameIndex = 0;
+    const startedAt = session.ringbackStartedAtMs;
+    session.ringbackStartedAtMs = null;
+    const durMs = startedAt ? (Date.now() - startedAt) : 0;
+    console.log(`[TwilioOpenAI Bridge] Stopped ringback for ${session.callSid} after ${durMs}ms`);
   }
 
   static async endSession(callSid: string): Promise<{
@@ -1930,7 +2350,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.openaiWs.send(JSON.stringify({
       type: 'response.create',
       response: {
-        modalities: ['text', 'audio'],
+        output_modalities: ['audio'],
         instructions: `IMPORTANT: Say ONLY the following greeting message word-for-word, then STOP and WAIT for the user to respond. Do NOT add any follow-up questions or additional content. Do NOT assume the user has said anything until you actually hear them speak. Just say this exact message and wait: "${greetingText}"`,
       },
     }));
@@ -1942,47 +2362,71 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
    * Uses the Twilio phone number (fromNumber) as the callerId since Twilio requires verified/owned caller IDs
    */
   private static async executeTransfer(session: AudioBridgeSession, targetNumber: string): Promise<{ success: boolean; error?: string }> {
-    const { callSid, fromNumber, toNumber, callDirection } = session;
-    
+    const { callSid, fromNumber, toNumber, callDirection, humanWizardCli } = session;
+
     try {
       // Wait for AI to finish speaking the transfer announcement
       // This prevents the call from being transferred mid-sentence
       console.log(`[TwilioOpenAI Bridge] Waiting 2.5s for AI to complete transfer announcement...`);
       await new Promise(resolve => setTimeout(resolve, 2500));
-      
+
       const client = await getTwilioClient();
-      
-      // Call direction is REQUIRED for transfers to determine correct Twilio caller ID
+
+      // Call direction is REQUIRED to determine the Twilio-owned inbound DID
+      // (UAE→UAE PSTN bridges must NOT present the inbound UAE number as caller ID).
       if (!callDirection) {
         console.error(`[TwilioOpenAI Bridge] Transfer failed - callDirection is missing for ${callSid}. fromNumber: ${fromNumber}, toNumber: ${toNumber}`);
         throw new Error('Cannot transfer call - callDirection is missing. This indicates a session setup issue.');
       }
-      
-      // Determine the Twilio-owned number based on call direction:
-      // - Outbound calls: fromNumber is the Twilio number (what we dial FROM)
-      // - Inbound calls: toNumber is the Twilio number (what customer dialed TO)
-      // Twilio requires caller ID to be a verified/owned number
-      let callerId: string | undefined;
-      
-      if (callDirection === 'inbound') {
-        // Inbound: toNumber is the Twilio number the customer called
-        callerId = toNumber;
-        console.log(`[TwilioOpenAI Bridge] Inbound call - using toNumber as caller ID: ${callerId}`);
-      } else {
-        // Outbound: fromNumber is the Twilio number we called from
-        callerId = fromNumber;
-        console.log(`[TwilioOpenAI Bridge] Outbound call - using fromNumber as caller ID: ${callerId}`);
+
+      // Twilio-owned inbound DID:
+      // - Inbound: toNumber (what customer dialed TO).
+      // - Outbound: fromNumber (what we dialed FROM).
+      const inboundDid = callDirection === 'inbound' ? toNumber : fromNumber;
+
+      // Resolve <Dial callerId>: wizard non-UAE pick → TWILIO_TRANSFER_CALLER_ID env →
+      // inbound DID (omitted when UAE toll-free or otherwise UAE-only).
+      const callerId = resolveHumanAgentBridgeCallerId({
+        wizardOutboundPhoneE164: humanWizardCli,
+        inboundDid,
+      });
+
+      let source: 'wizard' | 'env' | 'inbound' | 'omitted';
+      if (callerId && humanWizardCli && callerId === humanWizardCli) source = 'wizard';
+      else if (callerId && callerId === process.env.TWILIO_TRANSFER_CALLER_ID?.trim().replace(/[\s\-().]/g, '')) source = 'env';
+      else if (callerId) source = 'inbound';
+      else source = 'omitted';
+
+      console.log(
+        `[Transfer] engine=twilio-openai callSid=${callSid} target=${targetNumber} callerId=${callerId ?? '(omitted)'} source=${source} direction=${callDirection} inboundDid=${inboundDid ?? '(none)'}`
+      );
+
+      // Persist the resolved CLI + source so Call Detail can show
+      // "Transfer CLI: +44… (env)" / "(omitted — UAE-only DID)".
+      try {
+        await db
+          .update(twilioOpenaiCalls)
+          .set({
+            wasTransferred: true,
+            transferredTo: targetNumber,
+            transferredAt: new Date(),
+            transferCallerId: callerId ?? null,
+            transferCallerIdSource: source,
+          })
+          .where(eq(twilioOpenaiCalls.twilioCallSid, callSid));
+      } catch (persistErr: any) {
+        console.error(`[TwilioOpenAI Bridge] Failed to persist transfer audit for ${callSid}:`, persistErr.message);
       }
-      
-      if (!callerId) {
-        console.error(`[TwilioOpenAI Bridge] Transfer failed - caller ID is missing. Direction: ${callDirection}, fromNumber: ${fromNumber}, toNumber: ${toNumber}`);
-        throw new Error(`Cannot transfer call - Twilio caller ID is missing for ${callDirection} call`);
-      }
-      
-      console.log(`[TwilioOpenAI Bridge] Transfer using Twilio caller ID: ${callerId}`);
+
+      // Surface on Live Monitoring before we tear down the OpenAI WS.
+      liveCallRegistry.updateCallByTwilioSid(callSid, {
+        wasTransferred: true,
+        transferredTo: targetNumber,
+        transferCallerId: callerId ?? null,
+        transferCallerIdSource: source,
+      });
+
       const twiml = generateTransferTwiML(targetNumber, callerId);
-      
-      console.log(`[TwilioOpenAI Bridge] Updating call ${callSid} with transfer TwiML to ${targetNumber} (callerId: ${callerId})`);
       
       await client.calls(callSid).update({
         twiml: twiml,
@@ -2078,13 +2522,19 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       // Construct full audio URL if it's a relative path
       let fullAudioUrl = audioUrl;
       if (audioUrl.startsWith('/')) {
-        // Priority: DEV_DOMAIN (dev) > APP_DOMAIN (production) > localhost
-        // In development, use the dev server URL so uploaded audio files are accessible
+        // Priority: APP_DOMAIN > REPLIT_DOMAINS (prod) > DEV_DOMAIN/REPLIT_DEV_DOMAIN (dev only) > localhost
+        const isProduction = process.env.NODE_ENV === 'production';
         let baseUrl: string;
-        if (process.env.DEV_DOMAIN) {
+        if (process.env.APP_DOMAIN) {
+          baseUrl = `https://${process.env.APP_DOMAIN.replace(/^https?:\/\//, '')}`;
+        } else if (isProduction && process.env.REPLIT_DOMAINS) {
+          baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0].trim()}`;
+        } else if (!isProduction && process.env.DEV_DOMAIN) {
           baseUrl = `https://${process.env.DEV_DOMAIN}`;
-        } else if (process.env.APP_DOMAIN) {
-          baseUrl = `https://${process.env.APP_DOMAIN}`;
+        } else if (!isProduction && process.env.REPLIT_DEV_DOMAIN) {
+          baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+        } else if (process.env.REPLIT_DOMAINS) {
+          baseUrl = `https://${process.env.REPLIT_DOMAINS.split(',')[0].trim()}`;
         } else {
           baseUrl = process.env.BASE_URL || process.env.APP_URL || 'http://localhost:5000';
         }
@@ -2216,6 +2666,8 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     if (session.endCallbackFired || !session.onEndCallback) {
       return;
     }
+
+    this.stopRingback(session);
     
     session.endCallbackFired = true;
     session.endedAt = session.endedAt || new Date();

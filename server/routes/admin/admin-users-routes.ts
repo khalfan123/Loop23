@@ -7,6 +7,42 @@ import bcrypt from "bcrypt";
 
 const router = Router();
 
+// Compatibility alias: some CP builds call tenants instead of users
+router.get("/tenants", async (req: Request, res: Response) => {
+  try {
+    const { role, search, limit: lim, offset: off } = req.query;
+    const conditions: any[] = [];
+    if (role) conditions.push(eq(users.role, role as string));
+    const limit = Math.min(parseInt(lim as string) || 50, 200);
+    const offset = parseInt(off as string) || 0;
+    let query = db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        isActive: users.isActive,
+        credits: users.credits,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    const results = await query;
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    res.json({ data: results, total: Number(countResult?.count || 0), limit, offset });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to fetch tenants" });
+  }
+});
+
 router.get("/users", async (req: Request, res: Response) => {
   try {
     const { role, search, limit: lim, offset: off } = req.query;

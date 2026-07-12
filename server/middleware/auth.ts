@@ -162,23 +162,23 @@ export function checkActiveMembership(storage: any) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      // Method 1: Check if user has an active subscription in userSubscriptions table
+      // Admins always pass
+      if (user.role === 'admin' || user.role === 'superadmin') {
+        return next();
+      }
+
+      // Use the canonical membership check so this middleware can never
+      // disagree with the rest of the app about who is "Pro".
+      const { hasActiveMembership } = await import('../services/membership-service');
+      const isActive = await hasActiveMembership(req.userId!);
+      if (isActive) {
+        return next();
+      }
+
       const subscription = await storage.getUserSubscription(req.userId!);
-      if (subscription && subscription.status === 'active' && new Date(subscription.currentPeriodEnd) > new Date()) {
-        console.log(`User ${req.userId} has active subscription via userSubscriptions table`);
-        return next();
-      }
-
-      // Method 2: Check user's planType and planExpiresAt fields (fallback)
-      if (user.planType !== 'free' && user.planExpiresAt && new Date(user.planExpiresAt) > new Date()) {
-        console.log(`User ${req.userId} has active membership via users table`);
-        return next();
-      }
-
-      // No active membership found
       console.log(`User ${req.userId} does not have active Pro membership. planType=${user.planType}, planExpiresAt=${user.planExpiresAt}, subscription=${subscription?.status}`);
-      return res.status(403).json({ 
-        error: 'Active Pro membership required. Please subscribe to a plan to access this feature.' 
+      return res.status(403).json({
+        error: 'Active Pro membership required. Please subscribe to a plan to access this feature.'
       });
     } catch (error: any) {
       console.error('Membership check error:', error);

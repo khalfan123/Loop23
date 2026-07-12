@@ -137,10 +137,44 @@ class Logger {
     formatted += ` ${message}`;
 
     if (data !== undefined) {
-      formatted += `\n${JSON.stringify(data, null, 2)}`;
+      formatted += `\n${this.serializeData(data)}`;
     }
 
     return formatted;
+  }
+
+  private serializeData(data: any): string {
+    if (data instanceof Error) {
+      return JSON.stringify(
+        {
+          name: data.name,
+          message: data.message,
+          stack: data.stack,
+          ...(data as any),
+        },
+        null,
+        2,
+      );
+    }
+    try {
+      return JSON.stringify(
+        data,
+        (_key, value) => {
+          if (value instanceof Error) {
+            return {
+              name: value.name,
+              message: value.message,
+              stack: value.stack,
+              ...(value as any),
+            };
+          }
+          return value;
+        },
+        2,
+      );
+    } catch {
+      return String(data);
+    }
   }
 
   /**

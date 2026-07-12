@@ -86,6 +86,12 @@ interface Call {
   endReason?: string | null;
   concernedQuestionsCount?: number;
   channelType?: string;
+  wasTransferred?: boolean | null;
+  transferredTo?: string | null;
+  transferCallerId?: string | null;
+  transferCallerIdSource?: 'wizard' | 'env' | 'inbound' | 'omitted' | 'relay' | null;
+  transferRelayPhoneNumber?: string | null;
+  transferAgentStatus?: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled' | null;
 }
 
 type DatePreset = 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'custom' | 'all';
@@ -140,6 +146,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
   const [toNumberFilter, setToNumberFilter] = useState("");
   const [agentFilter, setAgentFilter] = useState("all");
   const [durationRange, setDurationRange] = useState<[number, number]>([0, 3600]);
+  const [transferFilter, setTransferFilter] = useState<"all" | "transferred" | "relay" | "direct">("all");
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     try {
@@ -266,8 +273,9 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     if (toNumberFilter) count++;
     if (agentFilter !== 'all') count++;
     if (durationRange[0] > 0 || durationRange[1] < 3600) count++;
+    if (transferFilter !== 'all') count++;
     return count;
-  }, [statusFilter, sentimentFilter, directionFilter, leadFilter, callIdFilter, fromNumberFilter, toNumberFilter, agentFilter, durationRange]);
+  }, [statusFilter, sentimentFilter, directionFilter, leadFilter, callIdFilter, fromNumberFilter, toNumberFilter, agentFilter, durationRange, transferFilter]);
 
   const clearAllFilters = () => {
     setStatusFilter('all');
@@ -279,6 +287,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     setToNumberFilter('');
     setAgentFilter('all');
     setDurationRange([0, 3600]);
+    setTransferFilter('all');
     setSearchQuery('');
   };
 
@@ -420,6 +429,85 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     return <Badge className="rounded-xl bg-sky-500/[0.08] dark:bg-sky-500/[0.15] text-sky-700 dark:text-sky-400 border-sky-500/20">ElevenLabs</Badge>;
   };
 
+  const getTransferBadge = (call: Call) => {
+    if (!call.wasTransferred && !call.transferredTo && !call.transferCallerIdSource && !call.transferRelayPhoneNumber && !call.transferAgentStatus) {
+      return null;
+    }
+    const isRelay = call.transferCallerIdSource === 'relay' || !!call.transferRelayPhoneNumber;
+    // Outcome derivation: prefer the explicit `transferAgentStatus` persisted
+    // from the hop2 status callback / single-leg <Dial> action callback. Falls
+    // back to the legacy `wasTransferred` heuristic for older rows that
+    // predate the new column.
+    const isTerminal = !!call.endedAt || ['completed', 'failed', 'no-answer', 'busy', 'canceled', 'ended'].includes((call.status || '').toLowerCase());
+    let outcome: 'answered' | 'missed' | null = null;
+    if (call.transferAgentStatus === 'answered') {
+      outcome = 'answered';
+    } else if (call.transferAgentStatus && call.transferAgentStatus !== 'answered') {
+      outcome = 'missed';
+    } else if (call.wasTransferred) {
+      outcome = 'answered';
+    } else if (isTerminal && (call.transferCallerIdSource || call.transferredTo || call.transferRelayPhoneNumber)) {
+      outcome = 'missed';
+    }
+
+    const tooltipParts: string[] = [];
+    if (isRelay && call.transferRelayPhoneNumber) {
+      tooltipParts.push(`Relay caller ID: ${call.transferRelayPhoneNumber}`);
+    } else if (call.transferCallerId) {
+      tooltipParts.push(`Transfer caller ID: ${call.transferCallerId}${call.transferCallerIdSource ? ` (${call.transferCallerIdSource})` : ''}`);
+    } else if (call.transferCallerIdSource === 'omitted') {
+      tooltipParts.push('Caller ID omitted (UAE-safe)');
+    }
+    if (call.transferredTo) {
+      tooltipParts.push(`Agent: ${call.transferredTo}`);
+    }
+    if (outcome === 'answered') {
+      tooltipParts.push('Agent answered the bridged leg');
+    } else if (outcome === 'missed') {
+      const reason = call.transferAgentStatus && call.transferAgentStatus !== 'answered'
+        ? call.transferAgentStatus
+        : 'no-answer / busy / failed';
+      tooltipParts.push(`Agent leg did not answer (${reason})`);
+    }
+    const tooltip = tooltipParts.join(' · ') || (isRelay ? 'Two-hop relay transfer' : 'Transferred to human agent');
+
+    const label = `${isRelay ? 'Relay' : 'Transfer'}${outcome ? ` · ${outcome === 'answered' ? 'Answered' : 'Missed'}` : ''}`;
+    const baseTestId = isRelay ? `badge-relay-${call.id}` : `badge-transfer-${call.id}`;
+
+    if (outcome === 'missed') {
+      return (
+        <Badge
+          className="rounded-xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-700 dark:text-rose-400 border-rose-500/30 gap-1"
+          title={tooltip}
+          data-testid={baseTestId}
+        >
+          {label}
+        </Badge>
+      );
+    }
+    if (isRelay) {
+      return (
+        <Badge
+          className="rounded-xl bg-amber-500/[0.08] dark:bg-amber-500/[0.15] text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1"
+          title={tooltip}
+          data-testid={baseTestId}
+        >
+          {label}
+        </Badge>
+      );
+    }
+    return (
+      <Badge
+        variant="outline"
+        className="rounded-xl text-xs"
+        title={tooltip}
+        data-testid={baseTestId}
+      >
+        {label}
+      </Badge>
+    );
+  };
+
   const getWidgetBadge = (call: Call) => {
     if (!call.widgetId) return null;
     return (
@@ -545,7 +633,22 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
       
       const callDuration = call.duration || 0;
       const matchesDuration = callDuration >= durationRange[0] && callDuration <= durationRange[1];
-      
+
+      const isRelayCall = call.transferCallerIdSource === 'relay' || !!call.transferRelayPhoneNumber;
+      const isTransferredCall = !!call.wasTransferred
+        || !!call.transferredTo
+        || !!call.transferCallerIdSource
+        || !!call.transferRelayPhoneNumber
+        || !!call.transferAgentStatus;
+      let matchesTransfer = true;
+      if (transferFilter === 'transferred') {
+        matchesTransfer = isTransferredCall;
+      } else if (transferFilter === 'relay') {
+        matchesTransfer = isRelayCall;
+      } else if (transferFilter === 'direct') {
+        matchesTransfer = !isTransferredCall;
+      }
+
       let matchesDateRange = true;
       if (dateRange?.from) {
         const callDate = new Date(call.createdAt);
@@ -555,9 +658,9 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
       }
       
       return matchesSearch && matchesStatus && matchesSentiment && matchesDirection && matchesLead && 
-             matchesCallId && matchesFromNumber && matchesToNumber && matchesAgent && matchesDuration && matchesDateRange;
+             matchesCallId && matchesFromNumber && matchesToNumber && matchesAgent && matchesDuration && matchesTransfer && matchesDateRange;
     });
-  }, [calls, searchQuery, statusFilter, sentimentFilter, directionFilter, leadFilter, callIdFilter, fromNumberFilter, toNumberFilter, agentFilter, durationRange, dateRange]);
+  }, [calls, searchQuery, statusFilter, sentimentFilter, directionFilter, leadFilter, callIdFilter, fromNumberFilter, toNumberFilter, agentFilter, durationRange, transferFilter, dateRange]);
 
   const sortedCalls = useMemo(() => {
     const sorted = [...filteredCalls];
@@ -667,6 +770,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                   {columnVisibility.status && getStatusBadge(call.status)}
                   {columnVisibility.sentiment && getSentimentBadge(call.sentiment)}
                   {getClassificationBadge(call.classification)}
+                  {getTransferBadge(call)}
                 </div>
                 
                 <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
@@ -979,7 +1083,12 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                   </TableCell>
                 )}
                 {columnVisibility.status && (
-                  <TableCell>{getStatusBadge(call.status)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {getStatusBadge(call.status)}
+                      {getTransferBadge(call)}
+                    </div>
+                  </TableCell>
                 )}
                 {columnVisibility.sentiment && (
                   <TableCell>{getSentimentBadge(call.sentiment)}</TableCell>
@@ -1455,6 +1564,20 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                       <SelectItem value="lost">{t('calls.classification.lost')}</SelectItem>
                       <SelectItem value="completed_successful">Successful</SelectItem>
                       <SelectItem value="completed_failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Transfer</Label>
+                  <Select value={transferFilter} onValueChange={(v) => setTransferFilter(v as "all" | "transferred" | "relay" | "direct")}>
+                    <SelectTrigger data-testid="select-filter-transfer">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any</SelectItem>
+                      <SelectItem value="transferred">Transferred</SelectItem>
+                      <SelectItem value="relay">Relay only</SelectItem>
+                      <SelectItem value="direct">Direct (no transfer)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

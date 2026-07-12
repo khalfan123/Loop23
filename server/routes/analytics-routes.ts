@@ -18,8 +18,8 @@
 
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { calls, agents, incomingConnections, callResponses } from "@shared/schema";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { calls, agents, incomingConnections, callResponses, campaigns, creditTransactions } from "@shared/schema";
+import { eq, and, sql, inArray, or, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
@@ -37,6 +37,343 @@ function formatDurationPDF(seconds: number): string {
 export function createAnalyticsRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { db, storage, authenticateToken, authenticateHybrid, recordingService, elevenLabsService } = ctx;
+
+  const monthlyReportQuerySchema = z.object({
+    month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+  });
+
+  function monthBounds(month: string) {
+    const [y, m] = month.split("-").map((n) => parseInt(n, 10));
+    const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+    return { start, end };
+  }
+
+  /**
+   * GET /api/billing/calls/monthly?month=YYYY-MM
+   * Returns per-call cost + totals for the month (real data from calls table).
+   */
+  router.get("/api/billing/calls/monthly", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const parsed = monthlyReportQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+      }
+
+      const now = new Date();
+      const defaultMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+      const month = parsed.data.month ?? defaultMonth;
+      const { start, end } = monthBounds(month);
+
+      // Use the same call aggregation logic as /api/calls to ensure inbound calls
+      // (owned via campaigns/incoming connections) appear in billing reports too.
+      const allCalls = await storage.getUserCallsWithDetails(req.userId!);
+      const filtered = (allCalls || [])
+        .filter((c: any) => {
+          const ts = c.startedAt || c.createdAt;
+          if (!ts) return false;
+          const t = new Date(ts).getTime();
+          return t >= start.getTime() && t <= end.getTime();
+        });
+
+      const callIds = filtered.map((c: any) => c.id).filter(Boolean);
+      const usageTx = callIds.length
+        ? await db
+            .select({ reference: creditTransactions.reference, amount: creditTransactions.amount })
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, req.userId!),
+                eq(creditTransactions.type, "usage"),
+                sql`${creditTransactions.reference} IS NOT NULL`,
+                inArray(sql`split_part(${creditTransactions.reference}, ':', 2)`, callIds as any)
+              )
+            )
+        : [];
+
+      const creditsByCallId = new Map<string, number>();
+      for (const tx of usageTx) {
+        const ref = tx.reference || "";
+        const parts = ref.split(":");
+        const callId = parts.length >= 2 ? parts.slice(1).join(":") : null;
+        if (!callId) continue;
+        if (tx.amount >= 0) continue;
+        creditsByCallId.set(callId, (creditsByCallId.get(callId) ?? 0) + Math.abs(tx.amount));
+      }
+
+      const rows = filtered.map((c: any) => ({
+          id: c.id,
+          startedAt: c.startedAt ?? null,
+          endedAt: c.endedAt ?? null,
+          createdAt: c.createdAt ?? null,
+          callDirection: c.callDirection ?? null,
+          fromNumber: c.fromNumber ?? null,
+          toNumber: c.toNumber ?? null,
+          duration: c.duration ?? null,
+          cost: creditsByCallId.get(c.id) ?? 0,
+          status: c.status ?? "unknown",
+        }));
+
+      const totalCost = rows.reduce((sum, r) => sum + (r.cost ? Number(r.cost) : 0), 0);
+      const totalDurationSeconds = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
+
+      res.json({
+        month,
+        totals: {
+          calls: rows.length,
+          totalDurationSeconds,
+          totalCost,
+        },
+        calls: rows,
+      });
+    } catch (error: any) {
+      console.error("Monthly calls billing report error:", error);
+      res.status(500).json({ error: "Failed to generate monthly calls report" });
+    }
+  });
+
+  /**
+   * GET /api/billing/providers/monthly?month=YYYY-MM
+   * Breaks down usage credits by provider/engine for the month:
+   * - providerKey is derived from credit_transactions.reference "{engine}:{callId}"
+   * - totals include calls, duration, credits, plus credits per call/minute
+   */
+  router.get("/api/billing/providers/monthly", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const parsed = monthlyReportQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+      }
+
+      const now = new Date();
+      const defaultMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+      const month = parsed.data.month ?? defaultMonth;
+      const { start, end } = monthBounds(month);
+
+      const allCalls = await storage.getUserCallsWithDetails(req.userId!);
+      const filtered = (allCalls || []).filter((c: any) => {
+        const ts = c.startedAt || c.createdAt;
+        if (!ts) return false;
+        const t = new Date(ts).getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      });
+
+      const callIds = filtered.map((c: any) => c.id).filter(Boolean);
+      const usageTx = callIds.length
+        ? await db
+            .select({ reference: creditTransactions.reference, amount: creditTransactions.amount })
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, req.userId!),
+                eq(creditTransactions.type, "usage"),
+                sql`${creditTransactions.reference} IS NOT NULL`,
+                inArray(sql`split_part(${creditTransactions.reference}, ':', 2)`, callIds as any)
+              )
+            )
+        : [];
+
+      const durationByCallId = new Map<string, number>();
+      for (const c of filtered) {
+        durationByCallId.set(c.id, Number(c.duration ?? 0) || 0);
+      }
+
+      const creditsByCallId = new Map<string, number>();
+      const providerByCallId = new Map<string, string>();
+
+      for (const tx of usageTx) {
+        const ref = tx.reference || "";
+        const parts = ref.split(":");
+        const providerKey = parts.length >= 2 ? parts[0] : "unknown";
+        const callId = parts.length >= 2 ? parts.slice(1).join(":") : null;
+        if (!callId) continue;
+        if (tx.amount >= 0) continue; // usage debits are negative
+
+        providerByCallId.set(callId, providerKey);
+        creditsByCallId.set(callId, (creditsByCallId.get(callId) ?? 0) + Math.abs(tx.amount));
+      }
+
+      type ProviderAgg = {
+        providerKey: string;
+        calls: number;
+        totalDurationSeconds: number;
+        totalCredits: number;
+        creditsPerCall: number;
+        creditsPerMinute: number;
+      };
+
+      const providerAgg = new Map<string, Omit<ProviderAgg, "creditsPerCall" | "creditsPerMinute">>();
+      for (const c of filtered) {
+        const callId = c.id;
+        const providerKey = providerByCallId.get(callId) ?? (c.engine as string) ?? "unknown";
+        const credits = creditsByCallId.get(callId) ?? 0;
+        const durationSeconds = durationByCallId.get(callId) ?? 0;
+
+        const prev = providerAgg.get(providerKey) ?? {
+          providerKey,
+          calls: 0,
+          totalDurationSeconds: 0,
+          totalCredits: 0,
+        };
+
+        providerAgg.set(providerKey, {
+          providerKey,
+          calls: prev.calls + 1,
+          totalDurationSeconds: prev.totalDurationSeconds + durationSeconds,
+          totalCredits: prev.totalCredits + credits,
+        });
+      }
+
+      const providers: ProviderAgg[] = Array.from(providerAgg.values())
+        .map((p) => {
+          const mins = p.totalDurationSeconds / 60;
+          return {
+            ...p,
+            creditsPerCall: p.calls > 0 ? p.totalCredits / p.calls : 0,
+            creditsPerMinute: mins > 0 ? p.totalCredits / mins : 0,
+          };
+        })
+        .sort((a, b) => b.totalCredits - a.totalCredits);
+
+      const totals = {
+        calls: filtered.length,
+        totalDurationSeconds: filtered.reduce((sum: number, c: any) => sum + (Number(c.duration ?? 0) || 0), 0),
+        totalCredits: providers.reduce((sum, p) => sum + p.totalCredits, 0),
+      };
+
+      res.json({ month, totals, providers });
+    } catch (error: any) {
+      console.error("Monthly provider billing breakdown error:", error);
+      res.status(500).json({ error: "Failed to generate monthly provider breakdown" });
+    }
+  });
+
+  /**
+   * GET /api/billing/calls/monthly/:month/pdf
+   * PDF export of monthly call costs with simple letterhead header.
+   */
+  router.get("/api/billing/calls/monthly/:month/pdf", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const month = req.params.month;
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ error: "Invalid month format. Expected YYYY-MM." });
+      }
+
+      const { start, end } = monthBounds(month);
+
+      const allCalls = await storage.getUserCallsWithDetails(req.userId!);
+      const filtered = (allCalls || [])
+        .filter((c: any) => {
+          const ts = c.startedAt || c.createdAt;
+          if (!ts) return false;
+          const t = new Date(ts).getTime();
+          return t >= start.getTime() && t <= end.getTime();
+        });
+
+      const callIds = filtered.map((c: any) => c.id).filter(Boolean);
+      const usageTx = callIds.length
+        ? await db
+            .select({ reference: creditTransactions.reference, amount: creditTransactions.amount })
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, req.userId!),
+                eq(creditTransactions.type, "usage"),
+                sql`${creditTransactions.reference} IS NOT NULL`,
+                inArray(sql`split_part(${creditTransactions.reference}, ':', 2)`, callIds as any)
+              )
+            )
+        : [];
+
+      const creditsByCallId = new Map<string, number>();
+      for (const tx of usageTx) {
+        const ref = tx.reference || "";
+        const parts = ref.split(":");
+        const callId = parts.length >= 2 ? parts.slice(1).join(":") : null;
+        if (!callId) continue;
+        if (tx.amount >= 0) continue;
+        creditsByCallId.set(callId, (creditsByCallId.get(callId) ?? 0) + Math.abs(tx.amount));
+      }
+
+      const rows = filtered.map((c: any) => ({
+          id: c.id,
+          createdAt: c.startedAt ?? c.createdAt ?? null,
+          callDirection: c.callDirection ?? null,
+          fromNumber: c.fromNumber ?? null,
+          toNumber: c.toNumber ?? null,
+          duration: c.duration ?? null,
+          cost: creditsByCallId.get(c.id) ?? 0,
+          status: c.status ?? "unknown",
+        }));
+
+      const totalCost = rows.reduce((sum, r) => sum + (r.cost ? Number(r.cost) : 0), 0);
+      const totalDurationSeconds = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
+
+      const appNameSetting = await storage.getGlobalSetting("app_name");
+      const companyNameSetting = await storage.getGlobalSetting("company_name");
+      const appName = appNameSetting?.value || "Byan AI";
+      const companyName = companyNameSetting?.value || appName;
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="ByanAI-Calls-${month}.pdf"`);
+
+      const doc = new PDFDocument({ size: "A4", margin: 40 });
+      doc.pipe(res);
+
+      // Letterhead (simple + reliable: text-based)
+      doc.fontSize(18).font("Helvetica-Bold").text(companyName, { align: "left" });
+      doc.moveDown(0.2);
+      doc.fontSize(10).font("Helvetica").fillColor("#555").text(appName, { align: "left" });
+      doc.fillColor("#000");
+      doc.moveDown(0.8);
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text(`Call cost report — ${month}`, { align: "left" });
+      doc.moveDown(0.3);
+      doc.fontSize(10).font("Helvetica").fillColor("#333").text(
+        `Total calls: ${rows.length}   •   Total duration: ${formatDurationPDF(totalDurationSeconds)}   •   Total credits: ${totalCost.toFixed(0)}`,
+        { align: "left" }
+      );
+      doc.fillColor("#000");
+      doc.moveDown(0.8);
+
+      // Table header
+      const colX = { date: 40, dir: 150, from: 220, to: 340, dur: 460, cost: 520 };
+      doc.fontSize(9).font("Helvetica-Bold");
+      doc.text("Date", colX.date, doc.y);
+      doc.text("Dir", colX.dir, doc.y);
+      doc.text("From", colX.from, doc.y);
+      doc.text("To", colX.to, doc.y);
+      doc.text("Dur", colX.dur, doc.y);
+      doc.text("Credits", colX.cost, doc.y, { align: "right", width: 40 });
+      doc.moveDown(0.4);
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor("#ddd").stroke();
+      doc.moveDown(0.4);
+
+      doc.font("Helvetica").fontSize(9).fillColor("#111");
+      for (const r of rows) {
+        const y = doc.y;
+        if (y > 760) {
+          doc.addPage();
+        }
+        const d = r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : "";
+        doc.text(d, colX.date, doc.y);
+        doc.text(r.callDirection || "-", colX.dir, doc.y);
+        doc.text(r.fromNumber || "-", colX.from, doc.y, { width: 110, ellipsis: true });
+        doc.text(r.toNumber || "-", colX.to, doc.y, { width: 110, ellipsis: true });
+        doc.text(formatDurationPDF(r.duration ?? 0), colX.dur, doc.y);
+        const costStr = r.cost ? Number(r.cost).toFixed(0) : "-";
+        doc.text(costStr, colX.cost, doc.y, { align: "right", width: 40 });
+        doc.moveDown(0.35);
+      }
+
+      doc.end();
+    } catch (error: any) {
+      console.error("Monthly calls PDF export error:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
 
   // Concern rules mapping for screening questions
   const CONCERN_RULES: Record<string, (answer: string) => boolean> = {

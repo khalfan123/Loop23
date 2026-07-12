@@ -378,6 +378,7 @@ export class CallSyncService {
     transcript: string | null;
     aiSummary: string | null;
     classification: string | null;
+    sentiment: string | null;
     metadata: Record<string, any>;
   }> {
     console.log(`🔄 [Sync] Syncing from webhook for conversation: ${params.conversationId}`);
@@ -428,6 +429,7 @@ export class CallSyncService {
     // Extract lead classification from call analysis
     // Use hot/warm/cold/lost based on call_successful, sentiment, and duration
     let classification: string | null = null;
+    let sentiment: string | null = null;
     if (analysisObj) {
       const callSuccessful = analysisObj.call_successful === 'success' || analysisObj.call_successful === true;
       const callFailed = analysisObj.call_successful === 'failure' || analysisObj.call_successful === false;
@@ -435,9 +437,15 @@ export class CallSyncService {
       // Extract sentiment from evaluation results if available
       const evaluationResults = analysisObj.evaluation_criteria_results || {};
       const sentimentResult = evaluationResults.sentiment || evaluationResults.customer_sentiment;
-      const sentiment = sentimentResult?.result?.toLowerCase() || 
-                       analysisObj.sentiment?.toLowerCase() || 
-                       null;
+      const rawSentiment = sentimentResult?.result?.toLowerCase() ||
+        analysisObj.sentiment?.toLowerCase() ||
+        null;
+
+      if (rawSentiment) {
+        if (rawSentiment.includes('positive')) sentiment = 'positive';
+        else if (rawSentiment.includes('negative')) sentiment = 'negative';
+        else sentiment = 'neutral';
+      }
       
       // Get call duration from webhook or params
       const callDuration = params.callDurationSecs || duration || 0;
@@ -447,10 +455,10 @@ export class CallSyncService {
         classification = 'lost';
       } else if (callSuccessful) {
         // Successful calls - classify based on engagement level
-        if (sentiment === 'positive' || sentiment === 'very positive' || callDuration >= 180) {
+        if (sentiment === 'positive' || callDuration >= 180) {
           // Positive sentiment OR engaged for 3+ minutes = hot lead
           classification = 'hot';
-        } else if (sentiment === 'negative' || sentiment === 'very negative') {
+        } else if (sentiment === 'negative') {
           // Negative sentiment = cold lead
           classification = 'cold';
         } else if (callDuration >= 60) {
@@ -470,6 +478,7 @@ export class CallSyncService {
     console.log(`     Transcript: ${transcript ? `${transcript.length} chars, ${params.transcript?.length || 0} turns` : 'N/A'}`);
     console.log(`     AI Summary: ${aiSummary ? `${aiSummary.length} chars` : 'N/A'}`);
     console.log(`     Classification: ${classification || 'N/A'}`);
+    console.log(`     Sentiment: ${sentiment || 'N/A'}`);
     
     // Try to get additional data from Twilio using call_sid (already extracted from nested locations)
     if (callSidFromWebhook) {
@@ -524,6 +533,7 @@ export class CallSyncService {
       transcript,
       aiSummary,
       classification,
+      sentiment,
       metadata
     };
   }

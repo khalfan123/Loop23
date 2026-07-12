@@ -27,6 +27,7 @@ import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from './webhook-delivery';
 import { buildDynamicFormTools, DYNAMIC_FORM_PROMPT } from './dynamic-form-tools';
+import { applyPhoneHumanPolicy, applyUaeLanguagePolicy } from './phone-human-policy';
 
 /**
  * Context passed to tool handlers during calls
@@ -103,7 +104,8 @@ export class OpenAIAgentFactory {
 
     console.log(`[Agent Factory] Creating config: voice=${voice}, model=${model}, tier=${tier}, language=${language}`);
 
-    let systemPrompt = params.systemPrompt;
+    let systemPrompt = applyPhoneHumanPolicy(params.systemPrompt, 'balanced');
+    systemPrompt = applyUaeLanguagePolicy(systemPrompt, language);
 
     const now = new Date();
     const hour = now.getHours();
@@ -115,8 +117,8 @@ export class OpenAIAgentFactory {
 GREETING RULES: Your opening greeting must ONLY include the time-based greeting in ${languageName}, the company name (if known), your name (if known), and ask how you can help — ALL in ${languageName}. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.`;
     systemPrompt = `${timeContext}\n\n${systemPrompt}`;
 
-    if (language && language !== 'en' && !params.systemPrompt.includes('LANGUAGE:')) {
-      systemPrompt = `CRITICAL LANGUAGE RULE: You MUST speak ONLY in ${languageName} for the ENTIRE conversation — this includes your greeting, all responses, follow-up questions, and your farewell/goodbye message when ending the call. NEVER switch to English or any other language. Every single word you say must be in ${languageName}.\n\n${systemPrompt}`;
+    if (language && !params.systemPrompt.includes('LANGUAGE LOCK') && !params.systemPrompt.includes('LANGUAGE:')) {
+      systemPrompt = `LANGUAGE: Respond ONLY in ${languageName} unless the caller explicitly asks to switch languages. Match the caller's spoken language if they clearly switch.\n\n${systemPrompt}`;
     }
 
     return {
@@ -168,7 +170,7 @@ GREETING RULES: Your opening greeting must ONLY include the time-based greeting 
           const query = params.query as string;
           console.log(`[KB Tool] Searching: "${query.substring(0, 50)}..."`);
           
-          const { results, extractedAnswer } = await RAGKnowledgeService.enhancedSearch(
+          const { results, extractedAnswer, meta } = await RAGKnowledgeService.enhancedSearch(
             query,
             knowledgeBaseIds,
             userId,
@@ -185,6 +187,9 @@ GREETING RULES: Your opening greeting must ONLY include the time-based greeting 
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
+              confidence: 0,
+              topScore: 0,
+              sourcesCount: 0,
               message: 'No exact match found for that query. Try searching again with different keywords, broader terms, or category names. If still no results, offer the closest alternative you know about.' 
             };
           }
@@ -192,9 +197,19 @@ GREETING RULES: Your opening greeting must ONLY include the time-based greeting 
           const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 1200);
           console.log(`[KB Tool] Found ${results.length} results`);
           
+          const confidence = meta?.confidence ?? (results[0]?.score || 0);
+          const topScore = meta?.topScore ?? (results[0]?.score || 0);
+          const sourcesCount = meta?.sourcesCount ?? results.length;
+          const lowConfidence = confidence < 0.55 || topScore < 0.5;
+
           const response: Record<string, unknown> = { 
             found: true, 
-            information: formattedResponse 
+            information: formattedResponse,
+            confidence,
+            topScore,
+            sourcesCount,
+            lowConfidence,
+            nextAction: lowConfidence ? 'ask_one_clarifying_question_then_search_again' : 'answer'
           };
           if (extractedAnswer) {
             response.directAnswer = extractedAnswer;
@@ -204,6 +219,9 @@ GREETING RULES: Your opening greeting must ONLY include the time-based greeting 
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
+            confidence: 0,
+            topScore: 0,
+            sourcesCount: 0,
             message: 'Search temporarily unavailable. Acknowledge this naturally and offer to help with what you know from the conversation so far.' 
           };
         }
@@ -217,7 +235,7 @@ You have a knowledge base with product catalog, pricing, and business informatio
 ## RETRIEVAL PROTOCOL
 1. ALWAYS use the lookup_knowledge_base tool BEFORE answering ANY question about products, prices, plans, packages, features, availability, or business details. Search in ENGLISH even if the caller speaks another language.
 2. If a search returns nothing or low-relevance results, IMMEDIATELY rephrase and search AGAIN with different keywords — try category names, synonyms, broader terms, or the product type instead of the specific name.
-3. After retrieving results, mentally assess: "Do these results directly answer the caller's question?" If not, search again with a different angle before responding.
+3. After retrieving results, check the tool output fields: confidence/topScore/lowConfidence.\n   - If lowConfidence is true OR confidence < 0.55: ask EXACTLY ONE clarifying question, then call lookup_knowledge_base again with an improved query.\n   - Only answer after you have a strong match, or after the single clarifying question has been asked.
 
 ## REASONING APPROACH
 When answering questions, follow this internal process (do NOT share this with the caller):
@@ -657,7 +675,7 @@ When answering questions, follow this internal process (do NOT share this with t
 
     const transferTool: AgentTool & { _transferNumber: string } = {
       name: 'transfer_call',
-      description: 'Transfer the call to a human agent. IMPORTANT: Before calling this function, you MUST first say a brief transfer announcement like "Sure, let me transfer you to an agent now" or "One moment, I will connect you with a representative". After speaking this announcement, immediately call this function. You MUST call this function when: (1) the user explicitly asks to speak to a human, agent, or real person, (2) the user says "transfer", "connect me", or similar phrases, (3) you cannot help them with their request.',
+      description: 'Transfer the call to a human representative. IMPORTANT: ONLY use this tool when the caller explicitly asks for a human/representative/agent/real person (e.g. "human agent", "representative", "talk to a person", "موظف", "ممثل خدمة العملاء"). Do NOT use this tool as a default escalation or because something is slow. Before calling this function, say ONE brief line like "Okay — I’ll transfer you now." then immediately call this function.',
       parameters: {
         type: 'object',
         properties: {

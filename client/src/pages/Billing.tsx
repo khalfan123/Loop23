@@ -1,118 +1,37 @@
-/**
- * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
- * Original Author: BTPL Engineering Team
- * Website: https://diploy.in
- * Contact: cs@diploy.in
- *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
- * ============================================================
- */
-import { Card } from "@/components/ui/card";
+import { BillingKpiCard } from "@/components/billing/BillingKpiCard";
+import { InvoiceStatusBadge } from "@/components/billing/InvoiceStatusBadge";
+import { KeyValueRow } from "@/components/billing/KeyValueRow";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Download, Plus, Loader2, Check, Crown, Calendar, AlertCircle, Wallet, Coins, Receipt, TrendingUp, Sparkles, ArrowUpRight, Clock, Globe, FileText, ChevronLeft, ChevronRight } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow, format } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useState, useEffect } from "react";
-import { useSearch } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CreditPurchaseDialog } from "@/components/CreditPurchaseDialog";
-import { useTranslation } from 'react-i18next';
-import TransactionHistory from "@/pages/TransactionHistory";
+import { format } from "date-fns";
+import { AlertTriangle, Building2, CreditCard, Download, Receipt, Sparkles } from "lucide-react";
+import { Link } from "wouter";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { AuthStorage } from "@/lib/auth-storage";
 
-type GatewayType = 'stripe' | 'razorpay' | 'paypal' | 'paystack' | 'mercadopago';
-
-interface CurrencyOption {
-  code: string;
-  symbol: string;
+interface UserMe {
+  id: string;
   name: string;
-  gateways: GatewayType[];
-}
-
-interface PaymentGatewayConfig {
-  stripeEnabled: boolean;
-  razorpayEnabled: boolean;
-  paypalEnabled: boolean;
-  paystackEnabled: boolean;
-  mercadopagoEnabled: boolean;
-  stripePublicKey?: string;
-  stripeCurrency?: string;
-  stripeCurrencySymbol?: string;
-  stripeCurrencyLocked?: boolean;
-  razorpayKeyId?: string;
-  razorpayCurrency?: string;
-  razorpayCurrencySymbol?: string;
-  paypalClientId?: string;
-  paypalCurrency?: string;
-  paypalCurrencySymbol?: string;
-  paypalMode?: string;
-  paystackPublicKey?: string;
-  paystackCurrency?: string;
-  paystackCurrencySymbol?: string;
-  paystackCurrencies?: string[];
-  paystackDefaultCurrency?: string;
-  mercadopagoPublicKey?: string;
-  mercadopagoCurrency?: string;
-  mercadopagoCurrencySymbol?: string;
-  mercadopagoCurrencies?: string[];
-}
-
-interface User {
-  credits: number;
-  planId: string | null;
-  email?: string;
+  email: string;
+  planType?: string;
+  credits?: number;
 }
 
 interface Plan {
   id: string;
   name: string;
   displayName: string;
-  description: string;
   monthlyPrice: string;
   yearlyPrice: string | null;
-  razorpayMonthlyPrice: string | null;
-  razorpayYearlyPrice: string | null;
-  maxAgents: number;
-  maxCampaigns: number;
-  maxContactsPerCampaign: number;
-  includedCredits: number;
 }
 
 interface UserSubscription {
   id: string;
-  planId: string;
-  stripeSubscriptionId: string | null;
-  razorpaySubscriptionId: string | null;
-  paypalSubscriptionId: string | null;
-  paystackSubscriptionCode: string | null;
-  paystackEmailToken: string | null;
-  mercadopagoSubscriptionId: string | null;
   status: string;
   billingPeriod: string;
   currentPeriodStart: string;
@@ -121,750 +40,533 @@ interface UserSubscription {
   plan: Plan;
 }
 
-interface CreditPackage {
+interface Transaction {
   id: string;
-  name: string;
-  description: string | null;
-  credits: number;
-  price: string;
-  razorpayPrice: string | null;
-  paypalPrice: string | null;
-  paystackPrice: string | null;
-  mercadopagoPrice: string | null;
-  isActive: boolean;
-  stripePriceId: string | null;
+  type: string;
+  gateway: string;
+  amount: string;
+  currency: string;
+  description: string;
+  status: string;
+  planName: string | null;
+  packageName: string | null;
+  hasInvoice: boolean;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
-interface CreditTransaction {
+interface TransactionHistoryResponse {
+  transactions: Transaction[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+interface CreditTransactionRow {
   id: string;
   type: string;
   amount: number;
   description: string;
+  reference?: string | null;
   createdAt: string;
-  stripePaymentId: string | null;
+}
+
+interface MonthlyCallsReportCall {
+  id: string;
+  createdAt: string;
+  callDirection: string | null;
+  fromNumber: string | null;
+  toNumber: string | null;
+  duration: number | null;
+  cost: string | null; // credits (derived from credit transactions)
+  status: string;
+}
+
+interface MonthlyCallsReportResponse {
+  month: string;
+  totals: {
+    calls: number;
+    totalDurationSeconds: number;
+    totalCost: number;
+  };
+  calls: MonthlyCallsReportCall[];
+}
+
+interface CallRow {
+  id: string;
+  createdAt?: string | null;
+  startedAt?: string | null;
+  callDirection?: string | null;
+  fromNumber?: string | null;
+  toNumber?: string | null;
+  duration?: number | null;
+  cost?: string | number | null;
+  status?: string | null;
+}
+
+function formatMoney(amount: number, currency: string) {
+  const formatter = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return formatter.format(amount);
 }
 
 export default function Billing() {
-  const { t } = useTranslation();
-  const { toast } = useToast();
-  const searchString = useSearch();
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
-  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("plans");
-  const [transactionPage, setTransactionPage] = useState(0);
-  const transactionPageSize = 10;
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchString);
-    const tab = params.get("tab");
-    if (tab === "credits") {
-      setActiveTab("credits");
-    }
-  }, [searchString]);
-
-  const { data: transactions, isLoading: transactionsLoading } = useQuery<CreditTransaction[]>({
-    queryKey: ["/api/credit-transactions"],
-  });
-
-  const totalTransactionPages = transactions ? Math.ceil(transactions.length / transactionPageSize) : 0;
-  
-  useEffect(() => {
-    if (transactions && transactionPage >= totalTransactionPages && totalTransactionPages > 0) {
-      setTransactionPage(totalTransactionPages - 1);
-    }
-  }, [transactions, transactionPage, totalTransactionPages]);
-
-  const currencySymbols: Record<string, string> = {
-    'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$', 'AUD': 'A$',
-    'JPY': '¥', 'INR': '₹', 'BRL': 'R$', 'MXN': '$', 'CHF': 'CHF',
-    'NGN': '₦', 'GHS': '₵', 'ZAR': 'R', 'KES': 'KSh',
-    'ARS': '$', 'CLP': '$', 'COP': '$', 'PEN': 'S/', 'UYU': '$'
-  };
-
-  const currencyNames: Record<string, string> = {
-    'USD': 'US Dollar', 'EUR': 'Euro', 'GBP': 'British Pound', 'CAD': 'Canadian Dollar',
-    'AUD': 'Australian Dollar', 'JPY': 'Japanese Yen', 'INR': 'Indian Rupee',
-    'BRL': 'Brazilian Real', 'MXN': 'Mexican Peso', 'CHF': 'Swiss Franc',
-    'NGN': 'Nigerian Naira', 'GHS': 'Ghanaian Cedi', 'ZAR': 'South African Rand',
-    'KES': 'Kenyan Shilling', 'ARS': 'Argentine Peso', 'CLP': 'Chilean Peso',
-    'COP': 'Colombian Peso', 'PEN': 'Peruvian Sol', 'UYU': 'Uruguayan Peso'
-  };
-
-  const { data: user, isLoading: userLoading } = useQuery<User>({
+  const { data: me, isLoading: meLoading, isError: meError } = useQuery<UserMe>({
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: paymentGateway, isLoading: gatewayLoading } = useQuery<PaymentGatewayConfig>({
-    queryKey: ["/api/settings/payment-gateway"],
-  });
-
-  const { data: plans, isLoading: plansLoading } = useQuery<Plan[]>({
-    queryKey: ["/api/plans"],
-  });
-
-  const { data: subscription, isLoading: subscriptionLoading } = useQuery<UserSubscription | null>({
+  const { data: subscription, isLoading: subscriptionLoading, isError: subscriptionError } = useQuery<UserSubscription | null>({
     queryKey: ["/api/user-subscription"],
   });
 
-  const { data: packages, isLoading: packagesLoading } = useQuery<CreditPackage[]>({
-    queryKey: ["/api/credit-packages"],
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+  const [downloadingCallsPdf, setDownloadingCallsPdf] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   });
 
-  const buildAvailableCurrencies = (): CurrencyOption[] => {
-    if (!paymentGateway) return [];
-    
-    const currencyMap = new Map<string, GatewayType[]>();
-    
-    if (paymentGateway.stripeEnabled && paymentGateway.stripeCurrency) {
-      const curr = paymentGateway.stripeCurrency.toUpperCase();
-      currencyMap.set(curr, [...(currencyMap.get(curr) || []), 'stripe']);
+  const limit = 50;
+  const txUrl = `/api/transactions/history?limit=${limit}&offset=0`;
+  const { data: txHistory, isLoading: txLoading, isError: txError } = useQuery<TransactionHistoryResponse>({
+    // Use the shared query client fetch logic (adds Authorization + handles refresh on 401).
+    queryKey: [txUrl],
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: creditTx = [], isLoading: creditTxLoading, isError: creditTxError } = useQuery<CreditTransactionRow[]>({
+    queryKey: ["/api/credit-transactions"],
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
+  // Important: do NOT provide a custom queryFn here.
+  // Using the shared query client fetch logic ensures Authorization + refresh handling matches the rest of the app (e.g. Calls page).
+  const { data: allCalls = [], isLoading: callsLoading, isError: callsError } = useQuery<CallRow[]>({
+    queryKey: ["/api/calls"],
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const creditsByCallId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of creditTx) {
+      // Call usage debits are written by credit-service as:
+      // reference = "{engine}:{callId}" and amount is negative.
+      if (!tx.reference) continue;
+      if (!tx.type || tx.type !== "usage") continue;
+      if (typeof tx.amount !== "number") continue;
+      if (tx.amount >= 0) continue;
+
+      const parts = tx.reference.split(":");
+      const callId = parts.length >= 2 ? parts.slice(1).join(":") : null;
+      if (!callId) continue;
+
+      // Keep as negative (debit) so UI shows -1, -2, etc.
+      map.set(callId, (map.get(callId) ?? 0) + tx.amount);
     }
-    
-    if (paymentGateway.razorpayEnabled) {
-      currencyMap.set('INR', [...(currencyMap.get('INR') || []), 'razorpay']);
-    }
-    
-    if (paymentGateway.paypalEnabled && paymentGateway.paypalCurrency) {
-      const curr = paymentGateway.paypalCurrency.toUpperCase();
-      currencyMap.set(curr, [...(currencyMap.get(curr) || []), 'paypal']);
-    }
-    
-    if (paymentGateway.paystackEnabled && paymentGateway.paystackCurrency) {
-      const curr = paymentGateway.paystackCurrency.toUpperCase();
-      currencyMap.set(curr, [...(currencyMap.get(curr) || []), 'paystack']);
-    }
-    
-    if (paymentGateway.mercadopagoEnabled && paymentGateway.mercadopagoCurrency) {
-      const curr = paymentGateway.mercadopagoCurrency.toUpperCase();
-      currencyMap.set(curr, [...(currencyMap.get(curr) || []), 'mercadopago']);
-    }
-    
-    return Array.from(currencyMap.entries()).map(([code, gateways]) => ({
-      code,
-      symbol: currencySymbols[code] || code,
-      name: currencyNames[code] || code,
-      gateways
+    return map;
+  }, [creditTx]);
+
+  const monthlyCalls = useMemo(() => {
+    const [y, m] = selectedMonth.split("-").map((n) => parseInt(n, 10));
+    // Use local time bounds to match how timestamps are displayed/filtered elsewhere in the app.
+    // (Some environments serialize timestamps without explicit timezone; local bounds are safer here.)
+    const start = new Date(y, m - 1, 1, 0, 0, 0, 0).getTime();
+    const end = new Date(y, m, 0, 23, 59, 59, 999).getTime();
+
+    const rows = allCalls
+      .map((c) => {
+        const ts = c.startedAt || c.createdAt;
+        const t = ts ? new Date(ts).getTime() : NaN;
+        return { ...c, __t: t };
+      })
+      .filter((c) => Number.isFinite(c.__t) && c.__t >= start && c.__t <= end)
+      .sort((a, b) => (b.__t as number) - (a.__t as number));
+
+    const totalCost = rows.reduce((sum, r) => sum + (creditsByCallId.get(r.id) ?? 0), 0);
+    const totalDurationSeconds = rows.reduce((sum, r) => sum + (r.duration ?? 0), 0);
+
+    const normalizedCalls: MonthlyCallsReportCall[] = rows.map((r) => ({
+      id: r.id,
+      createdAt: (r.startedAt || r.createdAt || new Date().toISOString()) as string,
+      callDirection: r.callDirection ?? null,
+      fromNumber: r.fromNumber ?? null,
+      toNumber: r.toNumber ?? null,
+      duration: r.duration ?? null,
+      cost: String(creditsByCallId.get(r.id) ?? 0),
+      status: r.status ?? "unknown",
     }));
-  };
 
-  const getGatewayForCurrency = (currencyCode: string): GatewayType | null => {
-    const currencies = buildAvailableCurrencies();
-    const currency = currencies.find(c => c.code === currencyCode);
-    if (!currency || currency.gateways.length === 0) return null;
-    if (currency.gateways.includes('stripe')) return 'stripe';
-    return currency.gateways[0];
-  };
+    return {
+      month: selectedMonth,
+      totals: {
+        calls: normalizedCalls.length,
+        totalDurationSeconds,
+        totalCost,
+      },
+      calls: normalizedCalls,
+    } satisfies MonthlyCallsReportResponse;
+  }, [allCalls, creditsByCallId, selectedMonth]);
 
-  const getPackagePrice = (pkg: CreditPackage, currencyCode: string): { price: string; symbol: string } => {
-    const gateway = getGatewayForCurrency(currencyCode);
-    const symbol = currencySymbols[currencyCode] || '$';
-    
-    switch (gateway) {
-      case 'razorpay':
-        return { price: pkg.razorpayPrice || pkg.price, symbol };
-      case 'paypal':
-        return { price: pkg.paypalPrice || pkg.price, symbol };
-      case 'paystack':
-        return { price: pkg.paystackPrice || pkg.price, symbol };
-      case 'mercadopago':
-        return { price: pkg.mercadopagoPrice || pkg.price, symbol };
-      default:
-        return { price: pkg.price, symbol: paymentGateway?.stripeCurrencySymbol || '$' };
-    }
-  };
+  const handleDownloadCallsPdf = async () => {
+    setDownloadingCallsPdf(true);
+    try {
+      const headers: Record<string, string> = {};
+      const authHeader = AuthStorage.getAuthHeader();
+      if (authHeader) headers["Authorization"] = authHeader;
 
-  useEffect(() => {
-    if (paymentGateway && !selectedCurrency) {
-      const currencies = buildAvailableCurrencies();
-      if (currencies.length > 0) {
-        if (paymentGateway.stripeEnabled && paymentGateway.stripeCurrency) {
-          setSelectedCurrency(paymentGateway.stripeCurrency.toUpperCase());
-        } else {
-          setSelectedCurrency(currencies[0].code);
-        }
-      }
-    }
-  }, [paymentGateway]);
-
-  useEffect(() => {
-    const handlePaymentRedirect = async () => {
-      const params = new URLSearchParams(window.location.search);
-      
-      const stripeSessionId = params.get('session_id');
-      const stripeSuccess = params.get('success');
-      const paypalSubscription = params.get('paypal_subscription');
-      const paypalSubscriptionId = params.get('subscription_id');
-      const paystackSubscription = params.get('paystack_subscription');
-      const paystackCredits = params.get('paystack_credits');
-      const mercadopago = params.get('mercadopago');
-      const mercadopagoSubscription = params.get('mercadopago_subscription');
-      const mercadopagoPreapprovalId = params.get('preapproval_id');
-      const reference = params.get('reference');
-      const packageId = params.get('package_id');
-      const planId = params.get('plan_id');
-      const billingPeriod = params.get('billing_period');
-      const paymentId = params.get('payment_id');
-      
-      const clearUrlParams = () => {
-        window.history.replaceState({}, '', window.location.pathname);
-      };
-      
-      try {
-        if (stripeSuccess === 'true' && stripeSessionId) {
-          const response = await apiRequest("POST", "/api/stripe/verify-session", { sessionId: stripeSessionId });
-          if (response.ok) {
-            toast({
-              title: t('billing.toast.paymentSuccess'),
-              description: t('billing.toast.paymentSuccessDesc'),
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user-subscription"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/credit-transactions"] });
-          }
-          clearUrlParams();
-        }
-        
-        else if (paystackSubscription === 'success' && reference) {
-          const response = await apiRequest("POST", "/api/paystack/verify-subscription", { reference });
-          if (response.ok) {
-            toast({
-              title: t('billing.toast.subscriptionSuccess'),
-              description: t('billing.toast.subscriptionSuccessDesc'),
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user-subscription"] });
-          }
-          clearUrlParams();
-        }
-        
-        else if (paystackCredits === 'success' && reference && packageId) {
-          const response = await apiRequest("POST", "/api/paystack/verify-credits", { reference, packageId });
-          if (response.ok) {
-            toast({
-              title: t('billing.toast.paymentSuccess'),
-              description: t('billing.toast.paymentSuccessDesc'),
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/credit-transactions"] });
-          }
-          clearUrlParams();
-        }
-        
-        else if (mercadopago === 'success' && paymentId) {
-          const response = await apiRequest("POST", "/api/mercadopago/verify-payment", { paymentId });
-          if (response.ok) {
-            toast({
-              title: t('billing.toast.paymentSuccess'),
-              description: t('billing.toast.paymentSuccessDesc'),
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/credit-transactions"] });
-          }
-          clearUrlParams();
-        }
-        
-        else if (mercadopagoSubscription === 'success' && mercadopagoPreapprovalId && planId) {
-          const response = await apiRequest("POST", "/api/mercadopago/confirm-subscription", {
-            subscriptionId: mercadopagoPreapprovalId,
-            planId,
-            billingPeriod: billingPeriod || 'monthly',
-          });
-          if (response.ok) {
-            toast({
-              title: t('billing.toast.subscriptionSuccess'),
-              description: t('billing.toast.subscriptionSuccessDesc'),
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user-subscription"] });
-          } else {
-            const error = await response.json();
-            throw new Error(error.error || 'Subscription confirmation failed');
-          }
-          clearUrlParams();
-        }
-        
-        else if (paypalSubscription === 'success' && paypalSubscriptionId && planId) {
-          const response = await apiRequest("POST", "/api/paypal/confirm-subscription", {
-            subscriptionId: paypalSubscriptionId,
-            planId,
-            billingPeriod: billingPeriod || 'monthly',
-          });
-          if (response.ok) {
-            toast({
-              title: t('billing.toast.subscriptionSuccess'),
-              description: t('billing.toast.subscriptionSuccessDesc'),
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user-subscription"] });
-          } else {
-            const error = await response.json();
-            throw new Error(error.error || 'Subscription confirmation failed');
-          }
-          clearUrlParams();
-        }
-        
-        else if (mercadopago === 'failed' || mercadopago === 'pending') {
-          toast({
-            title: mercadopago === 'pending' ? 'Payment Pending' : 'Payment Failed',
-            description: mercadopago === 'pending' ? 'Your payment is being processed.' : 'Your payment could not be completed.',
-            variant: mercadopago === 'failed' ? 'destructive' : 'default',
-          });
-          clearUrlParams();
-        }
-      } catch (error: any) {
-        console.error('Payment verification error:', error);
-        toast({
-          title: 'Verification Failed',
-          description: error.message || 'Could not verify your payment. Please contact support.',
-          variant: 'destructive',
-        });
-        clearUrlParams();
-      }
-    };
-    
-    handlePaymentRedirect();
-  }, []);
-
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      // Determine which gateway to use based on the subscription
-      let endpoint: string;
-      if (subscription?.razorpaySubscriptionId) {
-        endpoint = "/api/razorpay/cancel-subscription";
-      } else if (subscription?.paypalSubscriptionId) {
-        endpoint = "/api/paypal/cancel-subscription";
-      } else if (subscription?.paystackSubscriptionCode) {
-        endpoint = "/api/paystack/cancel-subscription";
-      } else if (subscription?.mercadopagoSubscriptionId) {
-        endpoint = "/api/mercadopago/cancel-subscription";
-      } else {
-        endpoint = "/api/stripe/cancel-subscription";
-      }
-      
-      const response = await apiRequest("POST", endpoint);
+      const response = await fetch(`/api/billing/calls/monthly/${selectedMonth}/pdf`, {
+        headers,
+        credentials: "include",
+      });
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to cancel subscription");
+        const text = await response.text().catch(() => "");
+        throw new Error(text || "Authentication required");
       }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: t('billing.subscriptionCancelled'),
-        description: t('billing.subscriptionCancelledMessage'),
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ByanAI-Calls-${selectedMonth}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } finally {
+      setDownloadingCallsPdf(false);
+    }
+  };
+
+  const computed = useMemo(() => {
+    const currency =
+      (subscription?.plan?.monthlyPrice && "USD") ||
+      (txHistory?.transactions?.[0]?.currency ? txHistory.transactions[0].currency : "USD");
+
+    const nextRenewal =
+      subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
+
+    const planLabel =
+      subscription?.plan?.displayName ||
+      (me?.planType ? me.planType.charAt(0).toUpperCase() + me.planType.slice(1) : "—");
+
+    const balance = typeof me?.credits === "number" ? me.credits : null;
+
+    // Best-effort "estimated next invoice" from plan price only (usage breakdown not currently available).
+    const planAmount =
+      subscription?.billingPeriod === "yearly"
+        ? subscription?.plan?.yearlyPrice
+        : subscription?.plan?.monthlyPrice;
+
+    const estimatedNextInvoice =
+      planAmount && !Number.isNaN(Number(planAmount)) ? Number(planAmount) : null;
+
+    const alerts: Array<{ kind: "warning" | "danger"; title: string; description: string }> = [];
+
+    // If subscription is past_due / unpaid etc, surface a notice
+    if (subscription?.status && ["past_due", "unpaid", "incomplete", "incomplete_expired"].includes(subscription.status)) {
+      alerts.push({
+        kind: "danger",
+        title: "Payment issue detected",
+        description: "Your subscription has a payment issue. Update your payment method to avoid service disruption.",
       });
-      setCancelDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/user-subscription"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: t('billing.cancelFailed'),
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+    }
 
-  const handlePurchaseCredits = (packageId: string) => {
-    setSelectedPackageId(packageId);
-    setPurchaseDialogOpen(true);
-  };
+    // Optional: card-expiring soon is not available from current APIs, so we do not guess.
 
-  const handlePurchaseSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/credit-transactions"] });
-  };
+    return {
+      currency,
+      nextRenewal,
+      planLabel,
+      balance,
+      estimatedNextInvoice,
+      planAmount,
+      alerts: alerts.slice(0, 2),
+    };
+  }, [me, subscription, txHistory]);
 
-  const handleExportTransactions = () => {
-    window.open("/api/credit-transactions/export", "_blank");
-  };
-
-  if (userLoading || plansLoading || subscriptionLoading || packagesLoading || transactionsLoading || gatewayLoading) {
+  // Only hard-fail if we have no cached data at all.
+  if (meError && !me) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Billing unavailable</AlertTitle>
+        <AlertDescription>We couldn’t load your billing data. Please refresh or contact support.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  const initialLoading =
+    (meLoading && !me) ||
+    (subscriptionLoading && typeof subscription === "undefined") ||
+    (txLoading && !txHistory) ||
+    (callsLoading && allCalls.length === 0) ||
+    (creditTxLoading && creditTx.length === 0);
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[320px]">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
-  const currentBalance = user?.credits || 0;
-  const hasActiveSubscription = subscription && subscription.status === "active";
+  const billingEntity = me?.name || "Workspace";
+  const cycleLabel = subscription?.currentPeriodStart && subscription?.currentPeriodEnd
+    ? `${format(new Date(subscription.currentPeriodStart), "MMM d")} – ${format(new Date(subscription.currentPeriodEnd), "MMM d, yyyy")}`
+    : "Current billing cycle";
+
+  const transactions = txHistory?.transactions || [];
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-5">
-        <div>
-          <h1 className="text-xl font-semibold">{t('billing.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('billing.subtitle')}</p>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
-            <div className="flex items-center gap-2">
-              <Crown className="h-4 w-4 text-muted-foreground" />
-              <div className="text-2xl font-semibold">{subscription?.plan.displayName || t('billing.free')}</div>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{t('billing.currentPlan')}</div>
-          </div>
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-              <div className="text-2xl font-semibold">{transactions?.length || 0}</div>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{t('billing.transactions')}</div>
-          </div>
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-muted-foreground" />
-              <div className="text-2xl font-semibold capitalize">{subscription?.status || t('common.active')}</div>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{t('common.status')}</div>
-          </div>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="plans" className="gap-2" data-testid="tab-plans">
-            <CreditCard className="h-4 w-4" />
-            {t('billing.plansPurchases') || 'Plans & Pack Purchases'}
-          </TabsTrigger>
-          <TabsTrigger value="credits" className="gap-2" data-testid="tab-credits">
-            <FileText className="h-4 w-4" />
-            {t('billing.creditsRecords') || 'Credits Records'}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="plans" className="space-y-8">
-          {subscription && hasActiveSubscription && !subscription.cancelAtPeriodEnd && subscription.plan.name !== "free" && (subscription.stripeSubscriptionId || subscription.razorpaySubscriptionId || subscription.paypalSubscriptionId || subscription.paystackSubscriptionCode || subscription.mercadopagoSubscriptionId) && (
-        <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <h3 className="text-lg font-semibold">{t('billing.subscriptionPeriod') || 'Subscription Period'}</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl bg-background p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">{t('billing.startDate') || 'Start Date'}</span>
-                </div>
-                <div className="text-xl font-bold" data-testid="text-subscription-start-date">
-                  {subscription.currentPeriodStart ? format(new Date(subscription.currentPeriodStart), 'MMM dd, yyyy') : '-'}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {subscription.currentPeriodStart ? formatDistanceToNow(new Date(subscription.currentPeriodStart), { addSuffix: true }) : ''}
-                </div>
-              </div>
-              <div className="rounded-xl bg-background p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">{t('billing.renewalDate') || 'Renewal Date'}</span>
-                </div>
-                <div className="text-xl font-bold" data-testid="text-subscription-end-date">
-                  {subscription.currentPeriodEnd ? format(new Date(subscription.currentPeriodEnd), 'MMM dd, yyyy') : '-'}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {subscription.currentPeriodEnd ? formatDistanceToNow(new Date(subscription.currentPeriodEnd), { addSuffix: true }) : ''}
-                </div>
-              </div>
-            </div>
-        </div>
+    <div className="space-y-6">
+      {(subscriptionError || txError || creditTxError || callsError) && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Some billing data may be out of date</AlertTitle>
+          <AlertDescription>
+            We’re having trouble refreshing some billing details right now. The page is still showing your last loaded data.
+          </AlertDescription>
+        </Alert>
       )}
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight">Billing</h1>
+            <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.04] dark:bg-foreground/[0.06] px-2 py-0.5 text-[11px] text-muted-foreground">
+              <Building2 className="h-3 w-3" />
+              {me?.email || "Account"}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {cycleLabel} · {billingEntity}
+          </p>
+        </div>
 
-      {subscription && subscription.plan.name !== "free" && !subscription.cancelAtPeriodEnd && (subscription.stripeSubscriptionId || subscription.razorpaySubscriptionId || subscription.paypalSubscriptionId || subscription.paystackSubscriptionCode || subscription.mercadopagoSubscriptionId) && (
-        <div className="flex justify-end">
-          <Button 
-            variant="outline" 
-            onClick={() => setCancelDialogOpen(true)}
-            data-testid="button-cancel-subscription"
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild>
+            <Link href="/app/settings/billing" data-testid="button-billing-manage-plan">
+              Manage plan
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setPaymentSheetOpen(true)}
+            data-testid="button-billing-payment-method"
           >
-            {t('billing.cancelSubscription')}
+            Payment method
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/app/settings/billing?tab=credits" data-testid="button-billing-add-credits">
+              Add credits
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => window.open("/api/credit-transactions/export", "_blank")}
+            data-testid="button-billing-download-statement"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download statement
           </Button>
         </div>
-      )}
-
-      <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">{t('billing.creditsAndUsage')}</h2>
-              <p className="text-sm text-muted-foreground mt-1">{t('billing.creditsSubtitle')}</p>
-            </div>
-            
-            {buildAvailableCurrencies().length > 1 && (
-              <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                  <SelectTrigger className="w-[140px]" data-testid="select-billing-currency">
-                    <SelectValue placeholder="Currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {buildAvailableCurrencies().map((currency) => (
-                      <SelectItem key={currency.code} value={currency.code}>
-                        {currency.symbol} {currency.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-
-          {!hasActiveSubscription && (
-            <Alert className="mb-6">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {t('billing.membershipRequired')}
-              </AlertDescription>
-            </Alert>
-          )}
-
-
-          {packages && packages.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                {t('billing.creditPackages')}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {packages.map((pkg, index) => {
-                  const priceInfo = getPackagePrice(pkg, selectedCurrency);
-                  const displayPrice = parseFloat(priceInfo.price);
-                  const currencySymbol = priceInfo.symbol;
-                  const isPopular = index === 1;
-                  
-                  return (
-                    <Card 
-                      key={pkg.id} 
-                      className={`relative overflow-hidden transition-all duration-200 ${
-                        isPopular 
-                          ? "ring-1 ring-border" 
-                          : ""
-                      }`}
-                      data-testid={`card-package-${pkg.name.toLowerCase().replace(/\s+/g, "-")}`}
-                    >
-                      {isPopular && (
-                        <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-xs font-medium py-1.5 text-center">
-                          <Sparkles className="h-3 w-3 inline mr-1" />
-                          {t('billing.popular')}
-                        </div>
-                      )}
-                      <div className={`p-5 ${isPopular ? 'pt-9' : ''}`}>
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h4 className="text-lg font-semibold">{pkg.name}</h4>
-                            {pkg.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5">{pkg.description}</p>
-                            )}
-                          </div>
-                          <div className="h-10 w-10 rounded-md bg-muted/50 flex items-center justify-center">
-                            <Coins className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <div className="text-3xl font-bold">
-                            {currencySymbol}{displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xl font-mono font-semibold">
-                              {pkg.credits.toLocaleString()}
-                            </span>
-                            <span className="text-sm text-muted-foreground">{t('billing.credits')}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 mb-4 text-xs text-muted-foreground">
-                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
-                          {currencySymbol}{(displayPrice / pkg.credits).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} {t('billing.perMinute')}
-                        </div>
-                        
-                        <Button 
-                          className="w-full"
-                          variant={isPopular ? "default" : "outline"}
-                          onClick={() => handlePurchaseCredits(pkg.id)}
-                          disabled={!hasActiveSubscription || !!loadingCheckout}
-                          data-testid={`button-buy-${pkg.name.toLowerCase().replace(/\s+/g, "-")}`}
-                        >
-                          {loadingCheckout === `package-${pkg.id}` ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              {t('billing.purchase')}
-                              <ArrowUpRight className="h-4 w-4 ml-1" />
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
       </div>
 
-      <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-lg font-semibold">{t('billing.transactionHistory')}</h2>
-              <p className="text-sm text-muted-foreground mt-1">{t('billing.transactionSubtitle') || 'View your credit transactions and payment history'}</p>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={handleExportTransactions} 
-              data-testid="button-export-transactions"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {t('billing.exportCSV')}
-            </Button>
-          </div>
+      {computed.alerts.length > 0 ? (
+        <div className="grid grid-cols-1 gap-3">
+          {computed.alerts.map((a) => (
+            <Alert key={a.title} variant={a.kind === "danger" ? "destructive" : "default"}>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{a.title}</AlertTitle>
+              <AlertDescription>{a.description}</AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      ) : null}
 
-          {transactions && transactions.length > 0 ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <BillingKpiCard
+          title="Current plan"
+          value={computed.planLabel}
+          meta={computed.nextRenewal ? `Renews on ${format(computed.nextRenewal, "MMM d, yyyy")}` : "Renewal date unavailable"}
+          icon={Sparkles}
+          testId="kpi-current-plan"
+        />
+        <BillingKpiCard
+          title="Estimated next invoice"
+          value={
+            typeof computed.estimatedNextInvoice === "number"
+              ? formatMoney(computed.estimatedNextInvoice, computed.currency)
+              : "—"
+          }
+          meta="Plan charge"
+          icon={Receipt}
+          testId="kpi-estimated-invoice"
+        />
+        <BillingKpiCard
+          title="Current cycle spend"
+          value={typeof computed.estimatedNextInvoice === "number" ? formatMoney(computed.estimatedNextInvoice, computed.currency) : "—"}
+          meta="Subscription (excludes usage)"
+          icon={Receipt}
+          testId="kpi-current-usage"
+        />
+        <BillingKpiCard
+          title="Wallet / credits"
+          value={typeof computed.balance === "number" ? computed.balance.toLocaleString() : "—"}
+          meta="Credits balance"
+          icon={CreditCard}
+          testId="kpi-wallet"
+          action={
+            <Button variant="outline" size="sm" className="w-full justify-center" asChild data-testid="button-manage-credits">
+              <Link href="/app/settings/billing?tab=credits">Manage credits</Link>
+            </Button>
+          }
+        />
+      </div>
+
+      <Card data-testid="card-calls-costs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-base">Calls & costs</CardTitle>
+              <div className="text-sm text-muted-foreground">Per-call costs grouped by month. Export as a PDF with letterhead.</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[140px]" data-testid="select-calls-month">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const d = new Date();
+                    d.setUTCMonth(d.getUTCMonth() - i);
+                    const m = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+                    return (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                onClick={handleDownloadCallsPdf}
+                disabled={downloadingCallsPdf}
+                data-testid="button-download-calls-pdf"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloadingCallsPdf ? "Preparing…" : "Download PDF"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {monthlyCalls.calls.length ? (
             <>
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Card className="p-4">
+                  <div className="text-xs text-muted-foreground">Total calls</div>
+                  <div className="mt-1 text-xl font-semibold tabular-nums">{monthlyCalls.totals.calls}</div>
+                </Card>
+                <Card className="p-4">
+                  <div className="text-xs text-muted-foreground">Total duration</div>
+                  <div className="mt-1 text-xl font-semibold tabular-nums">
+                    {Math.floor(monthlyCalls.totals.totalDurationSeconds / 60)}m
+                  </div>
+                </Card>
+                <Card className="p-4">
+                  <div className="text-xs text-muted-foreground">Total credits</div>
+                  <div className="mt-1 text-xl font-semibold tabular-nums">
+                    {monthlyCalls.totals.totalCost.toLocaleString()}
+                  </div>
+                </Card>
+              </div>
+
               <div className="rounded-xl border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.type')}</TableHead>
-                      <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.description')}</TableHead>
-                      <TableHead className="font-medium text-xs text-muted-foreground text-right">{t('billing.tableHeaders.amount')}</TableHead>
-                      <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.date')}</TableHead>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Direction</TableHead>
+                      <TableHead className="whitespace-nowrap">From</TableHead>
+                      <TableHead className="whitespace-nowrap">To</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Duration</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Credits</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[...transactions]
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .slice(transactionPage * transactionPageSize, (transactionPage + 1) * transactionPageSize)
-                      .map((transaction, index, arr) => (
-                      <TableRow 
-                        key={transaction.id}
-                      >
-                        <TableCell className="py-4">
-                          <Badge 
-                            variant={transaction.type === "credit" ? "default" : "destructive"}
-                          >
-                            {transaction.type === "credit" ? (
-                              <><Plus className="h-3 w-3 mr-1" />{t('billing.credit')}</>
-                            ) : (
-                              <>{t('billing.debit')}</>
-                            )}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-4">
-                          <div className="font-medium text-sm">{transaction.description}</div>
-                          {transaction.stripePaymentId && (
-                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                              <CreditCard className="h-3 w-3" />
-                              {transaction.stripePaymentId.substring(0, 20)}...
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-4 text-right">
-                          <span className="font-mono text-sm font-bold">
-                            {transaction.type === "credit" ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-4">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {monthlyCalls.calls.map((c) => {
+                      const credits = c.cost ? Number(c.cost) : 0;
+                      const dur = c.duration ?? 0;
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell className="whitespace-nowrap">{format(new Date(c.createdAt), "MMM d, yyyy")}</TableCell>
+                          <TableCell className="whitespace-nowrap">{c.callDirection || "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{c.fromNumber || "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{c.toNumber || "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-right tabular-nums">
+                            {Math.floor(dur / 60)}:{String(dur % 60).padStart(2, "0")}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-right tabular-nums font-semibold">
+                            {Number.isFinite(credits) ? credits.toLocaleString() : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
-              
-              {totalTransactionPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    {t('billing.pagination', { 
-                      start: transactionPage * transactionPageSize + 1, 
-                      end: Math.min((transactionPage + 1) * transactionPageSize, transactions.length),
-                      total: transactions.length 
-                    })}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTransactionPage(p => Math.max(0, p - 1))}
-                      disabled={transactionPage === 0}
-                      data-testid="button-billing-previous-page"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      {t('billing.previous')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTransactionPage(p => Math.min(p + 1, totalTransactionPages - 1))}
-                      disabled={transactionPage >= totalTransactionPages - 1}
-                      data-testid="button-billing-next-page"
-                    >
-                      {t('billing.next')}
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
             </>
           ) : (
-            <div className="rounded-xl bg-white dark:bg-zinc-900 p-12 text-center">
-              <div className="h-16 w-16 rounded-md bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                <Receipt className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground">{t('billing.noTransactions')}</p>
-            </div>
+            <div className="py-10 text-center text-sm text-muted-foreground">No calls found for {selectedMonth}.</div>
           )}
-      </div>
-        </TabsContent>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="credits">
-          <TransactionHistory embedded />
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent data-testid="dialog-cancel-subscription">
-          <DialogHeader>
-            <DialogTitle>{t('billing.cancelConfirmTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('billing.cancelConfirmMessage')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
-              {t('billing.keepSubscription')}
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => cancelMutation.mutate()}
-              disabled={cancelMutation.isPending}
-              data-testid="button-confirm-cancel"
-            >
-              {cancelMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                t('billing.cancelSubscription')
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {selectedPackageId && (
-        <CreditPurchaseDialog
-          open={purchaseDialogOpen}
-          onOpenChange={setPurchaseDialogOpen}
-          packageId={selectedPackageId}
-          onSuccess={handlePurchaseSuccess}
-        />
-      )}
+      <Sheet open={paymentSheetOpen} onOpenChange={setPaymentSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>Payment method</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4">
+              <div className="space-y-2">
+                <KeyValueRow label="Billing contact" value={me?.email || "—"} valueClassName="font-normal text-muted-foreground" />
+                <KeyValueRow label="Subscription status" value={subscription?.status ? subscription.status : "—"} />
+                <KeyValueRow
+                  label="Next charge date"
+                  value={subscription?.currentPeriodEnd ? format(new Date(subscription.currentPeriodEnd), "MMM d, yyyy") : "—"}
+                />
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Manage</div>
+                <div className="text-sm text-muted-foreground">
+                  Update your payment method from Plan & Billing settings.
+                </div>
+                <Button className="w-full" asChild>
+                  <Link href="/app/settings/billing" data-testid="button-update-payment-method">
+                    Update payment method
+                  </Link>
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

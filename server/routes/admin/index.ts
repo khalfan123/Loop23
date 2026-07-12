@@ -22,9 +22,18 @@ import adminLanguagesRoutes from "./admin-languages-routes";
 import adminIntegrationsRoutes from "./admin-integrations-routes";
 import adminSipRoutes from "./admin-sip-routes";
 import adminSupportRoutes from "./admin-support-routes";
+import adminCatalogRoutes from "./admin-catalog-routes";
+import adminInboundRoutes from "./admin-inbound-routes";
+import adminKnowledgeRoutes from "./admin-knowledge-routes";
+import adminStaffRoutes from "./admin-staff-routes";
+import adminOperationsRoutes from "./admin-operations-routes";
+import adminVoicesRoutes from "./admin-voices-routes";
+import adminExternalContractRoutes from "./admin-external-contract-routes";
+import adminSmsRatesRoutes from "./admin-sms-rates-routes";
 
 const adminRouter = Router();
 
+adminRouter.use(adminCatalogRoutes);
 adminRouter.use(adminCredentialsRoutes);
 adminRouter.use(adminNotificationsRoutes);
 adminRouter.use(adminKycRoutes);
@@ -48,5 +57,12 @@ adminRouter.use(adminLanguagesRoutes);
 adminRouter.use(adminIntegrationsRoutes);
 adminRouter.use(adminSipRoutes);
 adminRouter.use(adminSupportRoutes);
+adminRouter.use(adminInboundRoutes);
+adminRouter.use(adminKnowledgeRoutes);
+adminRouter.use(adminStaffRoutes);
+adminRouter.use(adminOperationsRoutes);
+adminRouter.use(adminVoicesRoutes);
+adminRouter.use(adminExternalContractRoutes);
+adminRouter.use(adminSmsRatesRoutes);
 
 export default adminRouter;

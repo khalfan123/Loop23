@@ -1245,6 +1245,30 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         contentSize = Buffer.byteLength(content, 'utf8');
       }
 
+      // If basic extraction produced too little content, try Claude on Bedrock
+      // to extract structured Markdown from the raw HTML/text. This handles
+      // JS-heavy pages, scraping-resistant sites, and PDFs/JSON that the
+      // simple extractor can't handle well.
+      if (content.trim().length < 200) {
+        try {
+          const { extractUrlContentWithBedrock, isBedrockConfigured } =
+            await import('../services/bedrock-url-extractor');
+          if (isBedrockConfigured()) {
+            console.log(`[RAG Routes] Basic extraction short (${content.trim().length} chars) — trying Bedrock Claude for ${url}`);
+            const bedrockContent = await extractUrlContentWithBedrock(rawHtml, url, contentType);
+            if (bedrockContent && bedrockContent.trim().length >= 50) {
+              content = bedrockContent;
+              contentSize = Buffer.byteLength(content, 'utf8');
+              console.log(`[RAG Routes] Bedrock extracted ${content.length} chars from ${url}`);
+            }
+          } else {
+            console.warn(`[RAG Routes] Bedrock fallback unavailable (AWS credentials not set) — content remains short`);
+          }
+        } catch (bedrockErr: any) {
+          console.error(`[RAG Routes] Bedrock extraction error:`, bedrockErr?.message || bedrockErr);
+        }
+      }
+
       if (content.trim().length < 50) {
         await failPipeline("URL content is too short or empty");
         return res.status(400).json({ error: "URL content is too short or empty" });
@@ -1287,6 +1311,13 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         content,
         { source: 'url', url }
       ).catch(err => console.error("[RAG Routes] Background processing error:", err));
+
+      // Prefetch common FAQ queries once embeddings exist (best effort, non-blocking).
+      setImmediate(() => {
+        RAGKnowledgeService.prefetchCommonFaqs(item.id, req.userId!, url)
+          .then((r) => console.log(`[RAG Routes] FAQ prefetch created=${r.created} for ${item.id}`))
+          .catch(() => undefined);
+      });
 
       generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
 

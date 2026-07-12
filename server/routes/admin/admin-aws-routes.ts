@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { db } from "../../db";
 import { awsCredentials } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
+import { awsBedrockService } from "../../services/aws-bedrock";
 
 const router = Router();
 
@@ -64,21 +65,17 @@ router.get("/aws/polly/voices", async (_req: Request, res: Response) => {
 
 router.get("/aws/bedrock/models", async (_req: Request, res: Response) => {
   try {
-    const bedrockModels = [
-      { id: "anthropic.claude-sonnet-4-20250514-v1:0", name: "Claude Sonnet 4", provider: "Anthropic", category: "text" },
-      { id: "anthropic.claude-opus-4-20250514-v1:0", name: "Claude Opus 4", provider: "Anthropic", category: "text" },
-      { id: "anthropic.claude-3-5-haiku-20241022-v1:0", name: "Claude 3.5 Haiku", provider: "Anthropic", category: "text" },
-      { id: "anthropic.claude-3-sonnet-20240229-v1:0", name: "Claude 3 Sonnet", provider: "Anthropic", category: "text" },
-      { id: "anthropic.claude-3-opus-20240229-v1:0", name: "Claude 3 Opus", provider: "Anthropic", category: "text" },
-      { id: "anthropic.claude-3-7-sonnet-20250219-v1:0", name: "Claude 3.7 Sonnet", provider: "Anthropic", category: "text" },
-      { id: "amazon.titan-text-express-v1", name: "Titan Text Express", provider: "Amazon", category: "text" },
-      { id: "amazon.titan-text-lite-v1", name: "Titan Text Lite", provider: "Amazon", category: "text" },
-      { id: "amazon.titan-embed-text-v2:0", name: "Titan Embeddings V2", provider: "Amazon", category: "embedding" },
-      { id: "meta.llama3-70b-instruct-v1:0", name: "Llama 3 70B", provider: "Meta", category: "text" },
-      { id: "meta.llama3-8b-instruct-v1:0", name: "Llama 3 8B", provider: "Meta", category: "text" },
-      { id: "mistral.mistral-large-2402-v1:0", name: "Mistral Large", provider: "Mistral", category: "text" },
-      { id: "cohere.command-r-plus-v1:0", name: "Command R+", provider: "Cohere", category: "text" },
-    ];
+    // Source the model list from the central alias resolver so that the admin
+    // picker only ever shows ids that actually work in the configured region.
+    const bedrockModels = awsBedrockService.listModels().map((m) => ({
+      id: m.alias,
+      modelId: m.id,
+      name: m.alias,
+      provider: m.provider,
+      category: "text",
+      tier: m.tier,
+      contextWindow: m.contextWindow,
+    }));
 
     const activeBedrockCredentials = await db.select().from(awsCredentials)
       .where(eq(awsCredentials.isActive, true));

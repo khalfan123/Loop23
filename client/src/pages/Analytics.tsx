@@ -21,15 +21,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from 'react-i18next';
 import { AuthStorage } from "@/lib/auth-storage";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
-import LiveMonitoring from "@/pages/LiveMonitoring";
 import Calls from "@/pages/Calls";
+import { useLocation } from "wouter";
 
 import { HeatmapChart } from "@/components/analytics/HeatmapChart";
 import { FunnelChart } from "@/components/analytics/FunnelChart";
@@ -94,9 +94,15 @@ const TIME_RANGE_LABELS: Record<string, { current: string; previous: string }> =
 
 export default function Analytics() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const [timeRange, setTimeRange] = useState("7days");
   const callType = 'all';
-  const [activeView, setActiveView] = useState<"analytics" | "call-history" | "live-monitoring">("analytics");
+  const [activeView, setActiveView] = useState<"analytics" | "call-history">(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "call-history") {
+      return "call-history";
+    }
+    return "analytics";
+  });
   const [activeTab, setActiveTab] = useState("overview");
   const [isExporting, setIsExporting] = useState(false);
   const [drillFilter, setDrillFilter] = useState<{ type: string; value: string } | null>(null);
@@ -108,6 +114,12 @@ export default function Analytics() {
   const [reportsOpen, setReportsOpen] = useState(true);
   const reportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (view === "call-history") setActiveView("call-history");
+  }, []);
 
   const { data: analytics, isLoading } = useQuery<AnalyticsData>({
     queryKey: ['/api/analytics', timeRange, callType],
@@ -149,14 +161,29 @@ export default function Analytics() {
       const rawCalls = Array.isArray(result) ? result : result.data || [];
       return rawCalls.map((c: Record<string, unknown>) => ({
         id: c.id,
-        phoneNumber: c.phoneNumber,
-        status: c.status,
-        duration: c.duration,
-        classification: c.classification,
-        sentiment: c.sentiment,
-        callDirection: c.callDirection,
-        createdAt: c.createdAt,
-        campaignName: c.campaignName || c.campaign?.name || undefined,
+        phone: (c.phoneNumber || c.fromNumber || c.toNumber || "") as string,
+        status: c.status as string | undefined,
+        duration: typeof c.duration === 'number' ? c.duration : c.duration ? Number(c.duration) : undefined,
+        classification: (
+          typeof (c as any).classification === 'string'
+            ? (c as any).classification.toLowerCase()
+            : typeof (c as any).leadClassification === 'string'
+              ? (c as any).leadClassification.toLowerCase()
+              : undefined
+        ) as
+          | string
+          | undefined,
+        sentiment: (
+          typeof (c as any).sentiment === 'string'
+            ? (c as any).sentiment.toLowerCase()
+            : typeof (c as any).metadata?.elevenLabsAnalysis?.sentiment === 'string'
+              ? (c as any).metadata.elevenLabsAnalysis.sentiment.toLowerCase()
+              : undefined
+        ) as string | undefined,
+        campaign: (c.campaignName || (c as any).campaign?.name || "") as string,
+        direction: ((c as any).callDirection || "") as string,
+        date: ((c as any).startedAt || c.createdAt || "") as string,
+        summary: (c.aiSummary || c.summary || "") as string,
       }));
     }
   });
@@ -252,34 +279,32 @@ export default function Analytics() {
         />
         <SubPanelItem
           icon={<Radio className="w-4 h-4" />}
-          label="Live Monitoring"
-          isActive={activeView === "live-monitoring"}
-          onClick={() => setActiveView("live-monitoring")}
-          data-testid="nav-live-monitoring-view"
+          label={t('nav.live', 'Live')}
+          isActive={false}
+          onClick={() => setLocation("/app/live")}
+          data-testid="nav-live-view"
         />
       </SubPanelSection>
 
       {activeView === "analytics" && (
         <>
           <SubPanelSection title={t('analytics.metrics', 'METRICS')}>
-            <div className="px-2.5 py-2 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t('analytics.successRate')}</span>
-                <span className="font-medium text-emerald-600">{successRate}%</span>
+            <div className="px-[11px] py-2 space-y-1">
+              <div className="flex items-center justify-between text-[13.5px] py-2">
+                <span className="text-[var(--l9-text-secondary)]">{t('analytics.successRate')}</span>
+                <span className="font-bold text-[var(--l9-success)]">{successRate}%</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
-                <span className="font-medium">{formatDuration(avgDuration)}</span>
+              <div className="flex items-center justify-between text-[13.5px] py-2">
+                <span className="text-[var(--l9-text-secondary)]">{t('analytics.avgDurationLabel')}</span>
+                <span className="font-bold text-[var(--l9-text)]">{formatDuration(avgDuration)}</span>
               </div>
               {trends && (
-                <>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Call Trend</span>
-                    <span className={`font-medium ${trends.totalCallsTrend >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {trends.totalCallsTrend > 0 ? '+' : ''}{trends.totalCallsTrend}%
-                    </span>
-                  </div>
-                </>
+                <div className="flex items-center justify-between text-[13.5px] py-2">
+                  <span className="text-[var(--l9-text-secondary)]">Call Trend</span>
+                  <span className={`font-bold ${trends.totalCallsTrend >= 0 ? 'text-[var(--l9-success)]' : 'text-[var(--l9-danger)]'}`}>
+                    {trends.totalCallsTrend > 0 ? '+' : ''}{trends.totalCallsTrend}%
+                  </span>
+                </div>
               )}
             </div>
           </SubPanelSection>
@@ -290,25 +315,17 @@ export default function Analytics() {
 
   if (activeView === "call-history") {
     return (
-      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}>
+      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={t('nav.dashboard', 'Dashboard')}>
         <Calls embedded />
-      </ThreeColumnLayout>
-    );
-  }
-
-  if (activeView === "live-monitoring") {
-    return (
-      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}>
-        <LiveMonitoring />
       </ThreeColumnLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}>
+      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={t('nav.dashboard', 'Dashboard')}>
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--l9-text-faint)]" />
         </div>
       </ThreeColumnLayout>
     );
@@ -316,32 +333,34 @@ export default function Analytics() {
 
   const SectionHeader = ({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) => (
     <CollapsibleTrigger asChild onClick={onToggle}>
-      <button className="flex items-center gap-2 w-full text-left mb-4 group" data-testid={`section-toggle-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`} />
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{title}</h2>
-        <div className="flex-1 border-b border-border/30" />
+      <button className="l9-section-header w-full text-left mb-4 group" data-testid={`section-toggle-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+        <ChevronDown className={`h-4 w-4 transition-transform duration-150 ${open ? '' : '-rotate-90'}`} />
+        <h2>{title}</h2>
       </button>
     </CollapsibleTrigger>
   );
 
   return (
-    <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}>
-      <div className="space-y-6" ref={reportRef}>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl glass-card flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-foreground/70" />
+    <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={t('nav.dashboard', 'Dashboard')}>
+      <div className="space-y-[26px]" ref={reportRef}>
+        <div className="flex flex-col md:flex-row md:items-start gap-4 mb-[22px]">
+          <div className="flex items-start gap-4 flex-1 min-w-0">
+            <div className="h-[52px] w-[52px] rounded-[14px] bg-[var(--l9-icon-tile)] flex items-center justify-center flex-shrink-0">
+              <BarChart3 className="h-6 w-6 text-[#334155]" />
             </div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-analytics-title">
+            <div className="min-w-0">
+              <h1 className="text-[27px] font-bold tracking-[-0.02em] text-[var(--l9-text)] leading-none" data-testid="text-analytics-title">
                 {t('analytics.title')}
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{t('analytics.subtitle')}</p>
+              <p className="text-[14.5px] text-[var(--l9-text-faint)] mt-[3px]">{t('analytics.subtitle')}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 glass-surface rounded-2xl px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
             <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-[150px] rounded-xl border-border/40 bg-background/50" data-testid="select-time-range">
+              <SelectTrigger
+                className="w-[150px] h-auto py-2.5 px-3.5 rounded-[11px] border-[var(--l9-border-control)] bg-[var(--l9-surface)] text-[14px] font-medium"
+                data-testid="select-time-range"
+              >
                 <SelectValue placeholder={t('analytics.selectPeriod')} />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -352,31 +371,30 @@ export default function Analytics() {
               </SelectContent>
             </Select>
             <Button
-              variant="default"
-              className="rounded-xl"
+              className="l9-btn-primary h-auto border-0 hover:bg-[var(--l9-primary-hover)]"
               onClick={handleExportPDF}
               disabled={isExporting}
               data-testid="button-export-report"
             >
-              {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {t('analytics.exportReport')}
             </Button>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="glass-surface rounded-xl">
-            <TabsTrigger value="overview" className="rounded-lg" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="campaigns" className="rounded-lg" data-testid="tab-campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="reports" className="rounded-lg" data-testid="tab-reports">Reports</TabsTrigger>
-            <TabsTrigger value="calls" className="rounded-lg" data-testid="tab-calls">Calls</TabsTrigger>
+          <TabsList className="l9-tabs h-auto bg-[var(--l9-tab-track)] p-1 rounded-xl">
+            <TabsTrigger value="overview" className="l9-tab rounded-[9px] data-[state=active]:bg-white data-[state=active]:shadow-[var(--l9-shadow-tab)] data-[state=active]:text-[var(--l9-text)]" data-testid="tab-overview">Overview</TabsTrigger>
+            <TabsTrigger value="campaigns" className="l9-tab rounded-[9px] data-[state=active]:bg-white data-[state=active]:shadow-[var(--l9-shadow-tab)]" data-testid="tab-campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="reports" className="l9-tab rounded-[9px] data-[state=active]:bg-white data-[state=active]:shadow-[var(--l9-shadow-tab)]" data-testid="tab-reports">Reports</TabsTrigger>
+            <TabsTrigger value="calls" className="l9-tab rounded-[9px] data-[state=active]:bg-white data-[state=active]:shadow-[var(--l9-shadow-tab)]" data-testid="tab-calls">Calls</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4 mt-4">
+          <TabsContent value="overview" className="space-y-6 mt-6">
             <Collapsible open={overviewOpen} onOpenChange={setOverviewOpen}>
               <SectionHeader title="Key Metrics" open={overviewOpen} onToggle={() => setOverviewOpen(!overviewOpen)} />
               <CollapsibleContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[18px] mb-[18px]">
                   <MetricCard
                     title={t('analytics.totalCalls')}
                     value={totalCalls.toLocaleString()}
@@ -384,8 +402,8 @@ export default function Analytics() {
                     trend={trends ? { value: Math.abs(trends.totalCallsTrend), direction: trends.totalCallsTrend >= 0 ? "up" : "down" } : undefined}
                     sparklineData={sparklineTotals}
                     testId="metric-total-calls"
-                    gradientClassName="glass-card rounded-2xl"
-                    iconClassName="text-cyan-500"
+                    iconTileClassName="bg-[var(--l9-primary-tint)]"
+                    iconClassName="text-[var(--l9-primary)]"
                   />
                   <MetricCard
                     title={t('analytics.successRate')}
@@ -394,8 +412,8 @@ export default function Analytics() {
                     trend={trends ? { value: Math.abs(trends.successRateTrend), direction: trends.successRateTrend >= 0 ? "up" : "down" } : undefined}
                     sparklineData={sparklineCompleted}
                     testId="metric-success-rate"
-                    gradientClassName="glass-card rounded-2xl"
-                    iconClassName="text-emerald-500"
+                    iconTileClassName="bg-[var(--l9-success-tint)]"
+                    iconClassName="text-[var(--l9-success)]"
                   />
                   <MetricCard
                     title={t('analytics.qualifiedLeads')}
@@ -404,8 +422,8 @@ export default function Analytics() {
                     trend={trends ? { value: Math.abs(trends.qualifiedLeadsTrend), direction: trends.qualifiedLeadsTrend >= 0 ? "up" : "down" } : undefined}
                     sparklineData={sparklineQualified}
                     testId="metric-qualified-leads"
-                    gradientClassName="glass-card rounded-2xl"
-                    iconClassName="text-blue-500"
+                    iconTileClassName="bg-[var(--l9-purple-tint)]"
+                    iconClassName="text-[var(--l9-purple)]"
                   />
                   <MetricCard
                     title={t('analytics.avgDurationLabel')}
@@ -415,16 +433,16 @@ export default function Analytics() {
                     sparklineData={sparklineDuration}
                     subtitle={t('analytics.minutesPerCall')}
                     testId="metric-avg-duration"
-                    gradientClassName="glass-card rounded-2xl"
-                    iconClassName="text-violet-500"
+                    iconTileClassName="bg-[var(--l9-primary-tint)]"
+                    iconClassName="text-[var(--l9-primary)]"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <GaugeChart value={successRate} title="Success Rate" unit="%" />
-                  <GaugeChart value={qualifiedLeads} maxValue={Math.max(totalCalls, 1)} title="Qualified Rate" unit={`/ ${totalCalls}`} thresholds={{ green: 30, yellow: 15 }} />
-                  <GaugeChart value={typeBreakdown.incoming} maxValue={Math.max(typeBreakdown.total, 1)} title="Incoming %" unit={`/ ${typeBreakdown.total}`} thresholds={{ green: 40, yellow: 20 }} />
-                  <GaugeChart value={typeBreakdown.batch} maxValue={Math.max(typeBreakdown.total, 1)} title="Campaign %" unit={`/ ${typeBreakdown.total}`} thresholds={{ green: 50, yellow: 25 }} />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-[18px]">
+                  <GaugeChart value={successRate} title="Success Rate" unit="%" color="var(--l9-success-ring)" />
+                  <GaugeChart value={qualifiedLeads} maxValue={Math.max(totalCalls, 1)} title="Qualified Rate" unit={`/ ${totalCalls}`} color="var(--l9-warning)" />
+                  <GaugeChart value={typeBreakdown.incoming} maxValue={Math.max(typeBreakdown.total, 1)} title="Incoming %" unit={`/ ${typeBreakdown.total}`} color="var(--l9-success-ring)" />
+                  <GaugeChart value={typeBreakdown.batch} maxValue={Math.max(typeBreakdown.total, 1)} title="Campaign %" unit={`/ ${typeBreakdown.total}`} color="var(--l9-danger)" />
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -432,13 +450,13 @@ export default function Analytics() {
             <Collapsible open={trendsOpen} onOpenChange={setTrendsOpen}>
               <SectionHeader title="Trends & Activity" open={trendsOpen} onToggle={() => setTrendsOpen(!trendsOpen)} />
               <CollapsibleContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px]">
                   <AnalyticsChart
                     title={getCallVolumeTitle()}
                     type="bar"
                     data={formattedDailyCalls.length > 0 ? formattedDailyCalls : [{ name: t('analytics.noData'), value: 0 }]}
                     testId="chart-calls-this-week"
-                    gradientClassName="glass-card rounded-2xl"
+                    gradientClassName="l9-card rounded-2xl"
                   />
                   {advanced && <HeatmapChart data={advanced.heatmap} />}
                 </div>
@@ -461,7 +479,7 @@ export default function Analytics() {
                     type="pie"
                     data={leadDistribution.length > 0 ? leadDistribution : [{ name: t('analytics.noData'), value: 1 }]}
                     testId="chart-lead-distribution"
-                    gradientClassName="glass-card rounded-2xl"
+                    gradientClassName="l9-card rounded-2xl"
                     onSegmentClick={(data) => handlePieClick('classification', data)}
                   />
                   <AnalyticsChart
@@ -469,7 +487,7 @@ export default function Analytics() {
                     type="pie"
                     data={sentimentDistribution.length > 0 ? sentimentDistribution : [{ name: t('analytics.noData'), value: 1 }]}
                     testId="chart-sentiment-analysis"
-                    gradientClassName="glass-card rounded-2xl"
+                    gradientClassName="l9-card rounded-2xl"
                     onSegmentClick={(data) => handlePieClick('sentiment', data)}
                   />
                 </div>
@@ -478,46 +496,46 @@ export default function Analytics() {
             </Collapsible>
 
             {typeBreakdown.total > 0 && (
-              <div className="glass-card rounded-2xl p-6" data-testid="card-call-breakdown">
-                <h3 className="text-base font-semibold text-foreground mb-5">{t('analytics.callTypeBreakdown')}</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 rounded-2xl glass-surface">
+              <div className="l9-card rounded-2xl p-6" data-testid="card-call-breakdown">
+                <h3 className="text-[17px] font-bold text-[var(--l9-text)] mb-5">{t('analytics.callTypeBreakdown')}</h3>
+                <div className="grid grid-cols-3 gap-[18px]">
+                  <div className="p-4 rounded-xl border border-[var(--l9-border)]">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                        <PhoneIncoming className="h-4 w-4 text-emerald-500" />
+                      <div className="h-8 w-8 rounded-[10px] bg-[var(--l9-success-tint)] flex items-center justify-center">
+                        <PhoneIncoming className="h-4 w-4 text-[var(--l9-success)]" />
                       </div>
                     </div>
-                    <p className="text-center text-sm text-muted-foreground mb-1">{t('analytics.callTypes.incoming')}</p>
-                    <p className="text-center text-2xl font-bold text-foreground" data-testid="breakdown-incoming">{typeBreakdown.incoming}</p>
+                    <p className="text-center text-sm text-[var(--l9-text-muted)] mb-1">{t('analytics.callTypes.incoming')}</p>
+                    <p className="text-center text-2xl font-bold text-[var(--l9-text)]" data-testid="breakdown-incoming">{typeBreakdown.incoming}</p>
                   </div>
-                  <div className="p-4 rounded-2xl glass-surface">
+                  <div className="p-4 rounded-xl border border-[var(--l9-border)]">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                        <PhoneOutgoing className="h-4 w-4 text-blue-500" />
+                      <div className="h-8 w-8 rounded-[10px] bg-[var(--l9-primary-tint)] flex items-center justify-center">
+                        <PhoneOutgoing className="h-4 w-4 text-[var(--l9-primary)]" />
                       </div>
                     </div>
-                    <p className="text-center text-sm text-muted-foreground mb-1">{t('analytics.callTypes.outgoing')}</p>
-                    <p className="text-center text-2xl font-bold text-foreground" data-testid="breakdown-outgoing">{typeBreakdown.outgoing}</p>
+                    <p className="text-center text-sm text-[var(--l9-text-muted)] mb-1">{t('analytics.callTypes.outgoing')}</p>
+                    <p className="text-center text-2xl font-bold text-[var(--l9-text)]" data-testid="breakdown-outgoing">{typeBreakdown.outgoing}</p>
                   </div>
-                  <div className="p-4 rounded-2xl glass-surface">
+                  <div className="p-4 rounded-xl border border-[var(--l9-border)]">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <div className="h-8 w-8 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                        <Target className="h-4 w-4 text-violet-500" />
+                      <div className="h-8 w-8 rounded-[10px] bg-[var(--l9-purple-tint)] flex items-center justify-center">
+                        <Target className="h-4 w-4 text-[var(--l9-purple)]" />
                       </div>
                     </div>
-                    <p className="text-center text-sm text-muted-foreground mb-1">{t('analytics.callTypes.campaigns')}</p>
-                    <p className="text-center text-2xl font-bold text-foreground" data-testid="breakdown-campaigns">{typeBreakdown.batch}</p>
+                    <p className="text-center text-sm text-[var(--l9-text-muted)] mb-1">{t('analytics.callTypes.campaigns')}</p>
+                    <p className="text-center text-2xl font-bold text-[var(--l9-text)]" data-testid="breakdown-campaigns">{typeBreakdown.batch}</p>
                   </div>
                 </div>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="campaigns" className="space-y-4 mt-4">
+          <TabsContent value="campaigns" className="space-y-4 mt-6">
             <Collapsible open={campaignOpen} onOpenChange={setCampaignOpen}>
               <SectionHeader title="Campaign Performance" open={campaignOpen} onToggle={() => setCampaignOpen(!campaignOpen)} />
               <CollapsibleContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px]">
                   <AnalyticsChart
                     title={t('analytics.campaignSuccessRate')}
                     type="bar"
@@ -525,7 +543,7 @@ export default function Analytics() {
                     xAxisKey="name"
                     dataKey="value"
                     testId="chart-campaign-success"
-                    gradientClassName="glass-card rounded-2xl"
+                    gradientClassName="l9-card rounded-2xl"
                   />
                   <TreemapChart
                     data={campaignPerformance.map(c => ({ name: c.name, value: c.totalCalls || c.value }))}

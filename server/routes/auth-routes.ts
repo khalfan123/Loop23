@@ -48,7 +48,8 @@ export function createAuthRoutes(ctx: RouteContext): Router {
 
   router.post("/api/auth/check-email", authRateLimiter, async (req: Request, res: Response) => {
     try {
-      const { email } = req.body;
+      const email =
+        typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
 
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
@@ -446,7 +447,10 @@ export function createAuthRoutes(ctx: RouteContext): Router {
 
   router.post("/api/auth/login", authRateLimiter, async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
+      const rawEmail = typeof req.body?.email === "string" ? req.body.email : "";
+      const rawPassword = typeof req.body?.password === "string" ? req.body.password : "";
+      const email = rawEmail.trim().toLowerCase();
+      const password = rawPassword.trim();
 
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });

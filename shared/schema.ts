@@ -86,6 +86,36 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Workspaces — customer tenancy boundary (one customer = one workspace = one Twilio subaccount)
+export const workspaces = pgTable("workspaces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  ownerUserId: varchar("owner_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Twilio isolation (one subaccount per workspace; provisioned lazily)
+  twilioSubaccountSid: text("twilio_subaccount_sid"),
+  twilioSubaccountAuthTokenEnc: text("twilio_subaccount_auth_token_enc"),
+
+  status: text("status").notNull().default("active"), // active, suspended
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const workspaceMembers = pgTable(
+  "workspace_members",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"), // owner, admin, member
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWorkspaceUser: unique("workspace_members_workspace_user_unique").on(t.workspaceId, t.userId),
+  }),
+);
+
 // OTP Verifications for signup
 export const otpVerifications = pgTable("otp_verifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -403,6 +433,7 @@ export const incomingAgents = pgTable("incoming_agents", {
 export const phoneNumbers = pgTable("phone_numbers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }), // Nullable for system pool numbers
+  workspaceId: varchar("workspace_id").references(() => workspaces.id, { onDelete: "set null" }), // Nullable for legacy rows; required for new customer-owned Twilio resources
   phoneNumber: text("phone_number").notNull().unique(),
   twilioSid: text("twilio_sid").notNull().unique(),
   elevenLabsPhoneNumberId: text("eleven_labs_phone_number_id"), // ElevenLabs phone_number_id for synced numbers
@@ -419,10 +450,465 @@ export const phoneNumbers = pgTable("phone_numbers", {
   nextBillingDate: timestamp("next_billing_date"), // Next date when credits will be charged
   purchasedAt: timestamp("purchased_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+
+  /** Optional inbound routing: VIP list, business hours, closed message (see inbound-routing-policy util). */
+  inboundRoutingPolicy: jsonb("inbound_routing_policy"),
   
   // DEPRECATED: Use incoming_connections table instead
   assignedIncomingAgentId: varchar("assigned_incoming_agent_id").references(() => incomingAgents.id, { onDelete: "set null" }),
 });
+
+// WhatsApp senders (Twilio Senders API) — scoped to workspace/subaccount
+export const whatsappSenders = pgTable("whatsapp_senders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+
+  // Optional link to a Byan AI-owned Twilio number used for this sender
+  twilioPhoneNumberId: varchar("twilio_phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }),
+
+  // Twilio Messaging Sender SID (v2)
+  twilioSenderSid: text("twilio_sender_sid").unique(),
+
+  // The WhatsApp phone number in E.164 (from Meta/WABA during Embedded Signup)
+  phoneNumberE164: text("phone_number_e164").notNull(),
+
+  // Meta/WABA identifiers
+  wabaId: text("waba_id"),
+  metaBusinessId: text("meta_business_id"),
+
+  // Display/profile metadata
+  profileName: text("profile_name"),
+  profileAbout: text("profile_about"),
+
+  // Lifecycle/state
+  status: text("status").notNull().default("creating"), // creating, pending_review, online, offline, failed
+  failureReason: text("failure_reason"),
+
+  // Default inbound destination (forward compatible; v1 only uses inbox)
+  inboundDefaultRoute: text("inbound_default_route").notNull().default("inbox"), // inbox, agent, automation, ai_flow
+
+  // Secret used to obfuscate webhook endpoints per sender
+  webhookSecret: text("webhook_secret").notNull(),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Tier 1 BSP DID pool: SaaS owns Twilio WhatsApp-capable numbers, assigns them
+// to customer workspaces on demand (no Embedded Signup, no Meta verification round-trip).
+export const whatsappDidPool = pgTable("whatsapp_did_pool", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // The DID itself in E.164
+  phoneNumberE164: text("phone_number_e164").notNull().unique(),
+  // Twilio identifiers
+  twilioPhoneNumberSid: text("twilio_phone_number_sid"),
+  // Meta / WABA identifiers (the SaaS-owned WABA this DID lives under)
+  wabaId: text("waba_id"),
+  metaPhoneNumberId: text("meta_phone_number_id"),
+  // Pool lifecycle
+  status: text("status").notNull().default("available"), // available, assigned, disabled
+  assignedWorkspaceId: varchar("assigned_workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+  assignedSenderId: varchar("assigned_sender_id"), // FK-like ref to whatsapp_senders.id (no FK: avoid circular onDelete)
+  assignedAt: timestamp("assigned_at"),
+  // Display name (business name shown to recipients on WhatsApp)
+  displayName: text("display_name"),
+  displayNameStatus: text("display_name_status").notNull().default("not_requested"), // not_requested, pending, approved, rejected
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertWhatsappDidPoolSchema = createInsertSchema(whatsappDidPool, {
+  phoneNumberE164: z.string().regex(/^\+[1-9]\d{6,14}$/, "Must be E.164 format (+15551234567)"),
+  status: z.enum(["available", "assigned", "disabled"]).optional(),
+  displayNameStatus: z.enum(["not_requested", "pending", "approved", "rejected"]).optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+export const whatsappSenderEvents = pgTable("whatsapp_sender_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => whatsappSenders.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  rawPayload: jsonb("raw_payload"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ManyChat-style "import everything" model. One row per (workspace, WABA).
+export const whatsappBusinessAccounts = pgTable(
+  "whatsapp_business_accounts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    wabaId: text("waba_id").notNull(),
+    name: text("name"),
+    currency: text("currency"),
+    timezoneId: text("timezone_id"),
+    messageTemplateNamespace: text("message_template_namespace"),
+    accountReviewStatus: text("account_review_status"),
+    businessId: text("business_id"),
+    accessTokenEnc: text("access_token_enc"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    onBehalfOfBusinessInfo: jsonb("on_behalf_of_business_info"),
+    syncStatus: text("sync_status").notNull().default("pending"),
+    syncStartedAt: timestamp("sync_started_at"),
+    syncCompletedAt: timestamp("sync_completed_at"),
+    syncError: text("sync_error"),
+    lastSyncedAt: timestamp("last_synced_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWorkspaceWaba: unique("whatsapp_business_accounts_workspace_waba_unique").on(t.workspaceId, t.wabaId),
+  }),
+);
+
+export const whatsappPhoneNumbersRemote = pgTable(
+  "whatsapp_phone_numbers_remote",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    wabaRowId: varchar("waba_row_id").notNull().references(() => whatsappBusinessAccounts.id, { onDelete: "cascade" }),
+    phoneNumberId: text("phone_number_id").notNull(),
+    displayPhoneNumber: text("display_phone_number"),
+    verifiedName: text("verified_name"),
+    codeVerificationStatus: text("code_verification_status"),
+    qualityRating: text("quality_rating"),
+    nameStatus: text("name_status"),
+    platformType: text("platform_type"),
+    throughputLevel: text("throughput_level"),
+    messagingLimitTier: text("messaging_limit_tier"),
+    rawJson: jsonb("raw_json"),
+    lastSyncedAt: timestamp("last_synced_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWabaPhone: unique("whatsapp_phone_numbers_remote_waba_phone_unique").on(t.wabaRowId, t.phoneNumberId),
+  }),
+);
+
+export const whatsappMessageTemplates = pgTable(
+  "whatsapp_message_templates",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    wabaRowId: varchar("waba_row_id").notNull().references(() => whatsappBusinessAccounts.id, { onDelete: "cascade" }),
+    metaTemplateId: text("meta_template_id"),
+    name: text("name").notNull(),
+    language: text("language").notNull(),
+    status: text("status").notNull().default("UNKNOWN"),
+    category: text("category"),
+    components: jsonb("components"),
+    rejectionReason: text("rejection_reason"),
+    qualityScore: jsonb("quality_score"),
+    lastSyncedAt: timestamp("last_synced_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWabaTemplate: unique("whatsapp_message_templates_waba_name_lang_unique").on(t.wabaRowId, t.name, t.language),
+  }),
+);
+
+export const whatsappBusinessProfiles = pgTable(
+  "whatsapp_business_profiles",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    senderId: varchar("sender_id").notNull().references(() => whatsappSenders.id, { onDelete: "cascade" }),
+    about: text("about"),
+    description: text("description"),
+    email: text("email"),
+    address: text("address"),
+    vertical: text("vertical"),
+    websites: jsonb("websites"),
+    profilePictureUrl: text("profile_picture_url"),
+    profilePictureHandle: text("profile_picture_handle"),
+    lastSyncedAt: timestamp("last_synced_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueSender: unique("whatsapp_business_profiles_sender_unique").on(t.senderId),
+  }),
+);
+
+// ManyChat-style Audience / Automations layer ------------------------------
+
+export const whatsappTags = pgTable(
+  "whatsapp_tags",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWorkspaceTag: unique("whatsapp_tags_workspace_name_unique").on(t.workspaceId, t.name),
+  }),
+);
+
+export const whatsappContactTags = pgTable(
+  "whatsapp_contact_tags",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    contactId: varchar("contact_id").notNull().references(() => whatsappContacts.id, { onDelete: "cascade" }),
+    tagId: varchar("tag_id").notNull().references(() => whatsappTags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueContactTag: unique("whatsapp_contact_tags_contact_tag_unique").on(t.contactId, t.tagId),
+  }),
+);
+
+export const whatsappContactFields = pgTable(
+  "whatsapp_contact_fields",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    contactId: varchar("contact_id").notNull().references(() => whatsappContacts.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueContactKey: unique("whatsapp_contact_fields_contact_key_unique").on(t.contactId, t.key),
+  }),
+);
+
+export const whatsappChannelSettings = pgTable(
+  "whatsapp_channel_settings",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    senderId: varchar("sender_id").references(() => whatsappSenders.id, { onDelete: "cascade" }),
+    welcomeEnabled: boolean("welcome_enabled").notNull().default(false),
+    welcomeBody: text("welcome_body"),
+    defaultReplyEnabled: boolean("default_reply_enabled").notNull().default(false),
+    defaultReplyBody: text("default_reply_body"),
+    awayHoursEnabled: boolean("away_hours_enabled").notNull().default(false),
+    awayMessage: text("away_message"),
+    awaySchedule: jsonb("away_schedule"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWorkspaceSender: unique("whatsapp_channel_settings_workspace_sender_unique").on(t.workspaceId, t.senderId),
+  }),
+);
+
+export const whatsappQuickReplies = pgTable(
+  "whatsapp_quick_replies",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    shortcut: text("shortcut").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueShortcut: unique("whatsapp_quick_replies_workspace_shortcut_unique").on(t.workspaceId, t.shortcut),
+  }),
+);
+
+export const whatsappKeywordTriggers = pgTable(
+  "whatsapp_keyword_triggers",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    senderId: varchar("sender_id").references(() => whatsappSenders.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    matchMode: text("match_mode").notNull().default("contains"), // contains | exact | startsWith | regex
+    keywords: jsonb("keywords").notNull(),
+    caseSensitive: boolean("case_sensitive").notNull().default(false),
+    replyBody: text("reply_body"),
+    assignTagId: varchar("assign_tag_id").references(() => whatsappTags.id, { onDelete: "set null" }),
+    enabled: boolean("enabled").notNull().default(true),
+    priority: integer("priority").notNull().default(100),
+    lastFiredAt: timestamp("last_fired_at"),
+    fireCount: integer("fire_count").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+);
+
+export const whatsappBroadcasts = pgTable("whatsapp_broadcasts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull().references(() => whatsappSenders.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  templateName: text("template_name"),
+  templateLanguage: text("template_language"),
+  templateVariables: jsonb("template_variables"),
+  audienceTagIds: jsonb("audience_tag_ids"),
+  status: text("status").notNull().default("draft"), // draft | sending | sent | failed | cancelled
+  totalRecipients: integer("total_recipients").notNull().default(0),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  scheduledAt: timestamp("scheduled_at"),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const whatsappBroadcastRecipients = pgTable(
+  "whatsapp_broadcast_recipients",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    broadcastId: varchar("broadcast_id").notNull().references(() => whatsappBroadcasts.id, { onDelete: "cascade" }),
+    contactId: varchar("contact_id").notNull().references(() => whatsappContacts.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"), // pending | sent | failed | delivered | read
+    twilioMessageSid: text("twilio_message_sid"),
+    errorMessage: text("error_message"),
+    sentAt: timestamp("sent_at"),
+    deliveredAt: timestamp("delivered_at"),
+    readAt: timestamp("read_at"),
+  },
+  (t) => ({
+    uniqueBroadcastContact: unique("whatsapp_broadcast_recipients_broadcast_contact_unique").on(t.broadcastId, t.contactId),
+  }),
+);
+
+export const whatsappContacts = pgTable(
+  "whatsapp_contacts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    phoneNumberE164: text("phone_number_e164").notNull(),
+    profileName: text("profile_name"),
+    firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueWorkspacePhone: unique("whatsapp_contacts_workspace_phone_unique").on(t.workspaceId, t.phoneNumberE164),
+  }),
+);
+
+// Conversations + messages — shared inbox model (WhatsApp-first in v1)
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+
+  channel: text("channel").notNull().default("whatsapp"), // whatsapp, sms, voice
+
+  whatsappSenderId: varchar("whatsapp_sender_id").references(() => whatsappSenders.id, { onDelete: "set null" }),
+  contactId: varchar("contact_id").references(() => whatsappContacts.id, { onDelete: "set null" }),
+
+  // Channel-agnostic peer phone number in E.164 (used for SMS conversations that
+  // don't have a WhatsApp contact row). Always set for channel='sms'.
+  peerPhoneE164: text("peer_phone_e164"),
+
+  status: text("status").notNull().default("open"), // open, closed
+  assigneeUserId: varchar("assignee_user_id").references(() => users.id, { onDelete: "set null" }),
+  lastMessageAt: timestamp("last_message_at").notNull().defaultNow(),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+
+  direction: text("direction").notNull(), // inbound, outbound
+  body: text("body"),
+  mediaUrls: jsonb("media_urls"),
+
+  twilioMessageSid: text("twilio_message_sid"),
+
+  // Reported segment count from Twilio (NumSegments on the status callback).
+  // Used to reconcile credit charges after the provisional charge made at send time.
+  numSegments: integer("num_segments"),
+  // Country (ISO 3166-1 alpha-2) inferred from the destination/source number,
+  // cached so credit charges remain reproducible.
+  destinationCountry: varchar("destination_country", { length: 2 }),
+  // Total credits actually charged for this message (sum of all credit_transactions
+  // with reference = 'sms:' || twilio_message_sid).
+  creditsCharged: integer("credits_charged").notNull().default(0),
+
+  status: text("status").notNull().default("queued"), // queued, sent, delivered, read, failed
+  errorCode: text("error_code"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ============================================================
+// SMS Messaging — per-workspace sender configuration and pricing
+// ============================================================
+
+// One row per workspace. Stores which Twilio identity is used to send SMS
+// for that workspace and tracks compliance state surfaced to the customer.
+export const workspaceSmsSettings = pgTable("workspace_sms_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id").notNull().unique().references(() => workspaces.id, { onDelete: "cascade" }),
+
+  // Which sender style to use when calling Twilio's messages.create:
+  // 'phone_number'      → use `from = phoneNumber.phoneNumber` (looked up via phoneNumberId)
+  // 'messaging_service' → use `messagingServiceSid` directly
+  // 'alphanumeric'      → use `from = alphanumericSender` (one-way; not supported in US/CA/CN/VN)
+  senderType: text("sender_type").notNull().default("phone_number"), // 'phone_number' | 'messaging_service' | 'alphanumeric'
+
+  // FK to the workspace's owned phone_numbers row used as the SMS sender.
+  // Required when senderType='phone_number'. Cleared otherwise.
+  phoneNumberId: varchar("phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }),
+
+  // Twilio Messaging Service SID (MGxxx...). Required when senderType='messaging_service'.
+  messagingServiceSid: text("messaging_service_sid"),
+
+  // Alphanumeric sender ID string (max 11 chars, must start with a letter, Latin
+  // alphanumeric + spaces). Required when senderType='alphanumeric'. One-way send
+  // only — recipients cannot reply. Not supported in US, Canada, China, Vietnam.
+  alphanumericSender: text("alphanumeric_sender"),
+
+  // Whether we've already PATCHed the Twilio number's smsUrl webhook to point
+  // at /api/webhooks/twilio/sms. Lets us avoid redundant API calls on save.
+  inboundWebhookConfigured: boolean("inbound_webhook_configured").notNull().default(false),
+
+  // Compliance state surfaced as a UI banner. Updated lazily by /api/sms/numbers
+  // when we resolve the number's A2P/toll-free registration via Trust Hub.
+  // 'unregistered' | 'a2p_pending' | 'a2p_registered' |
+  // 'toll_free_pending' | 'toll_free_verified' | 'not_applicable' | 'unknown'
+  complianceStatus: text("compliance_status").notNull().default("unknown"),
+  lastComplianceCheckAt: timestamp("last_compliance_check_at"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Admin-managed per-destination-country credit rate for SMS.
+// A single row with isoCountry='*' acts as the global fallback. The sms-service
+// resolves destination country via libphonenumber-js, looks up this table, and
+// charges (credits_per_segment × NumSegments) per outbound message.
+export const smsCountryRates = pgTable("sms_country_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isoCountry: varchar("iso_country", { length: 2 }).notNull().unique(), // '*' = default fallback
+  creditsPerSegment: integer("credits_per_segment").notNull(),
+  label: text("label"), // optional human label for admin UI (e.g. "United States")
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertWorkspaceSmsSettingsSchema = createInsertSchema(workspaceSmsSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type WorkspaceSmsSettings = typeof workspaceSmsSettings.$inferSelect;
+export type InsertWorkspaceSmsSettings = z.infer<typeof insertWorkspaceSmsSettingsSchema>;
+
+export const insertSmsCountryRateSchema = createInsertSchema(smsCountryRates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type SmsCountryRate = typeof smsCountryRates.$inferSelect;
+export type InsertSmsCountryRate = z.infer<typeof insertSmsCountryRateSchema>;
 
 // Incoming Connections - Links incoming agents (type='incoming') to phone numbers
 // One connection per phone number, allowing users to route incoming calls to specific agents
@@ -441,6 +927,23 @@ export const humanIncomingConnections = pgTable("human_incoming_connections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   phoneNumberId: varchar("phone_number_id").notNull().references(() => phoneNumbers.id, { onDelete: "cascade" }).unique(),
+  /** Twilio-owned number (non-UAE) used as callerId on the <Dial> leg to the human agent (see Human Agent wizard). */
+  outboundCallerPhoneNumberId: varchar("outbound_caller_phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }),
+  /**
+   * Optional two-hop relay: when set, the inbound UAE leg is bridged into a conference and a
+   * REST-originated outbound call from this Twilio-owned (non-UAE) relay number dials the human agent
+   * and joins the same conference. The agent's PSTN leg therefore presents +1 (relay) as caller ID,
+   * avoiding UAE→UAE CLI rejection on UAE-terminated PSTN.
+   */
+  relayPhoneNumberId: varchar("relay_phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }),
+  /**
+   * Optional ordered fallback list of relay phone-number IDs. When non-empty, the webhook
+   * tries each in order on hop2 origination error / `busy` / `failed` / `no-answer` / `canceled`
+   * before tearing down the parked customer leg. The first entry is the primary; subsequent
+   * entries are tried as fallbacks. When NULL/empty, the legacy single `relayPhoneNumberId`
+   * (above) is used as the only relay attempt for backward compatibility.
+   */
+  relayPhoneNumberIds: text("relay_phone_number_ids").array(),
   agentId: varchar("agent_id").references(() => agents.id, { onDelete: "set null" }),
   transferNumber: text("transfer_number").notNull(),
   transferTargetType: text("transfer_target_type").notNull().default("phone"),
@@ -536,6 +1039,21 @@ export const calls = pgTable("calls", {
   wasTransferred: boolean("was_transferred").default(false), // Whether call was transferred
   transferredTo: text("transferred_to"), // Number call was transferred to
   transferredAt: timestamp("transferred_at"), // When call was transferred
+  // UAE-safe transfer caller ID resolution (see resolveHumanAgentBridgeCallerId).
+  // Persisted so operators can audit which CLI was presented on the bridged leg
+  // without grepping logs. Source labels: 'wizard' | 'env' | 'inbound' | 'omitted'.
+  transferCallerId: text("transfer_caller_id"),
+  transferCallerIdSource: text("transfer_caller_id_source"),
+  // Two-hop relay path (Assign Human Agent): when a non-UAE relay number is
+  // configured, hop1 is the customer↔conference leg (caller-ID = inbound DID),
+  // hop2 is the relay→agent leg originated via REST (caller-ID = transferRelay
+  // PhoneNumber). When NULL, the call used the legacy single-leg <Dial> bridge.
+  transferRelayPhoneNumber: text("transfer_relay_phone_number"),
+  // Final disposition of the human-agent bridged leg, populated from the
+  // hop2 status callback (relay → agent leg) and from the single-leg
+  // <Dial> action callback. NULL while ringing or for non-transferred calls.
+  // Values: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled'.
+  transferAgentStatus: text("transfer_agent_status"),
   channelType: text("channel_type").default("VOICE"), // VOICE, CHAT, SMS
   cost: decimal("cost", { precision: 10, scale: 4 }),
   endReason: text("end_reason"),
@@ -2534,7 +3052,14 @@ export const twilioOpenaiCalls = pgTable("twilio_openai_calls", {
   wasTransferred: boolean("was_transferred").default(false),
   transferredTo: text("transferred_to"),
   transferredAt: timestamp("transferred_at"),
-  
+  // UAE-safe transfer caller ID resolution (mirrors `calls.transfer_caller_id*`).
+  // Source labels: 'wizard' | 'env' | 'inbound' | 'omitted'.
+  transferCallerId: text("transfer_caller_id"),
+  transferCallerIdSource: text("transfer_caller_id_source"),
+  // Final disposition of the human-agent bridged leg (mirrors `calls.transfer_agent_status`).
+  // Values: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled'.
+  transferAgentStatus: text("transfer_agent_status"),
+
   startedAt: timestamp("started_at"),
   answeredAt: timestamp("answered_at"),
   endedAt: timestamp("ended_at"),
@@ -3953,6 +4478,50 @@ export const insertIntegrationSyncLogSchema = createInsertSchema(integrationSync
 export type InsertIntegrationSyncLog = z.infer<typeof insertIntegrationSyncLogSchema>;
 export type IntegrationSyncLog = typeof integrationSyncLogs.$inferSelect;
 
+// ============================================================
+// Calendar Connections — Native Google/Outlook OAuth
+// ============================================================
+
+export const calendarConnections = pgTable("calendar_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // 'google' | 'microsoft'
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  scope: text("scope"),
+  tokenType: text("token_type"),
+  expiresAt: timestamp("expires_at"),
+  calendarId: text("calendar_id").default("primary"), // Google: calendarId, Microsoft: ignored (uses /me)
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCalendarConnectionSchema = createInsertSchema(calendarConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCalendarConnection = z.infer<typeof insertCalendarConnectionSchema>;
+export type CalendarConnection = typeof calendarConnections.$inferSelect;
+
+export const calendarOauthStates = pgTable("calendar_oauth_states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // 'google' | 'microsoft'
+  state: text("state").notNull().unique(),
+  codeVerifier: text("code_verifier").notNull(),
+  redirectUri: text("redirect_uri").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCalendarOauthStateSchema = createInsertSchema(calendarOauthStates).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCalendarOauthState = z.infer<typeof insertCalendarOauthStateSchema>;
+export type CalendarOauthState = typeof calendarOauthStates.$inferSelect;
+
 export const callerMemory = pgTable("caller_memory", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -4085,7 +4654,15 @@ export type InsertCallErrorLog = z.infer<typeof insertCallErrorLogSchema>;
 export type CallErrorLog = typeof callErrorLogs.$inferSelect;
 
 // Callpilot — AI-generated tasks from call transcriptions
-export const opsTaskTypeEnum = pgEnum("ops_task_type", ["refund", "callback", "followup", "escalation", "other"]);
+export const opsTaskTypeEnum = pgEnum("ops_task_type", [
+  "refund",
+  "callback",
+  "followup",
+  "escalation",
+  "appointment",
+  "dynamic_form",
+  "other",
+]);
 export const opsPriorityEnum = pgEnum("ops_priority", ["high", "medium", "low"]);
 export const opsStatusEnum = pgEnum("ops_status", ["pending", "in_progress", "completed", "cancelled"]);
 
@@ -4103,6 +4680,7 @@ export const opsTasks = pgTable("ops_tasks", {
   dueDate: timestamp("due_date"),
   intent: text("intent"),
   entities: jsonb("entities").$type<Record<string, string | string[] | null>>(),
+  actionTarget: jsonb("action_target").$type<Record<string, unknown>>(),
   sourceExcerpt: text("source_excerpt"),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -4123,6 +4701,11 @@ export const opsAnalysisRuns = pgTable("ops_analysis_runs", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   callId: varchar("call_id").notNull(),
   tasksCreated: integer("tasks_created").notNull().default(0),
+  outputLanguage: text("output_language"),
+  provider: text("provider"),
+  modelUsed: text("model_used"),
+  callSummary: text("call_summary"),
+  callBrief: jsonb("call_brief").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   uniqueUserCall: unique().on(table.userId, table.callId),

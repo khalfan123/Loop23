@@ -576,6 +576,13 @@ IMPORTANT: Do NOT just say you will book the appointment - you MUST actually cal
       const personalityText = params.personality ? `Personality: ${params.personality}.` : '';
       enhancedPrompt = `${toneText}${toneText && personalityText ? ' ' : ''}${personalityText}\n\n${params.prompt}`;
     }
+
+    // Apply phone-human best practices for natural agents (skip if already present)
+    // Flow/scripted agents use different construction path.
+    try {
+      const { applyPhoneHumanPolicy } = await import('./phone-human-policy');
+      enhancedPrompt = applyPhoneHumanPolicy(enhancedPrompt, 'balanced');
+    } catch {}
     
     // Enhance prompt with system tools instructions (including knowledge base if present)
     const hasKnowledgeBase = params.knowledge_bases && params.knowledge_bases.length > 0;
@@ -807,6 +814,15 @@ ABSOLUTE RULES - NEVER BREAK THESE:
 IMPORTANT: Each workflow step will have "CRITICAL INSTRUCTION" with the exact text to say. Copy that text exactly.
 
 You are a script reader, not a conversational AI. Execute the workflow mechanically.`;
+
+    // If user provided a non-scripted custom system prompt, apply phone-human policy.
+    // Never touch the default scripted prompt.
+    if (params.systemPrompt && !basePrompt.includes('SCRIPTED phone agent')) {
+      try {
+        const { applyPhoneHumanPolicy } = await import('./phone-human-policy');
+        basePrompt = applyPhoneHumanPolicy(basePrompt, 'balanced');
+      } catch {}
+    }
 
     // Add language detection instructions if enabled
     if (params.detectLanguageEnabled) {

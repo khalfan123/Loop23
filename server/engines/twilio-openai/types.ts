@@ -218,6 +218,8 @@ export interface AudioBridgeSession {
   fromNumber?: string;
   toNumber?: string;
   callDirection?: CallDirection;
+  /** Wizard-selected non-UAE outbound caller ID (E.164) from a Human Agent connection, if any. */
+  humanWizardCli?: string;
   pendingAudioQueue: PendingAudioRequest[];
   softTimeoutId: ReturnType<typeof setTimeout> | null;
   hardTimeoutId: ReturnType<typeof setTimeout> | null;
@@ -245,6 +247,11 @@ export interface AudioBridgeSession {
   unresolvedIntentStreak: number;
   escalationCheckpointArmed: boolean;
   userId?: string;
+  // IVR UX: play a ringback tone while the AI session warms up.
+  ivrRouted?: boolean;
+  ringbackIntervalId?: ReturnType<typeof setInterval> | null;
+  ringbackStartedAtMs?: number | null;
+  ringbackFrameIndex?: number;
 }
 
 export interface CreateSessionParams {
@@ -258,6 +265,7 @@ export interface CreateSessionParams {
   callDirection?: CallDirection;
   credentialId?: string;
   userId?: string;
+  humanWizardCli?: string;
 }
 
 export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string }[] = [

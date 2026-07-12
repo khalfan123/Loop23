@@ -170,20 +170,18 @@ export function PhoneNumberDropdown() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 h-9 rounded-xl transition-all duration-200",
-          "bg-white dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08]",
-          isOpen
-            ? "shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]"
-            : "shadow-sm"
+          "flex items-center gap-2 px-3 py-[7px] rounded-[10px] transition-colors duration-150",
+          "bg-[var(--l9-surface)] border border-[var(--l9-border-control)]",
+          isOpen && "bg-[var(--l9-hover)]",
         )}
         data-testid="button-phone-dropdown"
       >
-        <Phone className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
-        <span className="hidden sm:inline text-sm font-medium text-zinc-700 dark:text-zinc-300 tabular-nums">
-          {totalCount}
+        <Phone className="h-[15px] w-[15px] text-[var(--l9-text-muted)]" />
+        <span className="hidden sm:inline text-[14px] font-semibold text-[var(--l9-text)] tabular-nums">
+          {totalCount || 1}
         </span>
         <ChevronDown className={cn(
-          "h-3 w-3 text-zinc-400 dark:text-zinc-500 transition-transform duration-200",
+          "h-[13px] w-[13px] text-[var(--l9-text-faint)] transition-transform duration-150",
           isOpen && "rotate-180"
         )} />
       </button>

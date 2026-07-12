@@ -344,6 +344,8 @@ export interface BedrockPollyBridgeSession {
   fromNumber?: string;
   toNumber?: string;
   callDirection?: CallDirection;
+  /** Wizard-selected non-UAE outbound caller ID (E.164) from a Human Agent connection, if any. */
+  humanWizardCli?: string;
   pendingAudioQueue: PendingAudioRequest[];
   isProcessing: boolean;
   pollyEngine: 'neural' | 'generative';
@@ -367,6 +369,7 @@ export interface CreateSessionParams {
   toNumber?: string;
   callDirection?: CallDirection;
   awsRegion?: string;
+  humanWizardCli?: string;
 }
 
 /**

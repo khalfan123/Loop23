@@ -175,9 +175,7 @@ export default function VoiceSearchPicker({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const [cartesiaLoadingId, setCartesiaLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const cartesiaAudioUrlRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -198,12 +196,7 @@ export default function VoiceSearchPicker({
     staleTime: 60000,
   });
 
-  const { data: cartesiaVoicesRaw, isLoading: cartesiaLoading } = useQuery<Array<{ id: string; name: string; language: string; description?: string }>>({
-    queryKey: ["/api/deprock/cartesia-voices"],
-    staleTime: 60000,
-  });
-
-  const isLoading = elevenLabsLoading || cartesiaLoading;
+  const isLoading = elevenLabsLoading;
 
   const openaiVoices: AccountVoice[] = [
     { voice_id: "alloy", name: "Alloy", category: "OpenAI", labels: { description: "Versatile and balanced" } },
@@ -224,18 +217,8 @@ export default function VoiceSearchPicker({
       voices.push(...accountVoices);
     }
     voices.push(...openaiVoices);
-    if (cartesiaVoicesRaw) {
-      cartesiaVoicesRaw.forEach(cv => {
-        voices.push({
-          voice_id: cv.id,
-          name: cv.name,
-          category: "Cartesia Sonic",
-          labels: { language: cv.language || "en" },
-        });
-      });
-    }
     return voices;
-  }, [accountVoices, cartesiaVoicesRaw]);
+  }, [accountVoices]);
 
   const filteredVoices = useMemo(() => {
     if (!allVoices.length) return [];
@@ -263,59 +246,6 @@ export default function VoiceSearchPicker({
       audioRef.current.pause();
     }
 
-    const isCartesia = voice.category?.toLowerCase().includes("cartesia");
-
-    if (isCartesia) {
-      setCartesiaLoadingId(voice.voice_id);
-      try {
-        const authHeader = AuthStorage.getAuthHeader();
-        const headers: HeadersInit = { "Content-Type": "application/json" };
-        if (authHeader) headers["Authorization"] = authHeader;
-
-        const response = await fetch("/api/deprock/cartesia-voices/preview", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ voiceId: voice.voice_id }),
-        });
-
-        if (!response.ok) {
-          let errorMessage = "Failed to generate preview";
-          try {
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-              const errorData = await response.json();
-              errorMessage = errorData.error || errorData.message || errorMessage;
-            }
-          } catch {}
-          throw new Error(errorMessage);
-        }
-
-        const blob = await response.blob();
-        if (cartesiaAudioUrlRef.current) {
-          URL.revokeObjectURL(cartesiaAudioUrlRef.current);
-        }
-        const url = URL.createObjectURL(blob);
-        cartesiaAudioUrlRef.current = url;
-
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.play().catch(console.error);
-        setPlayingVoiceId(voice.voice_id);
-        audio.onended = () => setPlayingVoiceId(null);
-        audio.onerror = () => setPlayingVoiceId(null);
-      } catch (err: any) {
-        console.error("Cartesia preview error:", err);
-        toast({
-          title: t('voicePreview.error', 'Preview Error'),
-          description: err?.message || t('voicePreview.failedToGenerate', 'Failed to generate voice preview'),
-          variant: "destructive",
-        });
-      } finally {
-        setCartesiaLoadingId(null);
-      }
-      return;
-    }
-
     if (!voice.preview_url) return;
 
     const audio = new Audio(voice.preview_url);
@@ -332,9 +262,6 @@ export default function VoiceSearchPicker({
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
-      }
-      if (cartesiaAudioUrlRef.current) {
-        URL.revokeObjectURL(cartesiaAudioUrlRef.current);
       }
     };
   }, []);
@@ -434,8 +361,7 @@ export default function VoiceSearchPicker({
                 onSelect={() => handleSelect(voice)}
                 onPreview={() => handlePreview(voice)}
                 isPlaying={playingVoiceId === voice.voice_id}
-                isPreviewLoading={cartesiaLoadingId === voice.voice_id}
-                hasPreview={!!voice.preview_url || !!voice.category?.toLowerCase().includes("cartesia")}
+                hasPreview={!!voice.preview_url}
               />
             ))
           )}

@@ -6,7 +6,7 @@
  */
 
 import { db } from '../db';
-import { users, creditTransactions } from '@shared/schema';
+import { users, creditTransactions, smsCountryRates, messages } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -387,4 +387,222 @@ export async function applyRefund(params: RefundParams): Promise<RefundResult> {
       error: error.message,
     };
   }
+}
+
+// ============================================================
+// SMS — per-segment credit charging
+// ============================================================
+
+export interface SmsChargeParams {
+  userId: string;
+  twilioMessageSid: string;
+  segments: number;
+  destinationCountry: string | null;
+  /**
+   * Optional sub-identifier so we can charge for the same Twilio message SID
+   * multiple times if needed (e.g. a delta reconciliation after the status
+   * callback reports a higher NumSegments than we estimated at send time).
+   *
+   * Use 'send' for the initial provisional charge and 'reconcile' for the
+   * delta charge. Different sub-references → different credit_transactions
+   * rows, while same sub-reference → idempotent skip.
+   */
+  subRef?: 'send' | 'reconcile';
+}
+
+export interface SmsChargeResult {
+  success: boolean;
+  creditsDeducted: number;
+  newBalance?: number;
+  rate: number;
+  alreadyDeducted?: boolean;
+  error?: string;
+}
+
+/**
+ * Look up credits-per-segment for an ISO 3166-1 alpha-2 country code,
+ * falling back to the iso_country='*' default row. Returns 0 if no default
+ * row is configured (caller should treat as "free / not configured").
+ */
+export async function getSmsRateForCountry(isoCountry: string | null): Promise<number> {
+  try {
+    if (isoCountry) {
+      const [row] = await db
+        .select()
+        .from(smsCountryRates)
+        .where(eq(smsCountryRates.isoCountry, isoCountry.toUpperCase()))
+        .limit(1);
+      if (row) return row.creditsPerSegment;
+    }
+    const [fallback] = await db
+      .select()
+      .from(smsCountryRates)
+      .where(eq(smsCountryRates.isoCountry, '*'))
+      .limit(1);
+    return fallback?.creditsPerSegment ?? 0;
+  } catch (err: any) {
+    logger.error(`Failed to resolve SMS rate for ${isoCountry}: ${err.message}`, err, 'CreditService');
+    return 0;
+  }
+}
+
+/**
+ * Charge a user for an outbound SMS message. Atomic and idempotent on
+ * `(userId, reference)` where reference = `sms:${twilioMessageSid}:${subRef}`.
+ *
+ * Workflow:
+ *   1. Provisional charge at send time with subRef='send' using estimated
+ *      segment count from body length.
+ *   2. When Twilio status callback fires, if NumSegments > estimate the
+ *      webhook reconciles by calling this again with subRef='reconcile' and
+ *      `segments = NumSegments - estimate`.
+ *
+ * The `messages.credits_charged` column is bumped by the actual amount
+ * deducted so the UI can show "X credits used on this message".
+ */
+export async function chargeSmsSegments(params: SmsChargeParams): Promise<SmsChargeResult> {
+  const { userId, twilioMessageSid, segments, destinationCountry } = params;
+  const subRef = params.subRef ?? 'send';
+
+  if (segments <= 0) {
+    return { success: true, creditsDeducted: 0, rate: 0, alreadyDeducted: false };
+  }
+
+  const ratePerSegment = await getSmsRateForCountry(destinationCountry);
+  if (ratePerSegment <= 0) {
+    logger.warn(
+      `[sms] No SMS rate configured for ${destinationCountry ?? 'unknown'} and no default; skipping charge for ${twilioMessageSid}`,
+      undefined,
+      'CreditService'
+    );
+    return { success: true, creditsDeducted: 0, rate: 0, alreadyDeducted: false };
+  }
+
+  const creditsToDeduct = ratePerSegment * segments;
+  const reference = `sms:${twilioMessageSid}:${subRef}`;
+  const description = `SMS ${subRef === 'send' ? 'send' : 'reconcile'}: ${segments} segment${segments === 1 ? '' : 's'} × ${ratePerSegment} credit${ratePerSegment === 1 ? '' : 's'}/segment (${destinationCountry ?? '??'})`;
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const userHash = hashCode32(userId);
+      const refHash = hashCode32(reference);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${userHash}, ${refHash})`);
+
+      const existing = await tx
+        .select()
+        .from(creditTransactions)
+        .where(and(
+          eq(creditTransactions.reference, reference),
+          eq(creditTransactions.userId, userId)
+        ));
+      if (existing.length > 0) {
+        logger.info(`[sms] Credits already deducted for ${reference} — skipping duplicate`, undefined, 'CreditService');
+        return { success: true, creditsDeducted: 0, rate: ratePerSegment, alreadyDeducted: true } as SmsChargeResult;
+      }
+
+      const lockResult = await tx.execute(sql`SELECT credits FROM users WHERE id = ${userId} FOR UPDATE`);
+      const currentCredits = Number(lockResult.rows?.[0]?.credits) || 0;
+
+      if (currentCredits < creditsToDeduct) {
+        // We deliberately do NOT short-charge here. The send route should
+        // have called checkSufficientCredits() before calling Twilio; if we
+        // get here, it's a reconcile delta. Record a transaction with the
+        // best-effort amount so the audit log reflects what happened.
+        const actual = Math.max(0, currentCredits);
+        if (actual > 0) {
+          await tx
+            .update(users)
+            .set({ credits: sql`${users.credits} - ${actual}` })
+            .where(eq(users.id, userId));
+          await tx.insert(creditTransactions).values({
+            userId,
+            type: 'usage',
+            amount: -actual,
+            description: `${description} (partial — insufficient balance)`,
+            reference,
+          });
+          await tx
+            .update(messages)
+            .set({ creditsCharged: sql`${messages.creditsCharged} + ${actual}` })
+            .where(eq(messages.twilioMessageSid, twilioMessageSid));
+        }
+        return {
+          success: false,
+          creditsDeducted: actual,
+          rate: ratePerSegment,
+          newBalance: Math.max(0, currentCredits - actual),
+          error: 'Insufficient credits',
+        } as SmsChargeResult;
+      }
+
+      await tx
+        .update(users)
+        .set({ credits: sql`${users.credits} - ${creditsToDeduct}` })
+        .where(eq(users.id, userId));
+
+      await tx.insert(creditTransactions).values({
+        userId,
+        type: 'usage',
+        amount: -creditsToDeduct,
+        description,
+        reference,
+      });
+
+      await tx
+        .update(messages)
+        .set({ creditsCharged: sql`${messages.creditsCharged} + ${creditsToDeduct}` })
+        .where(eq(messages.twilioMessageSid, twilioMessageSid));
+
+      const [updated] = await tx
+        .select({ credits: users.credits })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      logger.info(
+        `[sms] Deducted ${creditsToDeduct} credits for ${reference}. New balance: ${updated?.credits ?? 0}`,
+        undefined,
+        'CreditService'
+      );
+
+      return {
+        success: true,
+        creditsDeducted: creditsToDeduct,
+        rate: ratePerSegment,
+        newBalance: updated?.credits ?? 0,
+        alreadyDeducted: false,
+      } as SmsChargeResult;
+    });
+
+    return result;
+  } catch (error: any) {
+    if (error.code === '23505' || error.message?.includes('duplicate')) {
+      logger.info(`[sms] Credits already deducted for ${reference} (caught by constraint)`, undefined, 'CreditService');
+      return { success: true, creditsDeducted: 0, rate: ratePerSegment, alreadyDeducted: true };
+    }
+    logger.error(`[sms] Failed to charge SMS credits for ${reference}: ${error.message}`, error, 'CreditService');
+    return { success: false, creditsDeducted: 0, rate: ratePerSegment, error: error.message };
+  }
+}
+
+/**
+ * Estimate the number of SMS segments a body will take. Conservative: assumes
+ * GSM-7 unless any character is outside the basic Latin range, in which case
+ * we assume UCS-2. Real segment counts come back via Twilio's status callback.
+ *
+ *   GSM-7 single:  ≤ 160 chars
+ *   GSM-7 multi:    70-char segments after that? — actually 153 chars per
+ *                   segment (7-bit UDH eats some).
+ *   UCS-2 single:  ≤ 70 chars
+ *   UCS-2 multi:    67 chars per segment.
+ */
+export function estimateSmsSegments(body: string): number {
+  if (!body) return 0;
+  // Treat anything outside basic GSM-7 as UCS-2 (emoji, RTL scripts, etc.)
+  const isUcs2 = /[^\u0000-\u007F\u00A0-\u00FF€]/.test(body);
+  const len = body.length;
+  if (isUcs2) {
+    return len <= 70 ? 1 : Math.ceil(len / 67);
+  }
+  return len <= 160 ? 1 : Math.ceil(len / 153);
 }

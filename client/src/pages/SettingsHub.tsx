@@ -1,18 +1,21 @@
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon, LifeBuoy } from "lucide-react";
+import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon, LifeBuoy, Key, LayoutGrid, Sparkles, KeyRound } from "lucide-react";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { BUILD_VERSION_FULL } from "@/lib/build-version";
 import Settings from "@/pages/Settings";
 import FlowsPage from "@/pages/FlowsPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
-import WebhookConfigPage from "@/pages/WebhookConfigPage";
+import AutomationHub from "@/pages/automation/AutomationHub";
 import FormsPage from "@/pages/FormsPage";
 import WidgetsPage from "@/pages/WidgetsPage";
 import PlanBillingPage from "@/pages/PlanBillingPage";
 import SupportTicketsPage from "@/pages/SupportTicketsPage";
+import { useQuery } from "@tanstack/react-query";
+
+type WebhookNavItem = { id: string; name: string; isActive?: boolean };
 
 const settingsItems = [
   {
@@ -117,6 +120,11 @@ function SettingsOverview({ onNavigate }: { onNavigate: (url: string) => void })
 export default function SettingsHub() {
   const { t } = useTranslation();
   const [location, setLocation] = useLocation();
+  const isWebhooksPage =
+    location === "/app/settings/automation" ||
+    location.startsWith("/app/settings/automation/") ||
+    location === "/app/settings/webhooks" ||
+    location.startsWith("/app/settings/webhooks/");
 
   const isItemActive = (url: string) => {
     if (url === "/app/settings/account") {
@@ -125,7 +133,60 @@ export default function SettingsHub() {
     return location === url || location.startsWith(url + "/");
   };
 
-  const subPanelContent = (
+  const { data: webhooks = [] } = useQuery<WebhookNavItem[]>({
+    queryKey: ["/api/webhooks"],
+    enabled: isWebhooksPage,
+  });
+
+  const subPanelContent = isWebhooksPage ? (
+    <>
+      <SubPanelSection title={t('automation.subnav.sections', 'Sections')}>
+        <SubPanelItem
+          icon={<LayoutGrid className="w-4 h-4" />}
+          label={t('automation.tabs.marketplace', 'Marketplace')}
+          isActive={location.startsWith('/app/settings/automation/marketplace')}
+          onClick={() => setLocation('/app/settings/automation/marketplace')}
+          data-testid="nav-automation-marketplace"
+        />
+        <SubPanelItem
+          icon={<Sparkles className="w-4 h-4" />}
+          label={t('automation.tabs.starterPack', 'Starter pack')}
+          isActive={location.startsWith('/app/settings/automation/starter')}
+          onClick={() => setLocation('/app/settings/automation/starter')}
+          data-testid="nav-automation-starter"
+        />
+        <SubPanelItem
+          icon={<Workflow className="w-4 h-4" />}
+          label={t('automation.tabs.mine', 'My Automations')}
+          isActive={location.startsWith('/app/settings/automation/mine')}
+          onClick={() => setLocation('/app/settings/automation/mine')}
+          badge={webhooks.length > 0 ? webhooks.length : undefined}
+          data-testid="nav-automation-mine"
+        />
+        <SubPanelItem
+          icon={<KeyRound className="w-4 h-4" />}
+          label={t('automation.tabs.api', 'API & Webhooks')}
+          isActive={location.startsWith('/app/settings/automation/api')}
+          onClick={() => setLocation('/app/settings/automation/api')}
+          data-testid="nav-automation-api"
+        />
+      </SubPanelSection>
+      {webhooks.length > 0 && location.startsWith('/app/settings/automation/mine') && (
+        <SubPanelSection title={t('automation.subnav.yours', 'Your automations')}>
+          {webhooks.map((w) => (
+            <SubPanelItem
+              key={w.id}
+              icon={<Workflow className="w-4 h-4" />}
+              label={w.name}
+              isActive={false}
+              onClick={() => setLocation('/app/settings/automation/mine')}
+              data-testid={`webhook-nav-${w.id}`}
+            />
+          ))}
+        </SubPanelSection>
+      )}
+    </>
+  ) : (
     <SubPanelSection>
       {settingsItems.map((item) => (
         <SubPanelItem
@@ -140,7 +201,12 @@ export default function SettingsHub() {
     </SubPanelSection>
   );
 
-  const subPanelHeader = (
+  const subPanelHeader = isWebhooksPage ? (
+    <span className="font-medium text-sm flex items-center gap-2">
+      <Workflow className="h-4 w-4 text-primary" />
+      {t("webhooks.flowBuilder.pageTitle", "Automation")}
+    </span>
+  ) : (
     <span className="font-medium text-sm flex items-center gap-2">
       <SettingsIcon className="h-4 w-4 text-primary" />
       {t('nav.settings', 'Settings')}
@@ -163,7 +229,11 @@ export default function SettingsHub() {
         <Route path="/app/settings/flows/:id" component={FlowBuilderPage} />
         <Route path="/app/settings/flows" component={FlowsPage} />
         <Route path="/app/settings/execution" component={FlowExecutionLogsPage} />
-        <Route path="/app/settings/webhooks" component={WebhookConfigPage} />
+        <Route path="/app/settings/automation/*" component={AutomationHub} />
+        <Route path="/app/settings/automation" component={AutomationHub} />
+        <Route path="/app/settings/webhooks">
+          <Redirect to="/app/settings/automation" />
+        </Route>
         <Route path="/app/settings/widgets" component={WidgetsPage} />
         <Route path="/app/settings/upgrade">
           <Redirect to="/app/settings/billing" />

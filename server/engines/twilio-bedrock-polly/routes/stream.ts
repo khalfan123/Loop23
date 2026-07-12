@@ -247,6 +247,16 @@ async function initializeSession(
       });
 
       const streamLanguage = (metadata?.language as string) || 'en';
+      const flowLanguageLocked =
+        metadata?.languageLocked === true && (metadata?.languageLockMode as string) === 'ivr';
+      const flowBaseSystemPrompt = (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.';
+      const flowLangName =
+        streamLanguage.toLowerCase().startsWith('ar') ? 'Arabic'
+          : streamLanguage.toLowerCase().startsWith('en') ? 'English'
+            : streamLanguage;
+      const flowLockedSystemPrompt = flowLanguageLocked
+        ? `LANGUAGE LOCK (IVR): The caller selected "${streamLanguage}" (${flowLangName}) in the IVR. You MUST respond ONLY in ${flowLangName} for the entire call. Do NOT switch to Arabic or any other language automatically. Only switch if the caller explicitly asks you to.\n\n${flowBaseSystemPrompt}`
+        : flowBaseSystemPrompt;
       const localizedFlowFirstMsg = await BedrockAgentFactory.localizeFirstMessage(
         (metadata?.firstMessage as string) || undefined,
         streamLanguage
@@ -255,7 +265,7 @@ async function initializeSession(
       const factoryConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: ((metadata?.bedrockModel as string) || (callRecord as any).bedrockModel || BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
-        systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
+        systemPrompt: flowLockedSystemPrompt,
         firstMessage: localizedFlowFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
         language: streamLanguage,
@@ -273,6 +283,7 @@ async function initializeSession(
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools`, undefined, 'BedrockPolly Stream');
     } else {
       const streamLanguage = (metadata?.language as string) || 'en';
+      const languageLocked = metadata?.languageLocked === true && (metadata?.languageLockMode as string) === 'ivr';
       const localizedNaturalFirstMsg = await BedrockAgentFactory.localizeFirstMessage(
         (metadata?.firstMessage as string) || undefined,
         streamLanguage
@@ -284,10 +295,19 @@ async function initializeSession(
 
       const streamTtsProvider = (metadata?.ttsProvider as string) || undefined;
 
+      const baseSystemPrompt = (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.';
+      const streamLangName =
+        streamLanguage.toLowerCase().startsWith('ar') ? 'Arabic'
+          : streamLanguage.toLowerCase().startsWith('en') ? 'English'
+            : streamLanguage;
+      const lockedSystemPrompt = languageLocked
+        ? `LANGUAGE LOCK (IVR): The caller selected "${streamLanguage}" (${streamLangName}) in the IVR. You MUST respond ONLY in ${streamLangName} for the entire call. Do NOT switch to Arabic or any other language automatically. Only switch if the caller explicitly asks you to.\n\n${baseSystemPrompt}`
+        : baseSystemPrompt;
+
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: ((metadata?.bedrockModel as string) || (callRecord as any).bedrockModel || BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
-        systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
+        systemPrompt: lockedSystemPrompt,
         firstMessage: localizedNaturalFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
         language: streamLanguage,
@@ -388,6 +408,7 @@ async function initializeSession(
       fromNumber: callRecord.fromNumber || undefined,
       toNumber: callRecord.toNumber || undefined,
       callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
+      humanWizardCli: (metadata?.humanWizardCli as string | null | undefined) || undefined,
     });
 
     logger.info(`Session created for incoming call ${callSid}`, undefined, 'BedrockPolly Stream');

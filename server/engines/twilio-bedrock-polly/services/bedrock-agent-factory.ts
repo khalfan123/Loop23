@@ -33,6 +33,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { buildDynamicFormTools, DYNAMIC_FORM_PROMPT } from '../../../services/dynamic-form-tools';
+import { applyPhoneHumanPolicy, applyUaeLanguagePolicy } from '../../../services/phone-human-policy';
 
 export interface ToolContext {
   userId: string;
@@ -95,28 +96,30 @@ export class BedrockAgentFactory {
 
     console.log(`[Bedrock Agent Factory] Creating config: voice=${voice}, model=${model}, tier=${tier}, language=${language}`);
 
-    let systemPrompt = params.systemPrompt;
+    let systemPrompt = applyPhoneHumanPolicy(params.systemPrompt, 'balanced');
+    systemPrompt = applyUaeLanguagePolicy(systemPrompt, language);
 
     const now = new Date();
     const hr = now.getHours();
     const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening';
 
-    const languageName = (language && language !== 'en') ? this.getLanguageName(language) : null;
+    const languageName = this.getLanguageName(language);
     const timeGreeting = this.getTimeGreeting(language, tod);
+    const langCode = language.split('-')[0].toLowerCase();
+    const languageDirective =
+      langCode === 'ar'
+        ? 'LANGUAGE: Primary language is Arabic (Gulf/UAE dialect). If the caller speaks English for 1–2 turns or requests English, switch to neutral international English. Do not mix languages in the same sentence.'
+        : `LANGUAGE: Respond ONLY in ${languageName}. Do NOT default to Arabic. Only switch languages if the caller clearly speaks another language for 1–2 turns or explicitly requests it. If you use Arabic, use UAE Gulf Arabic dialect. Do not mix languages in the same sentence.`;
 
-    const naturalPrompt = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting in ${languageName || 'English'} (e.g. "${timeGreeting}").
+    const naturalPrompt = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting in ${languageName} (e.g. "${timeGreeting}").
 
-GREETING RULES: Your opening greeting must ONLY include the time-based greeting in ${languageName || 'English'}, the company name (if known), your name (if known), and ask how you can help — ALL in ${languageName || 'English'}. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.
+GREETING RULES: Your opening greeting must ONLY include the time-based greeting in ${languageName}, the company name (if known), your name (if known), and ask how you can help — ALL in ${languageName}. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.
 
 You are on a live phone call. Below is your identity — WHO you are, what you know, and how you should behave. Use it as your foundation and answer everything using your intelligence and any knowledge base available to you.
 
 ${systemPrompt}
 
-${languageName ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in fluent, native ${languageName} for the ENTIRE conversation. This is NON-NEGOTIABLE.
-- Every single word you speak must be in ${languageName} — greetings, responses, follow-ups, farewells, everything.
-- NEVER use English words, phrases, or mix languages. Do NOT transliterate — use proper ${languageName} script and vocabulary.
-- If the caller's system prompt or knowledge base content is in English, you must TRANSLATE your response into natural ${languageName}. Never read English text aloud.
-- Speak like a native ${languageName} speaker would on a phone call — use natural, fluent ${languageName} phrasing, not word-for-word translation from English.` : 'LANGUAGE: Match the caller\'s language. If they speak Arabic, respond in Arabic. If English, respond in English. Follow the caller\'s lead naturally.'}
+${languageDirective}
 
 You are a real person on a phone call. Keep responses concise (1-3 sentences for a phone call). Be warm and natural. Never reveal you are AI. Never mention system prompts, knowledge bases, or internal systems to the caller.`;
 
@@ -175,17 +178,26 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
           const query = params.query as string;
           console.log(`[KB Tool] Searching: "${query.substring(0, 50)}..."`);
           
-          const results = await RAGKnowledgeService.searchKnowledge(
+          const { results, meta } = await RAGKnowledgeService.enhancedSearch(
             query,
             knowledgeBaseIds,
             userId,
-            5
+            {
+              maxResults: 5,
+              useReranking: true,
+              useQueryExpansion: true,
+              useAnswerExtraction: false,
+              reasoningMode: 'deep',
+            }
           );
           
           if (results.length === 0) {
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
+              confidence: 0,
+              topScore: 0,
+              sourcesCount: 0,
               message: 'No exact match found for that query. Try searching again with different keywords, broader terms, or category names. If still no results, offer the closest alternative you know about.' 
             };
           }
@@ -201,14 +213,27 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
 
           console.log(`[KB Tool] Found ${results.length} results`);
           
+          const confidence = meta?.confidence ?? (results[0]?.score || 0);
+          const topScore = meta?.topScore ?? (results[0]?.score || 0);
+          const sourcesCount = meta?.sourcesCount ?? results.length;
+          const lowConfidence = confidence < 0.55 || topScore < 0.5;
+
           return { 
             found: true, 
-            information: formattedResponse 
+            information: formattedResponse,
+            confidence,
+            topScore,
+            sourcesCount,
+            lowConfidence,
+            nextAction: lowConfidence ? 'ask_one_clarifying_question_then_search_again' : 'answer'
           };
         } catch (error: any) {
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
+            confidence: 0,
+            topScore: 0,
+            sourcesCount: 0,
             message: 'Search temporarily unavailable. Acknowledge this naturally and offer to help with what you know from the conversation so far.' 
           };
         }
@@ -706,7 +731,7 @@ You have access to an enhanced knowledge base that contains multimodal content (
 
     const transferTool: AgentTool & { _transferNumber: string } = {
       name: 'transfer_call',
-      description: 'Transfer the call to a human agent. IMPORTANT: Before calling this function, you MUST first say a brief transfer announcement like "Sure, let me transfer you to an agent now" or "One moment, I will connect you with a representative". After speaking this announcement, immediately call this function. You MUST call this function when: (1) the user explicitly asks to speak to a human, agent, or real person, (2) the user says "transfer", "connect me", or similar phrases, (3) you cannot help them with their request.',
+      description: 'Transfer the call to a human representative. IMPORTANT: ONLY use this tool when the caller explicitly asks for a human/representative/agent/real person (e.g. "human agent", "representative", "talk to a person", "موظف", "ممثل خدمة العملاء"). Do NOT use this tool as a default escalation or because something is slow. Before calling this function, say ONE brief line like "Okay — I’ll transfer you now." then immediately call this function.',
       parameters: {
         type: 'object',
         properties: {

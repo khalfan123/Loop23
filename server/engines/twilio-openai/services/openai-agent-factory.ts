@@ -21,12 +21,14 @@ import type {
 } from '../types';
 import { OPENAI_VOICES, MODEL_TIER_CONFIG } from '../types';
 import { RAGKnowledgeService } from '../../../services/rag-knowledge';
+import { awsBedrockService } from '../../../services/aws-bedrock';
 import { db } from '../../../db';
 import { appointments, appointmentSettings, formSubmissions, agents, forms, formFields, calls, twilioOpenaiCalls } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { buildDynamicFormTools, DYNAMIC_FORM_PROMPT } from '../../../services/dynamic-form-tools';
+import { applyUaeLanguagePolicy } from '../../../services/phone-human-policy';
 
 export interface DataSchemaField {
   name: string;
@@ -118,12 +120,26 @@ export class OpenAIAgentFactory {
     const timeContext = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting (e.g. "Good ${tod}").
 
 GREETING RULES: Your opening greeting must ONLY include the time-based greeting, the company name (if known), your name (if known), and ask how you can help. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.`;
-    systemPrompt = `${timeContext}\n\n${systemPrompt}`;
+    const realtimeResponseRules = `REALTIME RESPONSE RULES (PHONE):\n- Start speaking immediately after the caller finishes.\n- Begin with a short acknowledgement (3–6 words), then ask ONE clarifying question.\n- Then continue with the answer. Keep sentences short.\n- If you need to call tools, ask the clarifying question first while tools run.`;
+    systemPrompt = `${timeContext}\n\n${realtimeResponseRules}\n\n${systemPrompt}`;
 
-    if (language && language !== 'en' && !params.systemPrompt.includes('LANGUAGE:')) {
+    // Respect agent/IVR language — do not force Arabic-primary when English (or another lang) is selected.
+    systemPrompt = applyUaeLanguagePolicy(systemPrompt, language);
+
+    if (language && !params.systemPrompt.includes('LANGUAGE LOCK') && !params.systemPrompt.includes('LANGUAGE:')) {
       const languageName = this.getLanguageName(language);
-      systemPrompt = `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.\n\n${systemPrompt}`;
+      systemPrompt = `LANGUAGE: Respond ONLY in ${languageName} unless the caller explicitly asks to switch languages. Match the caller's spoken language if they clearly switch.\n\n${systemPrompt}`;
     }
+
+    // Realtime latency tuning defaults (can be overridden by agent.behaviorConfig or explicit vadSettings).
+    // Goal: reduce end-of-speech detection time so the model starts speaking quickly.
+    const defaultVadSettings = {
+      type: 'semantic_vad' as const,
+      eagerness: 'high' as const,
+      threshold: 0.75,
+      prefixPaddingMs: 250,
+      silenceDurationMs: 450,
+    };
 
     return {
       voice,
@@ -133,6 +149,8 @@ GREETING RULES: Your opening greeting must ONLY include the time-based greeting,
       temperature: params.temperature ?? 0.7,
       tools: [],
       toolContext: params.toolContext,
+      vadSettings: defaultVadSettings,
+      language,
     };
   }
 
@@ -226,6 +244,55 @@ You have a knowledge base with product catalog, pricing, and business informatio
       systemPrompt: config.systemPrompt + kbPrompt,
       knowledgeBaseIds,
       tools: [...(config.tools || []), kbTool],
+    };
+  }
+
+  /**
+   * Optional escalation tool: ask Bedrock (Claude Sonnet) for deeper reasoning.
+   * Must be used sparingly; it is slower than GPT Realtime.
+   */
+  static addBedrockReasoningTool(
+    config: AgentConfigWithContext,
+    language: string = 'en'
+  ): AgentConfigWithContext {
+    if (config.tools?.some((t) => t.name === 'escalate_reasoning')) {
+      return config;
+    }
+
+    const tool: AgentTool = {
+      name: 'escalate_reasoning',
+      description: 'Use ONLY when the user question is complex, ambiguous, or high-stakes and you need deeper reasoning. Return a concise answer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'The user question (in the user language).' },
+          context: { type: 'string', description: 'Short relevant context from the conversation (optional).' },
+        },
+        required: ['question'],
+      },
+      handler: async (params: Record<string, unknown>) => {
+        const question = String(params.question || '').trim();
+        const context = String(params.context || '').trim();
+        const prompt =
+          `Reply in ${language}. Be concise (2-5 sentences). If facts are uncertain, say what is missing.` +
+          `\n\nQuestion:\n${question}\n\nContext:\n${context}`;
+        const model = awsBedrockService.selectModelForTask('reasoning');
+        const resp = await awsBedrockService.invoke({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.2,
+          maxTokens: 900,
+        });
+        return { answer: resp.content, model };
+      },
+    };
+
+    return {
+      ...config,
+      systemPrompt:
+        config.systemPrompt +
+        `\n\nReasoning escalation: If the caller asks a complex or high-stakes question, you may call escalate_reasoning(question, context) to get a deeper answer. Ask one short clarifying question first if needed.`,
+      tools: [...(config.tools || []), tool],
     };
   }
 
@@ -660,7 +727,7 @@ You have a knowledge base with product catalog, pricing, and business informatio
 
     const transferTool: AgentTool & { _transferNumber: string } = {
       name: 'transfer_call',
-      description: 'Transfer the call to a human agent. IMPORTANT: Before calling this function, you MUST first say a brief transfer announcement like "Sure, let me transfer you to an agent now" or "One moment, I will connect you with a representative". After speaking this announcement, immediately call this function. You MUST call this function when: (1) the user explicitly asks to speak to a human, agent, or real person, (2) the user says "transfer", "connect me", or similar phrases, (3) you cannot help them with their request.',
+      description: 'Transfer the call to a human representative. IMPORTANT: ONLY use this tool when the caller explicitly asks for a human/representative/agent/real person (e.g. "human agent", "representative", "talk to a person", "موظف", "ممثل خدمة العملاء"). Do NOT use this tool as a default escalation or because something is slow. Before calling this function, say ONE brief line like "Okay — I’ll transfer you now." then immediately call this function.',
       parameters: {
         type: 'object',
         properties: {

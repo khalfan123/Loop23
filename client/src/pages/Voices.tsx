@@ -25,7 +25,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
-import CartesiaVoicePreviewButton from "@/components/CartesiaVoicePreviewButton";
 import { cn } from "@/lib/utils";
 
 interface AccountVoice {
@@ -42,15 +41,6 @@ interface OpenAIVoiceInfo {
   description: string;
   gender: string;
   style: string;
-}
-
-interface CartesiaVoice {
-  id: string;
-  name: string;
-  description: string;
-  language: string;
-  gender?: string;
-  isPublic: boolean;
 }
 
 const OPENAI_VOICES: OpenAIVoiceInfo[] = [
@@ -189,7 +179,7 @@ function FilterSidebar({
         )}
       </div>
 
-      {(activeProvider === "elevenlabs" || activeProvider === "cartesia") && (
+      {activeProvider === "elevenlabs" && (
         <div className="px-3 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
           <div className="flex items-center gap-2 px-1 mb-3">
             <Languages className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -269,7 +259,6 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
   const [mobileOpen, setMobileOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const cartesiaStopRef = useRef<(() => void) | null>(null);
 
   const VOICES_PER_PAGE = 10;
 
@@ -302,27 +291,14 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
     staleTime: 60000,
   });
 
-  const { data: cartesiaVoices, isLoading: cartesiaLoading, isError: cartesiaError, error: cartesiaErr } = useQuery<CartesiaVoice[]>({
-    queryKey: ["/api/deprock/cartesia-voices"],
-    staleTime: 60000,
-  });
-
   const availableLanguages = useMemo(() => {
-    if (effectiveProvider === 'cartesia') {
-      if (!cartesiaVoices) return [];
-      const langs = new Set<string>();
-      cartesiaVoices.forEach(v => {
-        if (v.language) langs.add(v.language.toLowerCase().split(/[-_]/)[0]);
-      });
-      return VOICE_LANGUAGES.filter(l => l.value === 'all' || langs.has(l.code));
-    }
     if (!accountVoices) return [];
     const langs = new Set<string>();
     accountVoices.forEach(v => {
       if (v.labels?.language) langs.add(v.labels.language.toLowerCase());
     });
     return VOICE_LANGUAGES.filter(l => l.value === 'all' || langs.has(l.code));
-  }, [accountVoices, cartesiaVoices, effectiveProvider]);
+  }, [accountVoices]);
 
   const filteredVoices = useMemo(() => {
     if (!accountVoices) return [];
@@ -367,43 +343,8 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
     return result;
   }, [debouncedSearch, selectedGender]);
 
-  const normalizeLanguageCode = (lang: string): string => {
-    if (!lang) return '';
-    return lang.toLowerCase().split(/[-_]/)[0];
-  };
-
-  const filteredCartesiaVoices = useMemo(() => {
-    if (!cartesiaVoices) return [];
-    let result = cartesiaVoices;
-    if (effectiveLanguage && effectiveLanguage !== 'all') {
-      result = result.filter(v =>
-        normalizeLanguageCode(v.language) === effectiveLanguage.toLowerCase()
-      );
-    }
-    if (selectedGender !== 'all') {
-      result = result.filter(v =>
-        v.gender?.toLowerCase() === selectedGender.toLowerCase()
-      );
-    }
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(v =>
-        v.name.toLowerCase().includes(searchLower) ||
-        v.description?.toLowerCase().includes(searchLower) ||
-        v.language?.toLowerCase().includes(searchLower) ||
-        v.gender?.toLowerCase().includes(searchLower)
-      );
-    }
-    return result;
-  }, [cartesiaVoices, debouncedSearch, effectiveLanguage, selectedGender]);
-
   const handlePlayPreview = useCallback((voiceId: string, previewUrl?: string) => {
     if (!previewUrl) return;
-
-    if (cartesiaStopRef.current) {
-      cartesiaStopRef.current();
-      cartesiaStopRef.current = null;
-    }
 
     if (playingVoice === voiceId) {
       if (audioRef.current) {
@@ -448,13 +389,11 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
 
   const getFilteredCount = () => {
     if (effectiveProvider === "elevenlabs") return filteredVoices.length;
-    if (effectiveProvider === "cartesia") return filteredCartesiaVoices.length;
     return filteredOpenAIVoices.length;
   };
 
   const getTotalCount = () => {
     if (effectiveProvider === "elevenlabs") return accountVoices?.length || 0;
-    if (effectiveProvider === "cartesia") return cartesiaVoices?.length || 0;
     return OPENAI_VOICES.length;
   };
 
@@ -701,101 +640,6 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
     );
   };
 
-  const renderCartesiaCard = (voice: CartesiaVoice) => {
-    const isPlaying = playingVoice === voice.id;
-
-    return (
-      <div
-        key={voice.id}
-        className={cn(
-          "group relative rounded-2xl border transition-all duration-200 p-4",
-          "bg-card hover:bg-accent/50 dark:hover:bg-accent/30",
-          "border-border/60 hover:border-orange-400/30 hover:shadow-md hover:shadow-orange-500/5"
-        )}
-        data-testid={`card-cartesia-voice-${voice.id}`}
-      >
-        <div className="flex items-start gap-3">
-          <VoiceAvatar name={voice.name} gender={voice.gender} />
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-sm font-semibold truncate text-foreground" data-testid="text-cartesia-voice-name">
-                {voice.name}
-              </h3>
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
-                Cartesia
-              </span>
-            </div>
-
-            {voice.description && (
-              <p className="text-xs text-muted-foreground/80 line-clamp-1 mb-1.5">
-                {voice.description}
-              </p>
-            )}
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {voice.language && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 dark:bg-muted/30 px-1.5 py-0.5 rounded-md">
-                  <Globe className="h-2.5 w-2.5" />
-                  {formatLanguageName(normalizeLanguageCode(voice.language))}
-                </span>
-              )}
-              {voice.gender && (
-                <span className={cn(
-                  "text-[11px] px-1.5 py-0.5 rounded-md capitalize font-medium",
-                  getGenderColor(voice.gender)
-                )}>
-                  {voice.gender}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="shrink-0 flex flex-col items-end gap-1.5">
-            <div className="flex items-center gap-2">
-              {isPlaying && <WaveformBars isPlaying={true} />}
-              <CartesiaVoicePreviewButton
-                voiceId={voice.id}
-                voiceName={voice.name}
-                compact
-                stopOthersRef={cartesiaStopRef}
-                onPlayingChange={(playing) => {
-                  if (playing) {
-                    if (audioRef.current) {
-                      audioRef.current.pause();
-                      audioRef.current.currentTime = 0;
-                      audioRef.current = null;
-                    }
-                    setPlayingVoice(voice.id);
-                  } else if (playingVoice === voice.id) {
-                    setPlayingVoice(null);
-                  }
-                }}
-              />
-            </div>
-            <CartesiaVoicePreviewButton
-              voiceId={voice.id}
-              voiceName={voice.name}
-              stopOthersRef={cartesiaStopRef}
-              onPlayingChange={(playing) => {
-                if (playing) {
-                  if (audioRef.current) {
-                    audioRef.current.pause();
-                    audioRef.current.currentTime = 0;
-                    audioRef.current = null;
-                  }
-                  setPlayingVoice(voice.id);
-                } else if (playingVoice === voice.id) {
-                  setPlayingVoice(null);
-                }
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderElevenLabsContent = () => {
     if (isError) {
       return (
@@ -896,78 +740,6 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
           {paged.map(renderOpenAICard)}
         </div>
         {renderPagination(filteredOpenAIVoices.length)}
-      </>
-    );
-  };
-
-  const renderCartesiaContent = () => {
-    if (cartesiaError) {
-      return (
-        <Alert variant="destructive" data-testid="alert-cartesia-error">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('common.error')}</AlertTitle>
-          <AlertDescription>
-            {(cartesiaErr as Error)?.message || 'Failed to load Cartesia voices. Please check your Cartesia API key configuration.'}
-          </AlertDescription>
-        </Alert>
-      );
-    }
-
-    if (cartesiaLoading) {
-      return (
-        <div className="grid grid-cols-1 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-border/60 p-4">
-              <div className="flex items-start gap-3">
-                <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                  <div className="flex gap-1.5">
-                    <Skeleton className="h-5 w-16 rounded-md" />
-                    <Skeleton className="h-5 w-14 rounded-md" />
-                  </div>
-                </div>
-                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (filteredCartesiaVoices.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="h-16 w-16 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
-            <Mic className="h-8 w-8 text-muted-foreground/40" />
-          </div>
-          <h3 className="text-base font-semibold text-foreground/80 mb-1">
-            {hasActiveFilters
-              ? t('voices.noVoicesMatch', 'No voices match your filters')
-              : 'No Cartesia voices available'}
-          </h3>
-          <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
-            {hasActiveFilters
-              ? t('voices.tryDifferentSearch', 'Try adjusting your search or filters')
-              : 'Configure your Cartesia API key to see available voices'}
-          </p>
-          {hasActiveFilters && (
-            <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full" data-testid="button-clear-filters-cartesia">
-              Clear all filters
-            </Button>
-          )}
-        </div>
-      );
-    }
-
-    const { paged } = paginateItems(filteredCartesiaVoices);
-    return (
-      <>
-        <div className="grid grid-cols-1 gap-3">
-          {paged.map(renderCartesiaCard)}
-        </div>
-        {renderPagination(filteredCartesiaVoices.length)}
       </>
     );
   };
@@ -1083,21 +855,12 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
                   OpenAI
                   <span className="ml-1.5 text-[10px] text-muted-foreground">({OPENAI_VOICES.length})</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="cartesia"
-                  className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none text-xs"
-                  data-testid="tab-cartesia"
-                >
-                  Cartesia
-                  <span className="ml-1.5 text-[10px] text-muted-foreground">({cartesiaVoices?.length || 0})</span>
-                </TabsTrigger>
               </TabsList>
               <TabsContent value="elevenlabs">{renderElevenLabsContent()}</TabsContent>
               <TabsContent value="openai">{renderOpenAIContent()}</TabsContent>
-              <TabsContent value="cartesia">{renderCartesiaContent()}</TabsContent>
             </Tabs>
           ) : (
-            effectiveProvider === "elevenlabs" ? renderElevenLabsContent() : effectiveProvider === "cartesia" ? renderCartesiaContent() : renderOpenAIContent()
+            effectiveProvider === "elevenlabs" ? renderElevenLabsContent() : renderOpenAIContent()
           )}
         </div>
       </div>

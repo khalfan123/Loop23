@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
-import { useBranding } from "@/components/BrandingProvider";
+import { SidebarBrand } from "@/components/SidebarBrand";
 import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 import { BUILD_VERSION_FULL } from "@/lib/build-version";
@@ -93,16 +93,21 @@ function NavItem({ title, url, isActive, onClick, isCollapsed }: NavItemProps) {
   return content;
 }
 
+type SidebarNavLink = { title: string; url: string; /** When set, item is active for this path and subpaths */ activePrefix?: string };
+
 interface NavSectionProps {
   label?: string;
-  items: { title: string; url: string }[];
+  items: SidebarNavLink[];
   location: string;
   onNavClick: () => void;
   isCollapsed: boolean;
 }
 
-function isNavItemActive(itemUrl: string, currentLocation: string): boolean {
-  return currentLocation === itemUrl;
+function isNavItemActive(item: SidebarNavLink, currentLocation: string): boolean {
+  if (item.activePrefix) {
+    return currentLocation === item.activePrefix || currentLocation.startsWith(`${item.activePrefix}/`);
+  }
+  return currentLocation === item.url;
 }
 
 function NavSection({ label, items, location, onNavClick, isCollapsed }: NavSectionProps) {
@@ -122,7 +127,7 @@ function NavSection({ label, items, location, onNavClick, isCollapsed }: NavSect
             key={item.url}
             title={item.title}
             url={item.url}
-            isActive={isNavItemActive(item.url, location)}
+            isActive={isNavItemActive(item, location)}
             onClick={onNavClick}
             isCollapsed={isCollapsed}
           />
@@ -135,7 +140,6 @@ function NavSection({ label, items, location, onNavClick, isCollapsed }: NavSect
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { t } = useTranslation();
-  const { branding, currentLogo, showLogo, showFavicon } = useBranding();
   const { setOpenMobile, isMobile, state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -147,6 +151,7 @@ export function AppSidebar() {
 
   const overviewItems = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
+    { title: t('nav.live', 'Live'), url: "/app/live" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls" },
   ];
 
@@ -154,12 +159,16 @@ export function AppSidebar() {
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
     { title: t('nav.inbound', 'Inbound'), url: "/app/deprock" },
+    { title: "Automation", url: "/app/settings/automation", activePrefix: "/app/settings/automation" },
     { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns" },
   ];
 
-  const manageItems = [
+  const manageItems: SidebarNavLink[] = [
     { title: t('nav.operations', 'Operations'), url: "/app/ops" },
+    // WhatsApp + SMS hidden from menu; routes remain reachable via direct URL.
+    // { title: t('nav.whatsapp', 'WhatsApp'), url: "/app/inbox", activePrefix: "/app/inbox" },
+    // { title: t('nav.sms', 'SMS'), url: "/app/sms", activePrefix: "/app/sms" },
     { title: t('nav.voices', 'Voices'), url: "/app/voices" },
   ];
 
@@ -190,21 +199,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-2.5 border-b border-sidebar-border/50">
-        <div className="flex items-center justify-between gap-3 group-data-[collapsible=icon]:hidden">
+      <SidebarHeader className="px-2 py-2 border-b border-sidebar-border/50">
+        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden">
           <div className="flex-1 min-w-0">
-            {showLogo && (
-              <img 
-                src={currentLogo!} 
-                alt={branding.app_name} 
-                className={cn(
-                  "w-auto object-contain",
-                  branding.logo_size === 'small' ? 'h-6 max-w-[100px]' : 
-                  branding.logo_size === 'large' ? 'h-10 max-w-[160px]' : 
-                  branding.logo_size === 'xlarge' ? 'h-12 max-w-[180px]' : 'h-8 max-w-[140px]'
-                )}
-              />
-            )}
+            <SidebarBrand size="lg" />
           </div>
           <SidebarTrigger 
             className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" 
@@ -212,13 +210,7 @@ export function AppSidebar() {
           />
         </div>
         <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-3">
-          {showFavicon && (
-            <img 
-              src={branding.favicon_url!} 
-              alt={branding.app_name} 
-              className="h-7 w-7 object-contain"
-            />
-          )}
+          <SidebarBrand collapsed size="lg" />
           <SidebarTrigger 
             className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground" 
             data-testid="button-sidebar-toggle-collapsed" 
@@ -251,11 +243,28 @@ export function AppSidebar() {
           isCollapsed={isCollapsed}
         />
 
+        {user.role === 'admin' && (
+          <NavSection
+            label={t('sidebar.admin', 'Admin')}
+            items={[
+              { title: t('nav.branding', 'Branding'), url: "/app/admin/branding" },
+            ]}
+            location={location}
+            onNavClick={handleNavClick}
+            isCollapsed={isCollapsed}
+          />
+        )}
+
         <div className="space-y-0.5">
           <NavItem
             title={t('nav.settings', 'Settings')}
             url="/app/settings"
-            isActive={location === "/app/settings" || location.startsWith("/app/settings")}
+            isActive={
+              location === "/app/settings" ||
+              (location.startsWith("/app/settings/") &&
+                !location.startsWith("/app/settings/webhooks") &&
+                !location.startsWith("/app/settings/automation"))
+            }
             onClick={handleNavClick}
             isCollapsed={isCollapsed}
           />
@@ -302,7 +311,7 @@ export function AppSidebar() {
       <SidebarFooter className="px-3 py-2 border-t border-sidebar-border/50">
         {!isCollapsed && (
           <div className="px-2 pb-1 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground/50" data-testid="text-sidebar-copyright">© 2025 B24 Payment</span>
+            <span className="text-[10px] text-muted-foreground/50" data-testid="text-sidebar-copyright">© {new Date().getFullYear()} {branding.app_name || "Loop9"}</span>
             <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-version">{BUILD_VERSION_FULL}</span>
           </div>
         )}

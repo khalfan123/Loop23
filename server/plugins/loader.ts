@@ -138,14 +138,31 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
 /**
  * Discover all plugins in the plugins directory
  */
+function resolvePluginsDir(): string {
+  const candidates = [
+    path.join(process.cwd(), 'plugins'),
+    path.resolve(currentDir, '../../plugins'),
+    path.resolve(currentDir, '../plugins'),
+    path.resolve(currentDir, 'plugins'),
+  ];
+  for (const dir of candidates) {
+    if (fs.existsSync(dir)) {
+      return dir;
+    }
+  }
+  return candidates[0];
+}
+
 export function discoverPlugins(): PluginManifest[] {
-  const pluginsDir = path.resolve(currentDir, '../../plugins');
+  const pluginsDir = resolvePluginsDir();
   const plugins: PluginManifest[] = [];
   
   if (!fs.existsSync(pluginsDir)) {
-    console.log('[Plugin Loader] No plugins directory found');
+    console.log('[Plugin Loader] No plugins directory found (tried cwd/plugins and relative paths)');
     return plugins;
   }
+
+  console.log(`[Plugin Loader] Using plugins directory: ${pluginsDir}`);
   
   const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
   
@@ -175,7 +192,7 @@ export function discoverPlugins(): PluginManifest[] {
  * Load and register all enabled plugins
  */
 export async function loadPlugins(app: Express, options: PluginLoaderOptions): Promise<LoadedPlugin[]> {
-  const pluginsDir = path.resolve(currentDir, '../../plugins');
+  const pluginsDir = resolvePluginsDir();
   const manifests = discoverPlugins();
   const results: LoadedPlugin[] = [];
   

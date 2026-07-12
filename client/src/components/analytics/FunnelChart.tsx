@@ -34,7 +34,7 @@ export function FunnelChart({ data }: FunnelChartProps) {
             ? ((stage.value / data[i - 1].value) * 100).toFixed(1)
             : null;
           return (
-            <div key={stage.name} className="flex items-center gap-3" data-testid={`funnel-stage-${i}`}>
+            <div key={`${stage.name}-${i}`} className="flex items-center gap-3" data-testid={`funnel-stage-${i}`}>
               <div className="flex-1">
                 <div className="flex justify-between text-xs mb-1">
                   <span className="font-medium">{stage.name}</span>

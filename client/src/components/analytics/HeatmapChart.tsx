@@ -27,9 +27,9 @@ export function HeatmapChart({ data }: HeatmapChartProps) {
   };
 
   return (
-    <Card className="glass-card" data-testid="heatmap-chart">
+    <Card className="l9-card border-[var(--l9-border-card)] shadow-[var(--l9-shadow-card)] rounded-2xl" data-testid="heatmap-chart">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Call Activity Heatmap</CardTitle>
+        <CardTitle className="text-[17px] font-bold text-[var(--l9-text)]">Call Activity Heatmap</CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-0">
         <div className="overflow-x-auto">

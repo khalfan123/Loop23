@@ -190,7 +190,9 @@ export async function validateTwilioWebhook(
     }
 
     const authTokenSetting = await storage.getGlobalSetting("twilio_auth_token");
-    const authTokenValue = authTokenSetting?.value || process.env.TWILIO_AUTH_TOKEN;
+    const { getEnvTwilioCredentials } = await import("../services/twilio-connector");
+    const envCreds = getEnvTwilioCredentials();
+    const authTokenValue = authTokenSetting?.value || envCreds.authToken;
 
     if (!authTokenValue || typeof authTokenValue !== "string") {
       console.warn("[Twilio Webhook] No auth token configured, skipping signature verification");
@@ -230,6 +232,9 @@ export async function validateTwilioWebhook(
       // Try to get from environment/configured domain
       const devDomain = process.env.DEV_DOMAIN;
       const appDomain = process.env.APP_DOMAIN;
+      const appUrl = process.env.APP_URL;
+      const baseUrl = process.env.BASE_URL;
+      const replitDomains = process.env.REPLIT_DOMAINS;
       
       if (process.env.NODE_ENV !== 'production' && devDomain) {
         // Remove protocol prefix if present in DEV_DOMAIN
@@ -237,6 +242,19 @@ export async function validateTwilioWebhook(
       } else if (appDomain) {
         // Remove protocol prefix if present in APP_DOMAIN
         host = appDomain.replace(/^https?:\/\//, '');
+      } else if (appUrl || baseUrl) {
+        // Allow APP_URL / BASE_URL to drive signature host when APP_DOMAIN is not set.
+        // Twilio signs against the public URL, so we must match the externally-visible host.
+        const candidate = String(appUrl || baseUrl);
+        try {
+          const u = new URL(candidate);
+          host = u.host;
+        } catch {
+          host = candidate.replace(/^https?:\/\//, '');
+        }
+      } else if (replitDomains) {
+        // Replit deployments expose the public domain(s) here (comma-separated)
+        host = replitDomains.split(',')[0].trim();
       } else {
         host = req.get("host") || 'localhost';
       }

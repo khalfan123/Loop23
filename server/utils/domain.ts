@@ -25,10 +25,11 @@
  */
 export function getDomain(fallbackHost?: string): string {
   let domain: string | undefined;
-  
+  const isProduction = process.env.NODE_ENV === 'production';
+
   // In development environment, use DEV_DOMAIN for correct webhook URLs
   // This ensures webhooks work correctly during development/testing
-  if (process.env.DEV_DOMAIN && process.env.NODE_ENV !== 'production') {
+  if (process.env.DEV_DOMAIN && !isProduction) {
     domain = process.env.DEV_DOMAIN;
   }
   // Check for explicit APP_DOMAIN environment variable (recommended for production)
@@ -39,7 +40,19 @@ export function getDomain(fallbackHost?: string): string {
   else if (fallbackHost) {
     domain = fallbackHost;
   }
-  
+  // In production, prefer the Replit-provided deployment domain(s) over the dev workspace domain
+  else if (isProduction && process.env.REPLIT_DOMAINS) {
+    domain = process.env.REPLIT_DOMAINS.split(',')[0].trim();
+  }
+  // Replit-provided dev domain (only valid in non-production / workspace runs)
+  else if (!isProduction && process.env.REPLIT_DEV_DOMAIN) {
+    domain = process.env.REPLIT_DEV_DOMAIN;
+  }
+  // Last-resort: use REPLIT_DOMAINS even if NODE_ENV isn't set to production
+  else if (process.env.REPLIT_DOMAINS) {
+    domain = process.env.REPLIT_DOMAINS.split(',')[0].trim();
+  }
+
   if (!domain) {
     throw new Error('Unable to determine domain for webhooks. Please set APP_DOMAIN environment variable.');
   }

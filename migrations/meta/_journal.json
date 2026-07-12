@@ -22,6 +22,62 @@
       "when": 1774556039152,
       "tag": "0002_agent_names",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1776067200000,
+      "tag": "0003_bedrock_default_model_alias",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776758400000,
+      "tag": "0004_ops_action_points",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776844800000,
+      "tag": "0005_phone_inbound_routing_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777017600000,
+      "tag": "0006_human_outbound_caller_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777190400000,
+      "tag": "0007_calendar_connections",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778659200000,
+      "tag": "0008_transfer_caller_id_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778918400000,
+      "tag": "0009_human_relay_fallback_list",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778947200000,
+      "tag": "0010_transfer_agent_status",
+      "breakpoints": true
     }
   ]
 }

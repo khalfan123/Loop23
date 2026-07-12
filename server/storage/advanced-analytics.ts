@@ -106,7 +106,7 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
   const totalCurrent = currentCalls.length;
   const completedCurrent = currentCalls.filter(c => c.status === 'completed').length;
   const qualifiedCurrent = currentCalls.filter(c =>
-    c.leadClassification === 'hot' || c.leadClassification === 'warm'
+    c.classification === 'hot' || c.classification === 'warm'
   ).length;
   const failedCurrent = currentCalls.filter(c => c.status === 'failed' || c.status === 'error').length;
 
@@ -120,7 +120,7 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
   const totalPrev = previousCalls.length;
   const completedPrev = previousCalls.filter(c => c.status === 'completed').length;
   const qualifiedPrev = previousCalls.filter(c =>
-    c.leadClassification === 'hot' || c.leadClassification === 'warm'
+    c.classification === 'hot' || c.classification === 'warm'
   ).length;
 
   const avgDurCurrent = completedCurrent > 0
@@ -150,9 +150,9 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
   const campaignComparisons: CampaignComparison[] = userCampaigns.slice(0, 10).map(camp => {
     const campCalls = currentCalls.filter(c => c.campaignId === camp.id);
     const completed = campCalls.filter(c => c.status === 'completed');
-    const hot = campCalls.filter(c => c.leadClassification === 'hot').length;
-    const warm = campCalls.filter(c => c.leadClassification === 'warm').length;
-    const cold = campCalls.filter(c => c.leadClassification === 'cold').length;
+    const hot = campCalls.filter(c => c.classification === 'hot').length;
+    const warm = campCalls.filter(c => c.classification === 'warm').length;
+    const cold = campCalls.filter(c => c.classification === 'cold').length;
 
     const dailyMap = new Map<string, number>();
     for (const c of campCalls) {
@@ -191,7 +191,7 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
       entry.total++;
       if (c.status === 'completed') entry.completed++;
       if (c.status === 'failed' || c.status === 'error') entry.failed++;
-      if (c.leadClassification === 'hot' || c.leadClassification === 'warm') entry.qualified++;
+      if (c.classification === 'hot' || c.classification === 'warm') entry.qualified++;
     }
   }
   const dailyTrendSeries = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));

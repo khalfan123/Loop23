@@ -29,6 +29,7 @@ import { CallInsightsService } from '../../../services/call-insights.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import type { TwilioMediaStreamEvent } from '../types';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
+import { callErrorLogger } from '../../../services/call-error-logger';
 
 let sharedWss: WebSocketServer | null = null;
 
@@ -60,11 +61,37 @@ export function setupTwilioOpenAIStreamHandler(httpServer: HttpServer): void {
         
         if (!existingCall) {
           console.error(`[TwilioOpenAI Stream] Security: Rejecting stream for unknown call SID: ${callSid}`);
+          callErrorLogger.logCallError({
+            // callId is unknown here because we couldn't resolve a DB record.
+            engineType: 'twilio-openai',
+            errorCategory: 'stream_init',
+            severity: 'warning',
+            message: `stream_rejected_unknown_callSid: ${callSid}`,
+            metadata: { callSid, pathname },
+          }).catch(() => undefined);
           socket.destroy();
           return;
         }
+
+        // Persist a breadcrumb for successful upgrades too (helps debug "connect then error occurred")
+        callErrorLogger.logCallError({
+          callId: existingCall.id,
+          engineType: 'twilio-openai',
+          errorCategory: 'stream_init',
+          severity: 'info',
+          message: 'stream_upgrade_accepted',
+          metadata: { callSid, pathname },
+        }).catch(() => undefined);
       } catch (err: any) {
         console.error(`[TwilioOpenAI Stream] Security: Database error validating call SID: ${err.message}`);
+        callErrorLogger.logCallError({
+          // callId is unknown here because DB lookup failed.
+          engineType: 'twilio-openai',
+          errorCategory: 'stream_init',
+          severity: 'error',
+          message: `stream_rejected_db_error: ${err.message}`,
+          metadata: { callSid, pathname },
+        }).catch(() => undefined);
         socket.destroy();
         return;
       }
@@ -246,16 +273,20 @@ async function initializeSession(
       return;
     }
 
-    // Get OpenAI API key from the reserved credential
-    if (!callRecord.openaiCredentialId) {
-      logger.error(`No OpenAI credential attached to call ${callSid}`, undefined, 'TwilioOpenAI Stream');
-      twilioWs.close();
-      return;
+    // Get OpenAI API key from pool credential (preferred), with env-key fallback for inbound IVR.
+    let openaiApiKey: string | null = null;
+    if (callRecord.openaiCredentialId) {
+      const credential = await OpenAIPoolService.getCredentialById(callRecord.openaiCredentialId);
+      openaiApiKey = credential?.apiKey || null;
     }
-
-    const credential = await OpenAIPoolService.getCredentialById(callRecord.openaiCredentialId);
-    if (!credential?.apiKey) {
-      logger.error(`OpenAI credential not found for ${callSid}`, undefined, 'TwilioOpenAI Stream');
+    if (!openaiApiKey) {
+      openaiApiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || null;
+      if (openaiApiKey) {
+        logger.warn(`[TwilioOpenAI Stream] Using env OpenAI key fallback for ${callSid}`, undefined, 'TwilioOpenAI Stream');
+      }
+    }
+    if (!openaiApiKey) {
+      logger.error(`No OpenAI API key available for ${callSid}`, undefined, 'TwilioOpenAI Stream');
       twilioWs.close();
       return;
     }
@@ -281,24 +312,50 @@ async function initializeSession(
         knowledgeBaseIds: metadata?.knowledgeBaseIds as string[] || [],
         transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
       });
-      
+
+      // Apply IVR language lock to flow agents too — otherwise the model will
+      // happily switch into English mid-call.
+      const flowMetaLanguage = (metadata?.language as string) || 'en';
+      const flowLanguageLocked =
+        metadata?.languageLocked === true && (metadata?.languageLockMode as string) === 'ivr';
+      const flowBaseSystemPrompt = (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.';
+      const flowLangName =
+        flowMetaLanguage.toLowerCase().startsWith('ar') ? 'Arabic'
+          : flowMetaLanguage.toLowerCase().startsWith('en') ? 'English'
+            : flowMetaLanguage;
+      const flowSystemPrompt = flowLanguageLocked
+        ? `LANGUAGE LOCK (IVR): The caller selected "${flowMetaLanguage}" (${flowLangName}) in the IVR. You MUST respond ONLY in ${flowLangName} for the entire call. Do NOT switch to Arabic or any other language automatically. Only switch if the caller explicitly asks you to.\n\n${flowBaseSystemPrompt}`
+        : flowBaseSystemPrompt;
+
       // Build agent config with hydrated flow tools
       agentConfig = {
         voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
         model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
-        systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
+        systemPrompt: flowSystemPrompt,
         firstMessage: (metadata?.firstMessage as string) || undefined,
         temperature: (metadata?.temperature as number) ?? 0.7,
         tools: hydratedTools,
+        language: flowMetaLanguage,
       };
       
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools including play_audio support`, undefined, 'TwilioOpenAI Stream');
     } else {
       // Natural agent - build agent config from scratch
+      const metaLanguage = (metadata?.language as string) || 'en';
+      const languageLocked = metadata?.languageLocked === true && (metadata?.languageLockMode as string) === 'ivr';
+      const baseSystemPrompt = (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.';
+      const metaLangName =
+        metaLanguage.toLowerCase().startsWith('ar') ? 'Arabic'
+          : metaLanguage.toLowerCase().startsWith('en') ? 'English'
+            : metaLanguage;
+      const lockedSystemPrompt = languageLocked
+        ? `LANGUAGE LOCK (IVR): The caller selected "${metaLanguage}" (${metaLangName}) in the IVR. You MUST respond ONLY in ${metaLangName} for the entire call. Do NOT switch to Arabic or any other language automatically. Only switch if the caller explicitly asks you to.\n\n${baseSystemPrompt}`
+        : baseSystemPrompt;
+
       agentConfig = OpenAIAgentFactory.createAgentConfig({
         voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
         model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel as OpenAIRealtimeModel,
-        systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
+        systemPrompt: lockedSystemPrompt,
         firstMessage: (metadata?.firstMessage as string) || undefined,
         temperature: (metadata?.temperature as number) ?? 0.7,
         toolContext: {
@@ -306,7 +363,7 @@ async function initializeSession(
           agentId: callRecord.agentId || '',
           callId: callRecord.id,
         },
-        language: (metadata?.language as string) || 'en',
+        language: metaLanguage,
       });
 
       // Add knowledge base tool if configured (enriched with product KB entries)
@@ -322,6 +379,12 @@ async function initializeSession(
           callRecord.userId
         );
       }
+
+      // Optional: deeper reasoning via Bedrock Claude Sonnet (use sparingly; do not block first response).
+      agentConfig = OpenAIAgentFactory.addBedrockReasoningTool(
+        agentConfig,
+        metaLanguage
+      );
 
       // Add appointment tool if enabled
       if (metadata?.appointmentBookingEnabled && callRecord.userId && callRecord.agentId) {
@@ -370,16 +433,36 @@ async function initializeSession(
     logger.info(`Creating session with ${agentConfig.tools?.length || 0} tools for ${callSid}`, undefined, 'TwilioOpenAI Stream');
 
     // Create the session with the Twilio WebSocket already connected
-    await TwilioOpenAIAudioBridge.createSession({
-      callSid,
-      openaiApiKey: credential.apiKey,
-      agentConfig,
-      twilioWs,
-      streamSid: streamSid || undefined,
-      fromNumber: callRecord.fromNumber || undefined,
-      toNumber: callRecord.toNumber || undefined,
-      callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
-    });
+    try {
+      await TwilioOpenAIAudioBridge.createSession({
+        callSid,
+        openaiApiKey,
+        agentConfig,
+        twilioWs,
+        streamSid: streamSid || undefined,
+        fromNumber: callRecord.fromNumber || undefined,
+        toNumber: callRecord.toNumber || undefined,
+        callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
+        humanWizardCli: (metadata?.humanWizardCli as string | null | undefined) || undefined,
+      });
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      logger.error(`Failed to create session for ${callSid}: ${msg}`, undefined, 'TwilioOpenAI Stream');
+      callErrorLogger.logCallError({
+        callId: callRecord.id,
+        engineType: 'twilio-openai',
+        errorCategory: 'stream_init',
+        severity: 'error',
+        message: `session_create_failed: ${msg}`,
+        metadata: { callSid },
+      }).catch(() => undefined);
+      try {
+        await db.update(twilioOpenaiCalls).set({ status: 'failed', endedAt: new Date() }).where(eq(twilioOpenaiCalls.twilioCallSid, callSid));
+      } catch {
+      }
+      try { twilioWs.close(); } catch { }
+      return;
+    }
 
     logger.info(`Session created for incoming call ${callSid}`, undefined, 'TwilioOpenAI Stream');
 
@@ -389,7 +472,7 @@ async function initializeSession(
     const credentialId = callRecord.openaiCredentialId;
     const fromNumber = callRecord.fromNumber;
     const toNumber = callRecord.toNumber;
-    const openaiApiKey = credential.apiKey; // Capture for AI analysis
+    const openaiApiKeyForAnalysis = openaiApiKey; // Capture for AI analysis
 
     TwilioOpenAIAudioBridge.onSessionEnd(callSid, async (sessionData) => {
       try {
@@ -413,7 +496,7 @@ async function initializeSession(
                   toNumber: toNumber || undefined,
                   duration: sessionData?.duration
                 },
-                openaiApiKey // Pass the API key from the call's credential
+                openaiApiKeyForAnalysis
               );
               
               if (insights) {

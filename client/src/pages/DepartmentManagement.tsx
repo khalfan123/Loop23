@@ -159,8 +159,6 @@ const SUPPORTED_LANGUAGES = [
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
   { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-  { code: "hi", label: "Hindi" },
   { code: "ar", label: "Arabic" },
 ];
 

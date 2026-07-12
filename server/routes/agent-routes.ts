@@ -29,6 +29,8 @@ import { setupRAGToolForAgent, isRAGEnabled } from "../services/rag-elevenlabs-t
 import { generateAgentAvatar } from "../services/avatar-generator";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
 import { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT } from "../services/dynamic-form-tools";
+import { applyPhoneHumanPolicy } from "../services/phone-human-policy";
+import { normalizeTransferPhoneE164 } from "../utils/phone-e164";
 
 export function createAgentRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -151,6 +153,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Voice tone and personality are required for flow agents" });
       }
 
+      // Persist best-practice phone cadence for non-scripted prompts (idempotent).
+      const upgradedSystemPrompt =
+        typeof systemPrompt === 'string' && systemPrompt.trim().length > 0
+          ? applyPhoneHumanPolicy(systemPrompt, 'balanced')
+          : systemPrompt;
+
       // Voice validation depends on telephony provider
       // OpenAI-based providers (twilio_openai) use OpenAI voices, not ElevenLabs
       const isOpenAIProvider = telephonyProvider === 'twilio_openai';
@@ -174,7 +182,16 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         }
       }
 
-      if (type === 'incoming' && transferEnabled && !transferPhoneNumber?.trim() && !transferAgentId?.trim()) {
+      let normalizedIncomingTransferPhone = transferPhoneNumber;
+      if (type === 'incoming' && transferPhoneNumber != null && String(transferPhoneNumber).trim()) {
+        const n = normalizeTransferPhoneE164(transferPhoneNumber);
+        if (!n.ok) {
+          return res.status(400).json({ error: n.error });
+        }
+        normalizedIncomingTransferPhone = n.e164;
+      }
+
+      if (type === 'incoming' && transferEnabled && !normalizedIncomingTransferPhone?.trim() && !transferAgentId?.trim()) {
         return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
@@ -442,7 +459,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         name,
         voiceTone: voiceTone || null,
         personality: personality || null,
-        systemPrompt,
+        systemPrompt: upgradedSystemPrompt,
         config: config || null,
         elevenLabsAgentId,
         elevenLabsCredentialId: usedCredentialId,
@@ -453,7 +470,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         temperature: (type === 'incoming' || type === 'flow') ? (temperature ?? null) : null,
         knowledgeBaseIds: (type === 'incoming' || type === 'flow') ? (knowledgeBaseIds || null) : null,
         transferEnabled: type === 'incoming' ? (transferEnabled || false) : false,
-        transferPhoneNumber: type === 'incoming' ? (transferPhoneNumber || null) : null,
+        transferPhoneNumber: type === 'incoming' ? (normalizedIncomingTransferPhone || null) : null,
         transferAgentId: type === 'incoming' ? (transferAgentId || null) : null,
         detectLanguageEnabled: (type === 'incoming' || type === 'flow') ? (detectLanguageEnabled || false) : false,
         endConversationEnabled: type === 'incoming' ? (endConversationEnabled || false) : false,
@@ -659,14 +676,26 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(404).json({ error: "Agent not found" });
       }
 
-
-      if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim() && !req.body.transferAgentId?.trim()) {
-        return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
-      }
-
       // Sanitize sipPhoneNumberId: convert empty string to null to avoid foreign key constraint violation
       if ('sipPhoneNumberId' in req.body && req.body.sipPhoneNumberId === '') {
         req.body.sipPhoneNumberId = null;
+      }
+
+      if (req.body.transferPhoneNumber !== undefined) {
+        const raw = req.body.transferPhoneNumber;
+        if (raw === null || (typeof raw === 'string' && !raw.trim())) {
+          req.body.transferPhoneNumber = null;
+        } else {
+          const n = normalizeTransferPhoneE164(raw as string);
+          if (!n.ok) {
+            return res.status(400).json({ error: n.error });
+          }
+          req.body.transferPhoneNumber = n.e164;
+        }
+      }
+
+      if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim() && !req.body.transferAgentId?.trim()) {
+        return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
       try {
@@ -761,6 +790,11 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         }
       } catch (versionError) {
         console.warn("Failed to create agent version:", versionError);
+      }
+
+      // Persist best-practice phone cadence for non-scripted prompts (idempotent).
+      if (typeof req.body.systemPrompt === 'string' && req.body.systemPrompt.trim().length > 0) {
+        req.body.systemPrompt = applyPhoneHumanPolicy(req.body.systemPrompt, 'balanced');
       }
 
       const { 
@@ -1062,7 +1096,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           name: variantData.name,
           voiceTone: variantData.voiceTone || null,
           personality: variantData.personality || null,
-          systemPrompt: variantData.systemPrompt,
+          systemPrompt: variantData.systemPrompt
+            ? applyPhoneHumanPolicy(variantData.systemPrompt, 'balanced')
+            : variantData.systemPrompt,
           config: variantData.config || null,
           elevenLabsAgentId: null,
           elevenLabsCredentialId: null,
@@ -1232,7 +1268,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               name: variantData.name,
               voiceTone: variantData.voiceTone || null,
               personality: variantData.personality || null,
-              systemPrompt: variantData.systemPrompt,
+              systemPrompt: variantData.systemPrompt
+                ? applyPhoneHumanPolicy(variantData.systemPrompt, 'balanced')
+                : variantData.systemPrompt,
               config: variantData.config || null,
               elevenLabsAgentId: null,
               elevenLabsCredentialId: null,

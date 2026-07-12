@@ -252,7 +252,7 @@ export function Footer() {
         <div className="py-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
             <p className="text-sm text-slate-500" data-testid="text-copyright">
-              © {new Date().getFullYear()} {branding.app_name || 'Loop9'}. All rights reserved.
+              © {new Date().getFullYear()} {branding.app_name || 'Byan AI'}. All rights reserved.
             </p>
           </div>
           <div className="flex items-center gap-6 text-sm text-slate-500">

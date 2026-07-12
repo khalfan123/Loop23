@@ -72,6 +72,13 @@ interface Call {
   endToEndLatencyMs?: number | null;
   responses?: CallResponse[];
   concernedQuestionsCount?: number;
+  wasTransferred?: boolean | null;
+  transferredTo?: string | null;
+  transferredAt?: string | null;
+  transferCallerId?: string | null;
+  transferCallerIdSource?: 'wizard' | 'env' | 'inbound' | 'omitted' | 'relay' | null;
+  transferRelayPhoneNumber?: string | null;
+  transferAgentStatus?: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled' | null;
 }
 
 interface CallResponse {
@@ -762,6 +769,58 @@ export default function CallDetail() {
                   <>
                     <div className="text-muted-foreground">Ended At</div>
                     <div>{format(new Date(call.endedAt), "MMM d, yyyy 'at' h:mm:ss a")}</div>
+                  </>
+                )}
+
+                {(call.wasTransferred || call.transferredTo || call.transferCallerIdSource) && (
+                  <>
+                    <div className="text-muted-foreground col-span-2 mt-4 font-medium">
+                      Transfer{call.transferRelayPhoneNumber ? ' (two-hop relay)' : ''}
+                    </div>
+                    {call.transferRelayPhoneNumber && (
+                      <>
+                        <div className="text-muted-foreground">Hop 1 (customer → conference)</div>
+                        <div className="font-mono text-xs" data-testid="text-transfer-hop1">
+                          UAE inbound DID parked in conference
+                        </div>
+                        <div className="text-muted-foreground">Hop 2 (relay → agent)</div>
+                        <div className="font-mono text-xs" data-testid="text-transfer-hop2">
+                          {call.transferRelayPhoneNumber} → {call.transferredTo ?? '(unknown)'}
+                        </div>
+                      </>
+                    )}
+                    {!call.transferRelayPhoneNumber && call.transferredTo && (
+                      <>
+                        <div className="text-muted-foreground">Transferred To</div>
+                        <div className="font-mono text-xs" data-testid="text-transferred-to">{call.transferredTo}</div>
+                      </>
+                    )}
+                    {call.transferredAt && (
+                      <>
+                        <div className="text-muted-foreground">Transferred At</div>
+                        <div>{format(new Date(call.transferredAt), "MMM d, yyyy 'at' h:mm:ss a")}</div>
+                      </>
+                    )}
+                    {call.transferCallerIdSource && (
+                      <>
+                        <div className="text-muted-foreground">Agent-leg CLI</div>
+                        <div className="font-mono text-xs" data-testid="text-transfer-cli">
+                          {call.transferCallerIdSource === 'omitted'
+                            ? 'omitted (UAE-only DID)'
+                            : `${call.transferCallerId ?? '(unknown)'} (${call.transferCallerIdSource})`}
+                        </div>
+                      </>
+                    )}
+                    {call.transferAgentStatus && (
+                      <>
+                        <div className="text-muted-foreground">Agent-leg outcome</div>
+                        <div data-testid="text-transfer-agent-status">
+                          {call.transferAgentStatus === 'answered'
+                            ? 'Answered'
+                            : `Missed (${call.transferAgentStatus})`}
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 

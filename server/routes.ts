@@ -21,7 +21,7 @@ import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { db } from "./db";
 import { nanoid } from "nanoid";
-import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls, globalSettings } from "@shared/schema";
+import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls, globalSettings, apiKeys } from "@shared/schema";
 import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
 import { authRateLimiter, strictRateLimiter, paymentRateLimiter } from "./middleware/rateLimiter";
@@ -41,6 +41,7 @@ import {
   handleIvrLanguageSelection,
   handleTwilioStatusWebhook,
   handleHumanDialStatusWebhook,
+  handleHumanDialActionWebhook,
   handleTwilioRecordingWebhook, 
   handleTwilioStreamWebSocket,
   handleFlowVoiceAnswer,
@@ -70,6 +71,10 @@ import { createUserAddressRoutes } from "./routes/user-address-routes";
 import { createAnalyticsRoutes } from "./routes/analytics-routes";
 import { createCallIntelligenceRoutes } from "./routes/call-intelligence-routes";
 import { createRouteContext } from "./routes/common";
+import { createWhatsappRoutes } from "./routes/whatsapp-routes";
+import { createWhatsappAutomationRoutes } from "./routes/whatsapp-automation-routes";
+import { createSmsRoutes } from "./routes/sms-routes";
+import { createSmsWebhookRoutes } from "./routes/sms-webhooks";
 // Payment Engine v1.0.0 - All payment gateway routers
 import {
   stripeRouter,
@@ -85,8 +90,9 @@ import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenai
 import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler, setupBrowserVoiceStreamHandler } from "./engines/twilio-bedrock-polly";
 // KYC Engine
 import { registerKycRoutes } from "./engines/kyc";
-import { checkAdmin } from "./middleware/admin-auth";
+import { checkAdmin, checkAdminOrInternal } from "./middleware/admin-auth";
 import flowAutomationRouter from "./routes/flow-automation-routes";
+import calendarOAuthRouter, { calendarOAuthPublicRouter } from "./routes/calendar-oauth-routes";
 import { flows, FlowNode, FlowEdge, insertPromptTemplateSchema } from "@shared/schema";
 import { ElevenLabsFlowCompiler } from "./services/elevenlabs-flow-compiler";
 import incomingConnectionsRouter from "./routes/incoming-connections-routes";
@@ -94,7 +100,10 @@ import { platformLanguagesPublicRouter } from "./routes/platform-languages-route
 import transactionsRouter from "./routes/transactions-routes";
 import invoiceRouter from "./routes/invoice-routes";
 import internalApiRouter from "./routes/internal-api-routes";
+import adminRouter from "./routes/admin";
+import openapiRoutes from "./routes/openapi-routes";
 import audioRoutes from "./routes/audio-routes";
+import { createWhatsappWebhookRoutes } from "./routes/whatsapp-webhooks";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
 import { createProductRoutes } from "./routes/product-routes";
 import { createUserSmtpRoutes } from "./routes/user-smtp-routes";
@@ -114,6 +123,7 @@ import { createLiveMonitoringRoutes } from "./routes/live-monitoring-routes";
 import { liveMonitoringWs } from "./services/live-monitoring-ws";
 import integrationRoutes from "./routes/integration-routes";
 import integrationOAuthCallback from "./routes/integration-oauth-callback";
+import { createIntegrationConciergeRoutes } from "./routes/integration-concierge-routes";
 import contactImportRoutes from "./routes/contact-import-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
 import bcrypt from "bcrypt";
@@ -165,10 +175,12 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Create shared route context for dependency injection
   const routeContext = createRouteContext();
   
-  // Register public routes (installer, health, branding, SEO, contact, etc.)
+  // Register public routes (health, branding, SEO, contact, etc.)
   const publicRoutes = createPublicRoutes(routeContext);
   app.use(publicRoutes);
-  
+
+  app.use(openapiRoutes);
+
   // Register authentication routes (login, register, OTP, password, etc.)
   const authRoutes = createAuthRoutes(routeContext);
   app.use(authRoutes);
@@ -194,6 +206,23 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Register phone number routes (phone numbers CRUD, Twilio integration)
   const phoneRoutes = createPhoneRoutes(routeContext);
   app.use(phoneRoutes);
+
+  // Register WhatsApp routes (Embedded Signup callback, senders listing)
+  const whatsappRoutes = createWhatsappRoutes(routeContext);
+  app.use(whatsappRoutes);
+
+  // Register WhatsApp ManyChat-style automations (audience, tags, channel
+  // settings, quick replies, keyword triggers, broadcasts)
+  const whatsappAutomationRoutes = createWhatsappAutomationRoutes(routeContext);
+  app.use(whatsappAutomationRoutes);
+
+  // Register WhatsApp webhooks (subaccount signature validation)
+  app.use(createWhatsappWebhookRoutes());
+
+  // Register SMS conversation panel routes (settings, numbers, conversations,
+  // messages, quick-send, rate preview) and the Twilio SMS webhooks.
+  app.use(createSmsRoutes(routeContext));
+  app.use(createSmsWebhookRoutes());
 
   // Register user address routes (for phone number regulatory compliance)
   const userAddressRoutes = createUserAddressRoutes(routeContext);
@@ -271,6 +300,21 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   app.use('/api/plugins', pluginRoutes.publicPluginRouter);
   app.use('/api/plugins', authenticateToken, pluginRoutes.userPluginRouter);
   console.log('✅ Plugin Management routes initialized');
+
+  // Register SIP Engine as a built-in plugin (bundled into the production build).
+  // Dynamic /plugins/*.ts loading fails under plain `node dist/index.cjs`.
+  try {
+    const { markPluginAsRegistered } = await import('./plugins/loader');
+    const { registerSipEnginePlugin } = await import('../plugins/sip-engine/index');
+    registerSipEnginePlugin(app, {
+      sessionAuthMiddleware: authenticateToken as unknown as import('express').RequestHandler,
+      adminAuthMiddleware: checkAdmin as unknown as import('express').RequestHandler,
+    });
+    markPluginAsRegistered('sip-engine');
+    console.log('✅ SIP Engine plugin registered (built-in)');
+  } catch (error) {
+    console.warn('[SIP Engine] Failed to register built-in plugin:', error);
+  }
 
   // Auto-load any additional plugins from /plugins directory
   // This allows installing new plugins by just copying the folder and restarting
@@ -1432,6 +1476,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   app.post("/api/webhooks/ivr/handle-selection", validateTwilioWebhook, handleIvrSelection); // IVR department selection
   app.post("/api/webhooks/twilio/status", validateTwilioWebhook, handleTwilioStatusWebhook);
   app.post("/api/webhooks/twilio/human-dial-status", validateTwilioWebhook, handleHumanDialStatusWebhook);
+  app.post("/api/webhooks/twilio/human-dial-action", validateTwilioWebhook, handleHumanDialActionWebhook);
   app.post("/api/webhooks/twilio/recording", validateTwilioWebhook, handleTwilioRecordingWebhook);
   
   // Flow-based execution webhooks (validated with Twilio signature verification)
@@ -1474,6 +1519,14 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   app.use("/api/transactions", transactionsRouter);
 
   app.use("/api/internal", internalApiRouter);
+
+  // Full admin REST tree: Bearer (admin JWT) OR X-Internal-API-Key (INTERNAL_API_SECRET).
+  // Same router is mounted at /api/internal/admin for internal-key-only callers.
+  app.use(
+    "/api/admin",
+    checkAdminOrInternal as unknown as import("express").RequestHandler,
+    adminRouter,
+  );
 
   // User-accessible refund note download (separate from admin routes)
   app.get("/api/refunds/:id/download", authenticateToken, async (req: AuthRequest, res: Response) => {
@@ -1532,6 +1585,11 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Use hybrid auth to allow both users and team members
   app.use("/api/flow-automation", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, flowAutomationRouter);
 
+  // Native Calendar OAuth (Google/Microsoft) — popup redirect/callback
+  // Callback is public (state->user mapping); start/status are authenticated.
+  app.use("/api/calendar", calendarOAuthPublicRouter);
+  app.use("/api/calendar", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, calendarOAuthRouter);
+
   // Incoming Connections routes (links agents to phone numbers)
   app.use("/api/incoming-connections", incomingConnectionsRouter);
 
@@ -1541,6 +1599,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // Integration OAuth callback (public - no auth required, receives redirect from OAuth providers)
   app.use("/api/integrations/oauth", integrationOAuthCallback);
+
+  // AI Integration Concierge routes (Bedrock + n8n provisioning)
+  app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, createIntegrationConciergeRoutes());
 
   // Integration Marketplace routes (n8n-powered)
   app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, integrationRoutes);
@@ -1588,12 +1649,51 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   app.post("/api/api-keys/regenerate", routeContext.authenticateHybrid as any, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.id || req.user?.userId;
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H1',location:'server/routes.ts:1599',message:'API key regenerate hit',data:{userIdPresent:!!userId},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
-      const newKey = "agl_" + crypto.randomBytes(32).toString("hex");
-      await db.update(users).set({ apiKey: newKey }).where(eq(users.id, userId));
-      res.json({ success: true });
+      const rawKey = "agl_" + crypto.randomBytes(32).toString("hex");
+      const keyPrefix = rawKey.substring(0, 12);
+      const hashedSecret = await bcrypt.hash(rawKey, 10);
+
+      // Maintain a single "Default API Key" for this legacy endpoint.
+      const [existing] = await db
+        .select({ id: apiKeys.id })
+        .from(apiKeys)
+        .where(and(eq(apiKeys.userId, userId), eq(apiKeys.name, "Default API Key")))
+        .limit(1);
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H2',location:'server/routes.ts:1611',message:'API key regenerate existing lookup',data:{hasExisting:!!existing?.id},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      if (existing?.id) {
+        await db
+          .update(apiKeys)
+          .set({ keyPrefix, hashedSecret, updatedAt: new Date(), isActive: true })
+          .where(eq(apiKeys.id, existing.id));
+      } else {
+        await db
+          .insert(apiKeys)
+          .values({
+            userId,
+            name: "Default API Key",
+            keyPrefix,
+            hashedSecret,
+            scopes: ["calls:read", "calls:write", "campaigns:read", "contacts:read", "webhooks:write"],
+            ipWhitelist: [],
+          });
+      }
+
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H3',location:'server/routes.ts:1630',message:'API key regenerate success',data:{keyPrefix},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      res.json({ success: true, apiKey: rawKey, keyPrefix });
     } catch (error: any) {
-      res.status(500).json({ error: "Failed to regenerate API key" });
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H4',location:'server/routes.ts:1632',message:'API key regenerate failed',data:{error:String(error?.message||error||'unknown')},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      res.status(500).json({ error: error?.message || "Failed to regenerate API key" });
     }
   });
 

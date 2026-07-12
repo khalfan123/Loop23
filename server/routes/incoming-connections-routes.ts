@@ -17,7 +17,7 @@
 import { Router } from "express";
 import { db } from "../db";
 import { incomingConnections, humanIncomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, ivrConfigurations } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, isNull, or } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth";
 import { authenticateHybrid } from "../middleware/hybrid-auth";
 import { twilioService } from "../services/twilio";
@@ -25,8 +25,54 @@ import { getDomain } from "../utils/domain";
 import { PhoneMigrator } from "../engines/elevenlabs-migration";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
+import type { InboundRoutingPolicy } from "../utils/inbound-routing-policy";
+import { storage } from "../storage";
+import { isUaeE164 } from "../utils/phone-e164";
 
 const router = Router();
+
+// PATCH /api/incoming-connections/phone-numbers/:phoneNumberId/inbound-routing-policy
+router.patch(
+  "/phone-numbers/:phoneNumberId/inbound-routing-policy",
+  authenticateHybrid,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const { phoneNumberId } = req.params;
+      if (!("policy" in (req.body || {}))) {
+        return res.status(400).json({ error: "Body must include policy (object or null to clear)" });
+      }
+      const policy = req.body.policy as InboundRoutingPolicy | null;
+      if (policy !== null && typeof policy !== "object") {
+        return res.status(400).json({ error: "policy must be an object or null" });
+      }
+      const rows = await db
+        .select()
+        .from(phoneNumbers)
+        .where(and(eq(phoneNumbers.id, phoneNumberId), eq(phoneNumbers.userId, userId)))
+        .limit(1);
+      if (!rows.length) {
+        return res.status(404).json({ error: "Phone number not found" });
+      }
+      await db
+        .update(phoneNumbers)
+        .set({ inboundRoutingPolicy: policy })
+        .where(eq(phoneNumbers.id, phoneNumberId));
+      const [updated] = await db
+        .select()
+        .from(phoneNumbers)
+        .where(eq(phoneNumbers.id, phoneNumberId))
+        .limit(1);
+      return res.json({ phoneNumber: updated, inboundRoutingPolicy: updated.inboundRoutingPolicy });
+    } catch (e: any) {
+      console.error("inbound-routing-policy update error:", e);
+      return res.status(500).json({ error: e.message || "Failed to update policy" });
+    }
+  }
+);
 
 // GET /api/incoming-connections - List all connections for the user
 router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
@@ -79,14 +125,17 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
     // Get ALL phone numbers owned by user (not system pool, active)
     const connectedPhoneIds = allConnections.map((c) => c.phoneNumberId);
+    // Show all numbers visible to this user in the UI:
+    // - customer-owned numbers (phone_numbers.user_id = userId)
+    // - system pool numbers (user_id IS NULL) when present
+    // Do not filter by status here; the UI will surface inactive/unavailable states.
     const allUserNumbers = await db
       .select()
       .from(phoneNumbers)
       .where(
-        and(
+        or(
           eq(phoneNumbers.userId, userId),
-          eq(phoneNumbers.isSystemPool, false),
-          eq(phoneNumbers.status, "active")
+          and(eq(phoneNumbers.isSystemPool, true), isNull(phoneNumbers.userId))
         )
       );
 
@@ -648,9 +697,14 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
     
     const domain = getDomain();
     const webhookUrl = `${domain}/api/webhooks/elevenlabs`;
-    const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
-    
-    console.log(`🔗 [Webhook Sync] Configuring ElevenLabs webhook: ${webhookUrl}`);
+    // Pick the webhook secret matching the active environment so the signature
+    // ElevenLabs computes (using the secret tied to its registered domain) verifies.
+    const isProd = process.env.NODE_ENV === 'production';
+    const webhookSecret = isProd
+      ? (process.env.ELEVENLABS_WEBHOOK_SECRET_PROD || process.env.ELEVENLABS_WEBHOOK_SECRET)
+      : (process.env.ELEVENLABS_WEBHOOK_SECRET || process.env.ELEVENLABS_WEBHOOK_SECRET_PROD);
+
+    console.log(`🔗 [Webhook Sync] Configuring ElevenLabs webhook: ${webhookUrl} (env=${isProd ? 'prod' : 'dev'})`);
     
     await elevenLabsService.configureAgentWebhook(conn.agent.elevenLabsAgentId, {
       webhookUrl,
@@ -784,6 +838,10 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    // Determine whether to include system pool numbers (free plan).
+    // This matches the visibility behavior of GET /api/phone-numbers.
+    const user = await storage.getUser(userId);
+
     const connections = await db
       .select({
         id: humanIncomingConnections.id,
@@ -794,6 +852,9 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         ivrEnabled: humanIncomingConnections.ivrEnabled,
         ivrGreeting: humanIncomingConnections.ivrGreeting,
         label: humanIncomingConnections.label,
+        outboundCallerPhoneNumberId: humanIncomingConnections.outboundCallerPhoneNumberId,
+        relayPhoneNumberId: humanIncomingConnections.relayPhoneNumberId,
+        relayPhoneNumberIds: humanIncomingConnections.relayPhoneNumberIds,
         createdAt: humanIncomingConnections.createdAt,
         phoneNumber: {
           id: phoneNumbers.id,
@@ -812,6 +873,48 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       .leftJoin(agents, eq(humanIncomingConnections.agentId, agents.id))
       .where(eq(humanIncomingConnections.userId, userId));
 
+    const referencedPhoneIds = [
+      ...new Set(
+        connections
+          .flatMap((c) => [
+            c.outboundCallerPhoneNumberId,
+            c.relayPhoneNumberId,
+            ...((c.relayPhoneNumberIds as string[] | null) ?? []),
+          ])
+          .filter((id): id is string => !!id)
+      ),
+    ];
+    const referencedPhoneRows =
+      referencedPhoneIds.length > 0
+        ? await db
+            .select({ id: phoneNumbers.id, phoneNumber: phoneNumbers.phoneNumber })
+            .from(phoneNumbers)
+            .where(inArray(phoneNumbers.id, referencedPhoneIds))
+        : [];
+    const phoneById = Object.fromEntries(referencedPhoneRows.map((r) => [r.id, r.phoneNumber]));
+    const connectionsEnriched = connections.map((c) => {
+      const relayIds = (c.relayPhoneNumberIds as string[] | null) ?? null;
+      const orderedRelayIds = relayIds && relayIds.length > 0
+        ? relayIds
+        : (c.relayPhoneNumberId ? [c.relayPhoneNumberId] : []);
+      const relayPhoneNumbers = orderedRelayIds
+        .map((id) => phoneById[id] ?? null)
+        .filter((n): n is string => !!n);
+      return {
+        ...c,
+        outboundCallerPhoneNumber: c.outboundCallerPhoneNumberId
+          ? phoneById[c.outboundCallerPhoneNumberId] ?? null
+          : null,
+        // Legacy single-relay field — kept for back-compat with older clients.
+        relayPhoneNumber: c.relayPhoneNumberId
+          ? phoneById[c.relayPhoneNumberId] ?? null
+          : (orderedRelayIds[0] ? phoneById[orderedRelayIds[0]] ?? null : null),
+        // New ordered list (primary + fallbacks) for the multi-relay UI.
+        relayPhoneNumberIds: orderedRelayIds,
+        relayPhoneNumbers,
+      };
+    });
+
     // Get incoming agents for optional AI agent assignment
     const incomingAgentsList = await db
       .select({
@@ -824,7 +927,7 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       .where(and(eq(agents.userId, userId), eq(agents.type, "incoming"), eq(agents.isActive, true)));
 
     // Get available phone numbers (not used by AI connections, IVR, campaigns, or human connections)
-    const humanConnectedPhoneIds = connections.map(c => c.phoneNumberId);
+    const humanConnectedPhoneIds = connections.map((c) => c.phoneNumberId);
     
     const aiConnections = await db
       .select({ phoneNumberId: incomingConnections.phoneNumberId })
@@ -840,24 +943,40 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       .map((ivr) => ivr.phoneNumberId)
       .filter((id): id is string => id !== null);
 
+    // Numbers visible to this user:
+    // - user-owned numbers
+    // - plus system pool numbers (userId IS NULL) for free plan users
+    // Do not filter by status here; the UI will show unavailable reasons and allow selection only when not allocated.
+    const includePool = !!user && user.planType === "free";
     const allUserNumbers = await db
       .select()
       .from(phoneNumbers)
       .where(
-        and(
-          eq(phoneNumbers.userId, userId),
-          eq(phoneNumbers.isSystemPool, false),
-          eq(phoneNumbers.status, "active")
-        )
+        includePool
+          ? or(
+              eq(phoneNumbers.userId, userId),
+              and(eq(phoneNumbers.isSystemPool, true), isNull(phoneNumbers.userId))
+            )
+          : eq(phoneNumbers.userId, userId)
       );
 
     // NOTE: Campaign usage (outbound) does NOT block inbound routing assignment —
     // a number can simultaneously run outbound campaigns and receive inbound calls.
     const allUsedPhoneIds = [...aiConnectedPhoneIds, ...humanConnectedPhoneIds, ...ivrPhoneIds];
 
+    // Outbound caller ID must be NON-UAE: the UAE toll-free number bridges to the
+    // transfer destination (UAE PSTN), and UAE-origin caller IDs cannot dial UAE PSTN reliably.
+    const eligibleOutboundCallerPhones = allUserNumbers
+      .filter((pn) => !!pn.phoneNumber && !isUaeE164(pn.phoneNumber))
+      .map((pn) => ({
+        id: pn.id,
+        phoneNumber: pn.phoneNumber,
+        friendlyName: pn.friendlyName,
+        country: pn.country,
+      }));
+
     const availablePhoneNumbers = allUserNumbers.map(pn => {
       const isUsed = allUsedPhoneIds.includes(pn.id);
-      const isTollFree = pn.numberType === 'toll_free' || pn.numberType === 'tollfree';
       let unavailableReason: string | null = null;
       if (aiConnectedPhoneIds.includes(pn.id)) {
         unavailableReason = "Connected to AI agent";
@@ -865,19 +984,25 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         unavailableReason = "Connected to human agent";
       } else if (ivrPhoneIds.includes(pn.id)) {
         unavailableReason = "Assigned to department/IVR";
-      } else if (isTollFree) {
-        unavailableReason = "Toll-free numbers cannot transfer calls — they can only receive inbound calls and cannot originate the outbound call needed to connect to the transfer number. Use a local or mobile number instead.";
       }
+      // Toll-free inbound is allowed: human-agent webhook uses a conference bridge and
+      // picks another active local/mobile number as outbound caller ID when needed.
       return {
         ...pn,
-        isUnavailable: isUsed || isTollFree,
+        isUnavailable: isUsed,
         unavailableReason,
       };
     });
 
+    // Relay numbers (two-hop transfer): same eligibility as outbound CLI — must be
+    // a Twilio-owned non-UAE number on the user's account.
+    const eligibleRelayPhones = eligibleOutboundCallerPhones;
+
     res.json({
-      connections,
+      connections: connectionsEnriched,
       availablePhoneNumbers,
+      eligibleOutboundCallerPhones,
+      eligibleRelayPhones,
       incomingAgents: incomingAgentsList,
       stats: {
         totalConnections: connections.length,
@@ -898,7 +1023,18 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { phoneNumberIds, transferNumber, transferTargetType, ivrEnabled, ivrGreeting, label, agentId } = req.body;
+    const {
+      phoneNumberIds,
+      transferNumber,
+      transferTargetType,
+      ivrEnabled,
+      ivrGreeting,
+      label,
+      agentId,
+      outboundCallerPhoneNumberId,
+      relayPhoneNumberId,
+      relayPhoneNumberIds,
+    } = req.body;
 
     if (!phoneNumberIds || !Array.isArray(phoneNumberIds) || phoneNumberIds.length === 0) {
       return res.status(400).json({ message: "At least one phone number is required" });
@@ -909,6 +1045,90 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
 
     if (!transferNumber.trim().match(/^\+?[1-9]\d{1,14}$/)) {
       return res.status(400).json({ message: "Transfer number must be a valid phone number (E.164 format recommended, e.g. +1234567890)" });
+    }
+
+    if (!outboundCallerPhoneNumberId || typeof outboundCallerPhoneNumberId !== "string") {
+      return res.status(400).json({
+        message:
+          "Outbound caller ID is required. Select a non-UAE Twilio number you own (shown on the agent's phone when transferring).",
+      });
+    }
+
+    const [outboundPn] = await db
+      .select()
+      .from(phoneNumbers)
+      .where(
+        and(
+          eq(phoneNumbers.id, outboundCallerPhoneNumberId),
+          eq(phoneNumbers.userId, userId),
+          eq(phoneNumbers.isSystemPool, false)
+        )
+      )
+      .limit(1);
+
+    if (!outboundPn) {
+      return res.status(400).json({ message: "Outbound caller ID must be a Twilio phone number on your account." });
+    }
+
+    if (outboundPn.phoneNumber && isUaeE164(outboundPn.phoneNumber)) {
+      return res.status(400).json({
+        message:
+          "Outbound caller ID cannot be a UAE (+971) number. Pick a non-UAE Twilio number — the UAE inbound number bridges to the transfer destination using this caller ID.",
+      });
+    }
+
+    // Optional two-hop relay validation: accept either the legacy single
+    // `relayPhoneNumberId` or the new ordered list `relayPhoneNumberIds` (primary + fallbacks).
+    // Each entry must be a non-UAE Twilio number on this account. Duplicates are de-duped
+    // while preserving the operator's order. The first entry is the primary; the rest are
+    // tried as fallbacks when hop2 origination fails or the agent leg returns
+    // busy/failed/no-answer/canceled.
+    let validatedRelayPhoneNumberId: string | null = null;
+    let validatedRelayPhoneNumberIds: string[] | null = null;
+
+    const incomingRelayIds: string[] = [];
+    if (Array.isArray(relayPhoneNumberIds)) {
+      for (const rid of relayPhoneNumberIds) {
+        if (typeof rid !== "string") {
+          return res.status(400).json({ message: "relayPhoneNumberIds entries must be strings." });
+        }
+        if (rid && !incomingRelayIds.includes(rid)) {
+          incomingRelayIds.push(rid);
+        }
+      }
+    } else if (relayPhoneNumberId !== undefined && relayPhoneNumberId !== null && relayPhoneNumberId !== "") {
+      if (typeof relayPhoneNumberId !== "string") {
+        return res.status(400).json({ message: "relayPhoneNumberId must be a string." });
+      }
+      incomingRelayIds.push(relayPhoneNumberId);
+    }
+
+    if (incomingRelayIds.length > 0) {
+      const relayRows = await db
+        .select()
+        .from(phoneNumbers)
+        .where(
+          and(
+            inArray(phoneNumbers.id, incomingRelayIds),
+            eq(phoneNumbers.userId, userId),
+            eq(phoneNumbers.isSystemPool, false)
+          )
+        );
+      const relayById = new Map(relayRows.map((r) => [r.id, r]));
+      for (const rid of incomingRelayIds) {
+        const relayPn = relayById.get(rid);
+        if (!relayPn) {
+          return res.status(400).json({ message: "Each relay number must be a Twilio phone number on your account." });
+        }
+        if (relayPn.phoneNumber && isUaeE164(relayPn.phoneNumber)) {
+          return res.status(400).json({
+            message:
+              "Relay numbers cannot be UAE (+971) numbers. Pick non-UAE Twilio numbers — the relay's whole purpose is to present a non-UAE caller ID on the agent leg.",
+          });
+        }
+      }
+      validatedRelayPhoneNumberId = incomingRelayIds[0];
+      validatedRelayPhoneNumberIds = incomingRelayIds;
     }
 
     const createdConnections = [];
@@ -980,6 +1200,9 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         .values({
           userId,
           phoneNumberId,
+          outboundCallerPhoneNumberId,
+          relayPhoneNumberId: validatedRelayPhoneNumberId,
+          relayPhoneNumberIds: validatedRelayPhoneNumberIds,
           agentId: agentId || null,
           transferNumber: transferNumber.trim(),
           transferTargetType: transferTargetType || "phone",

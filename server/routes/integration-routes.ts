@@ -6,6 +6,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { n8nService } from '../services/n8n';
 import { oauthService } from '../services/oauth';
 import { isOAuthProvider, getOAuthProvider } from '../services/oauth-providers';
+import { seedIntegrationApps } from '../seed-integration-apps';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -33,19 +34,26 @@ router.get('/apps', async (req: AuthRequest, res: Response) => {
   try {
     const { category, search } = req.query;
 
-    let apps;
-    if (category && category !== 'all') {
-      apps = await db
-        .select()
-        .from(integrationApps)
-        .where(and(eq(integrationApps.isActive, true), eq(integrationApps.category, String(category))))
-        .orderBy(desc(integrationApps.isPopular), integrationApps.name);
-    } else {
-      apps = await db
+    const loadApps = async () => {
+      if (category && category !== 'all') {
+        return db
+          .select()
+          .from(integrationApps)
+          .where(and(eq(integrationApps.isActive, true), eq(integrationApps.category, String(category))))
+          .orderBy(desc(integrationApps.isPopular), integrationApps.name);
+      }
+
+      return db
         .select()
         .from(integrationApps)
         .where(eq(integrationApps.isActive, true))
         .orderBy(desc(integrationApps.isPopular), integrationApps.name);
+    };
+
+    let apps = await loadApps();
+    if (apps.length === 0) {
+      await seedIntegrationApps();
+      apps = await loadApps();
     }
 
     if (search) {
@@ -296,7 +304,7 @@ router.post('/:id/activate', async (req: AuthRequest, res: Response) => {
     const testResult = await n8nService.sendWebhook(
       integration.webhookUrl,
       'test_connection',
-      { message: 'Loop9 integration test', timestamp: new Date().toISOString() },
+      { message: 'Byan AI integration test', timestamp: new Date().toISOString() },
     );
 
     if (testResult.success) {

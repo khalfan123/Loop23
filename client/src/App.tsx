@@ -32,6 +32,7 @@ import Dashboard from "@/pages/Dashboard";
 import Campaigns from "@/pages/Campaigns";
 import CallDetail from "@/pages/CallDetail";
 import Analytics from "@/pages/Analytics";
+import DashboardLive from "@/pages/DashboardLive";
 import QualityAssurance from "@/pages/QualityAssurance";
 import PaymentResult from "@/pages/PaymentResult";
 import KnowledgeBase from "@/pages/KnowledgeBase";
@@ -48,18 +49,19 @@ import SipTrunkingPage from "@/pages/SipTrunkingPage";
 import AllContacts from "@/pages/AllContacts";
 import Settings from "@/pages/Settings";
 import SettingsHub from "@/pages/SettingsHub";
+import BrandingAdmin from "@/pages/BrandingAdmin";
+import WhatsappDidPoolPage from "@/pages/admin/WhatsappDidPoolPage";
 import Login from "@/pages/Login";
 import PrivacyPolicy from "@/pages/policies/PrivacyPolicy";
 import TermsOfService from "@/pages/policies/TermsOfService";
 import CookiePolicy from "@/pages/policies/CookiePolicy";
-import InstallWizard from "@/pages/InstallWizard";
 import NotFound from "@/pages/not-found";
 import FlowsPage from "@/pages/FlowsPage";
 import CRMPage from "@/pages/CRMPage";
 import WidgetsPage from "@/pages/WidgetsPage";
+import RebrandAnnouncement from "@/pages/RebrandAnnouncement";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
-import WebhookConfigPage from "@/pages/WebhookConfigPage";
 import FormsPage from "@/pages/FormsPage";
 import AppointmentsPage from "@/pages/AppointmentsPage";
 import CallpilotHub from "@/pages/CallpilotHub";
@@ -71,10 +73,23 @@ import PromptTemplates from "@/pages/PromptTemplates";
 import TransactionHistory from "@/pages/TransactionHistory";
 import IntegrationsPanel from "@/pages/IntegrationsPanel";
 import IntegrationDetail from "@/pages/IntegrationDetail";
+import IntegrationsConcierge from "@/pages/IntegrationsConcierge";
+import Inbox from "@/pages/Inbox";
+import SmsHub from "@/pages/SmsHub";
+import SmsRatesPage from "@/pages/admin/SmsRatesPage";
+import WhatsappSetup from "@/pages/WhatsappSetup";
+import WhatsappSetupComplete from "@/pages/WhatsappSetupComplete";
+import WhatsappChannels from "@/pages/WhatsappChannels";
+import WhatsappTemplates from "@/pages/WhatsappTemplates";
+import WhatsappBusinessProfile from "@/pages/WhatsappBusinessProfile";
+import WhatsappAudience from "@/pages/WhatsappAudience";
+import WhatsappAutomations from "@/pages/WhatsappAutomations";
+import WhatsappBroadcasts from "@/pages/WhatsappBroadcasts";
 import RockCenter from "@/pages/RockCenter";
 import LoginPage from "@/pages/LoginPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import TeamMemberLogin from "@/pages/TeamMemberLogin";
+import Billing from "@/pages/Billing";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { AnalyticsScripts } from "@/components/AnalyticsScripts";
@@ -130,6 +145,7 @@ function PublicRouter() {
         </Route>
         <Route path="/login" component={LoginPage} />
         <Route path="/register" component={LoginPage} />
+        <Route path="/rebrand" component={RebrandAnnouncement} />
         <Route path="/onboarding" component={OnboardingPage} />
         <Route path="/team/login" component={TeamMemberLogin} />
         <Route path="/privacy" component={PrivacyPolicy} />
@@ -165,15 +181,14 @@ function UserRouter() {
           </Route>
           <Route path="/app/contacts" component={AllContacts} />
           <Route path="/app/analytics" component={Analytics} />
+          <Route path="/app/live" component={DashboardLive} />
           <Route path="/app/quality-assurance" component={QualityAssurance} />
           <Route path="/app/ops" component={CallpilotHub} />
           <Route path="/ops" component={CallpilotHub} />
           <Route path="/app/tools/widgets">
             <Redirect to="/app/settings/widgets" />
           </Route>
-          <Route path="/app/billing">
-            <Redirect to="/app/settings/billing" />
-          </Route>
+          <Route path="/app/billing" component={Billing} />
           <Route path="/app/payment-result" component={PaymentResult} />
           <Route path="/app/transaction-history">
             <Redirect to="/app/settings/billing?tab=credits" />
@@ -205,8 +220,20 @@ function UserRouter() {
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers/sip-trunking" component={SipTrunkingPage} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
+          <Route path="/app/integrations/concierge" component={IntegrationsConcierge} />
           <Route path="/app/integrations/:slug" component={IntegrationDetail} />
           <Route path="/app/integrations" component={IntegrationsPanel} />
+          <Route path="/app/inbox/whatsapp-setup/complete" component={WhatsappSetupComplete} />
+          <Route path="/app/inbox/whatsapp-setup" component={WhatsappSetup} />
+          <Route path="/app/inbox" component={Inbox} />
+          <Route path="/app/sms/setup" component={SmsHub} />
+          <Route path="/app/sms" component={SmsHub} />
+          <Route path="/app/channels/whatsapp" component={WhatsappChannels} />
+          <Route path="/app/whatsapp/templates" component={WhatsappTemplates} />
+          <Route path="/app/whatsapp/business-profile/:senderId" component={WhatsappBusinessProfile} />
+          <Route path="/app/whatsapp/audience" component={WhatsappAudience} />
+          <Route path="/app/whatsapp/automations" component={WhatsappAutomations} />
+          <Route path="/app/whatsapp/broadcasts" component={WhatsappBroadcasts} />
           <Route path="/app/tools" component={() => <div className="text-center py-16 text-muted-foreground">Tools page coming soon</div>} />
           <Route path="/app/flows/new">
             <Redirect to="/app/settings/flows/new" />
@@ -215,7 +242,7 @@ function UserRouter() {
             <Redirect to="/app/settings/execution" />
           </Route>
           <Route path="/app/flows/webhooks">
-            <Redirect to="/app/settings/webhooks" />
+            <Redirect to="/app/settings/automation" />
           </Route>
           <Route path="/app/flows/forms">
             <Redirect to="/app/settings/flows/forms" />
@@ -233,10 +260,16 @@ function UserRouter() {
             <Redirect to="/app/settings/flows" />
           </Route>
           <Route path="/app/outbound" component={OutboundCanvas} />
+          <Route path="/app/admin/branding" component={BrandingAdmin} />
+          <Route path="/app/admin/whatsapp-pool" component={WhatsappDidPoolPage} />
+          <Route path="/app/admin/sms-rates" component={SmsRatesPage} />
+          <Route path="/app/admin">
+            <Redirect to="/app/admin/branding" />
+          </Route>
           <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/live-monitoring">
-            <Redirect to="/app/analytics" />
+            <Redirect to="/app/live" />
           </Route>
           <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
           <Route component={NotFound} />
@@ -267,15 +300,14 @@ function TeamMemberRouter() {
           </Route>
           <Route path="/app/contacts" component={AllContacts} />
           <Route path="/app/analytics" component={Analytics} />
+          <Route path="/app/live" component={DashboardLive} />
           <Route path="/app/quality-assurance" component={QualityAssurance} />
           <Route path="/app/ops" component={CallpilotHub} />
           <Route path="/ops" component={CallpilotHub} />
           <Route path="/app/tools/widgets">
             <Redirect to="/app/settings/widgets" />
           </Route>
-          <Route path="/app/billing">
-            <Redirect to="/app/settings/billing" />
-          </Route>
+          <Route path="/app/billing" component={Billing} />
           <Route path="/app/transaction-history">
             <Redirect to="/app/settings/billing?tab=credits" />
           </Route>
@@ -301,6 +333,7 @@ function TeamMemberRouter() {
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers/sip-trunking" component={SipTrunkingPage} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
+          <Route path="/app/integrations/concierge" component={IntegrationsConcierge} />
           <Route path="/app/integrations/:slug" component={IntegrationDetail} />
           <Route path="/app/integrations" component={IntegrationsPanel} />
           <Route path="/app/flows/new">
@@ -310,7 +343,7 @@ function TeamMemberRouter() {
             <Redirect to="/app/settings/execution" />
           </Route>
           <Route path="/app/flows/webhooks">
-            <Redirect to="/app/settings/webhooks" />
+            <Redirect to="/app/settings/automation" />
           </Route>
           <Route path="/app/flows/forms">
             <Redirect to="/app/settings/flows/forms" />
@@ -330,7 +363,7 @@ function TeamMemberRouter() {
           <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/live-monitoring">
-            <Redirect to="/app/analytics" />
+            <Redirect to="/app/live" />
           </Route>
           <Route component={NotFound} />
         </Switch>
@@ -415,11 +448,6 @@ function Router() {
   const [isTeamMember, setIsTeamMember] = useState(() => TeamAuth.isAuthenticated());
   const [isChecking, setIsChecking] = useState(true);
 
-  const { data: installStatus } = useQuery<{ installed: boolean }>({
-    queryKey: ["/api/installer/status"],
-    retry: false,
-  });
-
   useEffect(() => {
     const regularAuth = AuthStorage.isAuthenticated();
     const teamAuth = TeamAuth.isAuthenticated();
@@ -434,18 +462,6 @@ function Router() {
         <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
-  }
-
-  if (installStatus && !installStatus.installed && location !== '/install') {
-    return <Redirect to="/install" />;
-  }
-
-  if (location === '/install' && installStatus?.installed) {
-    return <Redirect to="/login" />;
-  }
-
-  if (location === '/install') {
-    return <InstallWizard />;
   }
 
   if (isAuthenticated && (location === '/login' || location === '/register')) {

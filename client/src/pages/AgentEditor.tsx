@@ -65,7 +65,7 @@ interface Agent {
   voiceStability: number | null;
   voiceSimilarityBoost: number | null;
   voiceSpeed: number | null;
-  voiceProvider: 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia' | null;
+  voiceProvider: string | null;
   telephonyProvider: string | null;
   openaiVoice: string | null;
   sourceTemplateId: string | null;
@@ -256,9 +256,7 @@ export default function AgentEditor() {
         voiceTone: existingAgent.voiceTone || "professional",
         personality: existingAgent.personality || "helpful",
         systemPrompt: existingAgent.systemPrompt || "",
-        elevenLabsVoiceId: existingAgent.voiceProvider === 'cartesia' 
-          ? (existingAgent.openaiVoice || "") 
-          : (existingAgent.elevenLabsVoiceId || ""),
+        elevenLabsVoiceId: existingAgent.elevenLabsVoiceId || "",
         language: existingAgent.language || "en",
         llmModel: existingAgent.llmModel || "gpt-4o-mini",
         firstMessage: existingAgent.firstMessage || "Hello! How can I help you today?",
@@ -856,7 +854,7 @@ export default function AgentEditor() {
                           </Label>
                           <Input
                             id="transfer-phone"
-                            placeholder="+1234567890"
+                            placeholder={t('agents.systemTools.transferPhonePlaceholder')}
                             value={formData.transferPhoneNumber}
                             onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
                             data-testid="input-transfer-phone"
@@ -1250,7 +1248,7 @@ export default function AgentEditor() {
                           </Label>
                           <Input
                             id="flow-transfer-phone"
-                            placeholder="+1234567890"
+                            placeholder={t('agents.systemTools.transferPhonePlaceholder')}
                             value={formData.transferPhoneNumber}
                             onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
                             data-testid="input-flow-transfer-phone"

@@ -18,13 +18,32 @@ interface OAuthState {
 }
 
 function getBaseUrl(): string {
-  if (process.env.REPLIT_DEV_DOMAIN) {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Explicit override (recommended for production)
+  if (process.env.APP_DOMAIN) {
+    const d = process.env.APP_DOMAIN.replace(/^https?:\/\//, '');
+    return `https://${d}`;
+  }
+  if (process.env.APP_BASE_URL) {
+    return process.env.APP_BASE_URL;
+  }
+  // In production, prefer the Replit-provided deployment domain over the dev workspace domain
+  if (isProduction && process.env.REPLIT_DOMAINS) {
+    return `https://${process.env.REPLIT_DOMAINS.split(',')[0].trim()}`;
+  }
+  // Workspace dev domain (only valid when NOT running in production)
+  if (!isProduction && process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  }
+  // Last-resort: REPLIT_DOMAINS even when NODE_ENV isn't set
+  if (process.env.REPLIT_DOMAINS) {
+    return `https://${process.env.REPLIT_DOMAINS.split(',')[0].trim()}`;
   }
   if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
     return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   }
-  return process.env.APP_BASE_URL || 'http://localhost:5000';
+  return 'http://localhost:5000';
 }
 
 export const oauthService = {

@@ -349,16 +349,7 @@ export default function KnowledgeBase() {
     enabled: user?.planType !== 'free',
   });
 
-  // Intelligence stats for header
-  interface IntelligenceStats {
-    crawlJobs: number;
-    entities: number;
-    topics: number;
-    faqs: number;
-    articles: number;
-    graphNodes: number;
-  }
-
+  // Pipeline job types for enrichment progress
   interface PipelineJob {
     id: string;
     name: string;
@@ -390,10 +381,6 @@ export default function KnowledgeBase() {
       };
     };
   }
-
-  const { data: intelligenceStats } = useQuery<IntelligenceStats>({
-    queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
-  });
 
   const prevPipelineJobRef = useRef<PipelineJob | null | undefined>(undefined);
 
@@ -971,9 +958,12 @@ export default function KnowledgeBase() {
       });
       return;
     }
+    const normalizedUrl = urlInput.trim().match(/^https?:\/\//i)
+      ? urlInput.trim()
+      : `https://${urlInput.trim()}`;
     addUrlMutation.mutate({ 
-      url: urlInput, 
-      name: urlName || urlInput,
+      url: normalizedUrl, 
+      name: urlName || normalizedUrl,
       folderId: urlFolderId && urlFolderId !== "none" ? urlFolderId : undefined,
     });
   };
@@ -1518,169 +1508,7 @@ export default function KnowledgeBase() {
             )}
           </div>
           </div>
-
-          {viewMode === "dashboard" && (
-            <div className="px-4 py-3 bg-muted/30 border-b">
-              <div className="flex items-center gap-2 mb-2">
-                <Brain className="h-4 w-4 text-primary" />
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">AI Readiness</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Crawl Jobs</span>
-                  <span className="text-base font-bold text-foreground">{intelligenceStats?.crawlJobs || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Entities</span>
-                  <span className="text-base font-bold text-blue-600 dark:text-blue-400">{intelligenceStats?.entities || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Topics</span>
-                  <span className="text-base font-bold text-green-600 dark:text-green-400">{intelligenceStats?.topics || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">FAQs</span>
-                  <span className="text-base font-bold text-orange-600 dark:text-orange-400">{intelligenceStats?.faqs || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Articles</span>
-                  <span className="text-base font-bold text-purple-600 dark:text-purple-400">{intelligenceStats?.articles || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Graph Nodes</span>
-                  <span className="text-base font-bold text-cyan-600 dark:text-cyan-400">{intelligenceStats?.graphNodes || 0}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* Tab Navigation Bar - hidden for Products, ML Conversations, Folders, and Bedrock KB */}
-        {viewMode !== "products" && viewMode !== "ml-conversations" && viewMode !== "folder" && viewMode !== "bedrock-kb" && (
-        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-x-auto">
-          <div className="flex items-center gap-0 px-3 py-0 h-11">
-            <button
-              onClick={() => { setViewMode("ml-insights"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "ml-insights"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-ml-insights"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              ML Insights
-            </button>
-            <button
-              onClick={() => { setViewMode("ml-operations"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "ml-operations"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-ml-operations"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              ML Ops
-            </button>
-            <div className="h-3 w-px bg-border mx-0.5" />
-            <button
-              onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "web-crawler"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-web-crawler"
-            >
-              <Globe className="h-3.5 w-3.5" />
-              Crawler
-            </button>
-            <button
-              onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "ai-insights"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-ai-insights"
-            >
-              <Brain className="h-3.5 w-3.5" />
-              AI
-            </button>
-            <button
-              onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "content-studio"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-content-studio"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Studio
-            </button>
-            <button
-              onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "entities"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-entities"
-            >
-              <Tags className="h-3.5 w-3.5" />
-              Entities
-            </button>
-            <button
-              onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "topic-clusters"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-topics"
-            >
-              <Layers className="h-3.5 w-3.5" />
-              Topics
-            </button>
-            <button
-              onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "faqs"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-faqs"
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-              FAQs
-            </button>
-            <button
-              onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
-                viewMode === "content-gaps"
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="tab-content-gaps"
-            >
-              <Lightbulb className="h-3.5 w-3.5" />
-              Gaps
-            </button>
-          </div>
-        </div>
-        )}
-
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
@@ -1754,7 +1582,7 @@ export default function KnowledgeBase() {
                                   {bedrockStatus.aiModel || "Claude Sonnet 4.6"}
                                 </p>
                                 <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono mt-0.5" data-testid="text-bedrock-ai-model-id">
-                                  {bedrockStatus.aiModelId || "us.anthropic.claude-sonnet-4-6"}
+                                  {bedrockStatus.aiModelId || "global.anthropic.claude-sonnet-4-6"}
                                 </p>
                               </div>
                               <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
@@ -2189,152 +2017,6 @@ export default function KnowledgeBase() {
                     </Button>
                   </div>
                 )}
-
-                {/* AI Intelligence Quick Access */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <div className="h-5 w-5 rounded bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
-                        <Brain className="h-3 w-3 text-cyan-500" />
-                      </div>
-                      AI Intelligence
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">ML-powered content analysis</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <button
-                        onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
-                        data-testid="quick-access-entities"
-                      >
-                        <Tags className="h-4 w-4 text-blue-500 mb-1" />
-                        <p className="text-xs text-muted-foreground">Entities</p>
-                        <p className="text-sm font-medium">View All</p>
-                      </button>
-                      <button
-                        onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
-                        data-testid="quick-access-clusters"
-                      >
-                        <Layers className="h-4 w-4 text-green-500 mb-1" />
-                        <p className="text-xs text-muted-foreground">Topic Clusters</p>
-                        <p className="text-sm font-medium">View All</p>
-                      </button>
-                      <button
-                        onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
-                        data-testid="quick-access-faqs"
-                      >
-                        <HelpCircle className="h-4 w-4 text-orange-500 mb-1" />
-                        <p className="text-xs text-muted-foreground">Detected FAQs</p>
-                        <p className="text-sm font-medium">View All</p>
-                      </button>
-                      <button
-                        onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
-                        data-testid="quick-access-gaps"
-                      >
-                        <Lightbulb className="h-4 w-4 text-yellow-500 mb-1" />
-                        <p className="text-xs text-muted-foreground">Content Gaps</p>
-                        <p className="text-sm font-medium">View All</p>
-                      </button>
-                      <button
-                        onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
-                        data-testid="quick-access-content-studio"
-                      >
-                        <Sparkles className="h-4 w-4 text-amber-500 mb-1" />
-                        <p className="text-xs text-muted-foreground">Content Studio</p>
-                        <p className="text-sm font-medium">Generate</p>
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <div className="h-5 w-5 rounded bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                        <Brain className="h-3 w-3 text-emerald-500" />
-                      </div>
-                      AI Knowledge Readiness
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">How well-equipped your AI is to answer questions</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-medium">Knowledge Readiness</span>
-                            <span className="text-sm font-medium">
-                              {(() => {
-                                const total = (dashboardStats?.totalResources || 0);
-                                const chunks = (dashboardStats?.totalChunks || 0);
-                                if (total === 0) return 'Not Ready';
-                                if (chunks < 50) return 'Learning';
-                                if (chunks < 200) return 'Developing';
-                                if (chunks < 500) return 'Proficient';
-                                return 'Expert';
-                              })()}
-                            </span>
-                          </div>
-                          <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full transition-all ${
-                                (dashboardStats?.totalChunks || 0) === 0 
-                                  ? 'bg-muted-foreground/30' 
-                                  : (dashboardStats?.totalChunks || 0) < 50 
-                                    ? 'bg-yellow-500' 
-                                    : (dashboardStats?.totalChunks || 0) < 200 
-                                      ? 'bg-blue-500' 
-                                      : (dashboardStats?.totalChunks || 0) < 500 
-                                        ? 'bg-emerald-500' 
-                                        : 'bg-green-500'
-                              }`}
-                              style={{ width: `${Math.min(((dashboardStats?.totalChunks || 0) / 500) * 100, 100)}%` }}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-muted-foreground">{dashboardStats?.totalChunks || 0} knowledge chunks</span>
-                            <span className="text-xs text-muted-foreground">{dashboardStats?.totalResources || 0} knowledge sources</span>
-                          </div>
-                        </div>
-                      </div>
-                      {(intelligenceStats?.topics || 0) > 0 && (
-                        <div>
-                          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                            Topics the AI can discuss
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            <Badge variant="secondary" className="text-xs">
-                              <Tags className="h-3 w-3 mr-1 text-blue-500" />
-                              {intelligenceStats?.entities || 0} entities
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              <Layers className="h-3 w-3 mr-1 text-green-500" />
-                              {intelligenceStats?.topics || 0} topics
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              <HelpCircle className="h-3 w-3 mr-1 text-orange-500" />
-                              {intelligenceStats?.faqs || 0} FAQs mastered
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              <FileText className="h-3 w-3 mr-1 text-purple-500" />
-                              {intelligenceStats?.articles || 0} articles studied
-                            </Badge>
-                          </div>
-                        </div>
-                      )}
-                      {(dashboardStats?.totalResources || 0) === 0 && (
-                        <div className="text-center py-2">
-                          <p className="text-sm text-muted-foreground">Add content to build the AI's expertise</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
 
                 {/* All Items Table */}
                 {knowledgeBase.length > 0 && (

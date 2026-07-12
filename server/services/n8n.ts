@@ -22,6 +22,19 @@ interface N8nCredential {
   data: Record<string, any>;
 }
 
+type CreateWorkflowFromJsonInput = {
+  name: string;
+  nodes: any[];
+  connections: Record<string, any>;
+  settings?: Record<string, any>;
+};
+
+type CreateCredentialWithDataInput = {
+  name: string;
+  type: string;
+  data: Record<string, any>;
+};
+
 async function n8nFetch(path: string, options: RequestInit = {}): Promise<any> {
   if (isLocalMode) {
     throw new Error('n8n is not configured — running in local mode');
@@ -51,6 +64,7 @@ function generateLocalId(): string {
 
 export const n8nService = {
   isLocalMode: () => isLocalMode,
+  baseUrl: () => N8N_BASE_URL,
 
   createWorkflow: async (
     appName: string,
@@ -61,7 +75,7 @@ export const n8nService = {
     if (isLocalMode) {
       return {
         id: generateLocalId(),
-        name: `Loop9 → ${appName} (User ${userId})`,
+        name: `Byan AI → ${appName} (User ${userId})`,
         active: false,
         nodes: [],
         connections: {},
@@ -72,7 +86,7 @@ export const n8nService = {
     const nodes = [
       {
         parameters: { path: webhookPath, httpMethod: 'POST', responseMode: 'onReceived', options: {} },
-        name: 'Loop9 Webhook',
+        name: 'Byan AI Webhook',
         type: 'n8n-nodes-base.webhook',
         typeVersion: 1,
         position: [250, 300],
@@ -95,17 +109,59 @@ export const n8nService = {
     ];
 
     const connections = {
-      'Loop9 Webhook': { main: [[{ node: 'Verify Signature', type: 'main', index: 0 }]] },
+      'Byan AI Webhook': { main: [[{ node: 'Verify Signature', type: 'main', index: 0 }]] },
       'Verify Signature': { main: [[{ node: appName, type: 'main', index: 0 }]] },
     };
 
     return await n8nFetch('/workflows', {
       method: 'POST',
       body: JSON.stringify({
-        name: `Loop9 → ${appName} (User ${userId})`,
+        name: `Byan AI → ${appName} (User ${userId})`,
         nodes,
         connections,
         settings: { executionOrder: 'v1' },
+      }),
+    });
+  },
+
+  createWorkflowFromJson: async (input: CreateWorkflowFromJsonInput): Promise<N8nWorkflow> => {
+    if (isLocalMode) {
+      return {
+        id: generateLocalId(),
+        name: input.name,
+        active: false,
+        nodes: input.nodes || [],
+        connections: input.connections || {},
+      };
+    }
+
+    return await n8nFetch('/workflows', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: input.name,
+        nodes: input.nodes || [],
+        connections: input.connections || {},
+        settings: input.settings || { executionOrder: 'v1' },
+      }),
+    });
+  },
+
+  createCredentialWithData: async (input: CreateCredentialWithDataInput): Promise<N8nCredential> => {
+    if (isLocalMode) {
+      return {
+        id: generateLocalId(),
+        name: input.name,
+        type: input.type,
+        data: {},
+      };
+    }
+
+    return await n8nFetch('/credentials', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: input.name,
+        type: input.type,
+        data: input.data,
       }),
     });
   },

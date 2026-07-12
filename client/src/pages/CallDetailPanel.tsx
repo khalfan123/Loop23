@@ -100,6 +100,13 @@ interface Call {
   endToEndLatencyMs?: number | null;
   responses?: CallResponse[];
   concernedQuestionsCount?: number;
+  wasTransferred?: boolean | null;
+  transferredTo?: string | null;
+  transferredAt?: string | null;
+  transferCallerId?: string | null;
+  transferCallerIdSource?: 'wizard' | 'env' | 'inbound' | 'omitted' | 'relay' | null;
+  transferRelayPhoneNumber?: string | null;
+  transferAgentStatus?: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled' | null;
 }
 
 interface CallDetailPanelProps {
@@ -1014,6 +1021,52 @@ export default function CallDetailPanel({
                             <span className="font-mono text-xs break-all">
                               {call.elevenLabsConversationId}
                             </span>
+                          </>
+                        )}
+
+                        {(call.wasTransferred || call.transferredTo || call.transferCallerIdSource) && (
+                          <>
+                            <span className="text-muted-foreground col-span-2 mt-3 font-medium">
+                              Transfer{call.transferRelayPhoneNumber ? ' (two-hop relay)' : ''}
+                            </span>
+                            {call.transferRelayPhoneNumber && (
+                              <>
+                                <span className="text-muted-foreground">Hop 1 (customer → conf)</span>
+                                <span className="font-mono text-xs" data-testid="text-panel-transfer-hop1">
+                                  UAE inbound DID parked in conference
+                                </span>
+                                <span className="text-muted-foreground">Hop 2 (relay → agent)</span>
+                                <span className="font-mono text-xs" data-testid="text-panel-transfer-hop2">
+                                  {call.transferRelayPhoneNumber} → {call.transferredTo ?? '(unknown)'}
+                                </span>
+                              </>
+                            )}
+                            {!call.transferRelayPhoneNumber && call.transferredTo && (
+                              <>
+                                <span className="text-muted-foreground">Transferred To</span>
+                                <span className="font-mono text-xs" data-testid="text-panel-transferred-to">{call.transferredTo}</span>
+                              </>
+                            )}
+                            {call.transferCallerIdSource && (
+                              <>
+                                <span className="text-muted-foreground">Agent-leg CLI</span>
+                                <span className="font-mono text-xs" data-testid="text-panel-transfer-cli">
+                                  {call.transferCallerIdSource === 'omitted'
+                                    ? 'omitted (UAE-only DID)'
+                                    : `${call.transferCallerId ?? '(unknown)'} (${call.transferCallerIdSource})`}
+                                </span>
+                              </>
+                            )}
+                            {call.transferAgentStatus && (
+                              <>
+                                <span className="text-muted-foreground">Agent-leg outcome</span>
+                                <span data-testid="text-panel-transfer-agent-status">
+                                  {call.transferAgentStatus === 'answered'
+                                    ? 'Answered'
+                                    : `Missed (${call.transferAgentStatus})`}
+                                </span>
+                              </>
+                            )}
                           </>
                         )}
 

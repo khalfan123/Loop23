@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240" fill="none" role="img" aria-label="Byan AI logo">
+  <defs>
+    <linearGradient id="g" x1="120" y1="40" x2="220" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="t" x1="260" y1="40" x2="740" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Mark -->
+  <g transform="translate(24,24)">
+    <rect x="0" y="0" width="192" height="192" rx="56" fill="url(#g)"/>
+    <path d="M60 132V60h45c25 0 39 11 39 30 0 12-6 21-16 25 12 4 19 14 19 28 0 21-16 35-42 35H60Zm32-44h14c10 0 16-5 16-13s-6-12-16-12H92v25Zm0 22v27h18c11 0 17-5 17-14s-6-13-17-13H92Z" fill="white" opacity="0.95"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(252,78)">
+    <text x="0" y="72" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="84" font-weight="800" letter-spacing="-1.5" fill="url(#t)">
+      Byan AI
+    </text>
+  </g>
+</svg>
+

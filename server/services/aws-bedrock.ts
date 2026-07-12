@@ -45,7 +45,7 @@ export interface LargeContextResponse {
 }
 
 export const BEDROCK_MODELS = {
-  "claude-sonnet-4-6": "us.anthropic.claude-sonnet-4-6",
+  "claude-sonnet-4-6": "global.anthropic.claude-sonnet-4-6",
   "claude-opus-4-5": "us.anthropic.claude-opus-4-5-20251101-v1:0",
   "claude-opus-4": "us.anthropic.claude-opus-4-20250514-v1:0",
   "claude-sonnet-4": "us.anthropic.claude-sonnet-4-20250514-v1:0",
@@ -623,28 +623,64 @@ ${options.systemPrompt}`;
     let firstWorking: string | null = null;
 
     for (const alias of modelsToTest) {
-      try {
-        const modelId = this.resolveModelId(alias);
-        const payload = {
-          anthropic_version: "bedrock-2023-05-31",
-          max_tokens: 1,
-          temperature: 0,
-          messages: [{ role: "user", content: "." }],
-        };
-        const command = new InvokeModelCommand({
-          modelId,
-          contentType: "application/json",
-          accept: "application/json",
-          body: JSON.stringify(payload),
-        });
+      const modelId = this.resolveModelId(alias);
+      const payload = {
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 1,
+        temperature: 0,
+        messages: [{ role: "user", content: "." }],
+      };
+      const command = new InvokeModelCommand({
+        modelId,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify(payload),
+      });
+
+      const PROBE_TIMEOUT_MS = 20000;
+      const tryOnce = async () => {
         await Promise.race([
           client.send(command),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), PROBE_TIMEOUT_MS)
+          ),
         ]);
+      };
+
+      try {
+        await tryOnce();
         console.log(`[Bedrock] ✅ Model "${alias}" (${modelId}) is accessible`);
         if (!firstWorking) firstWorking = alias;
       } catch (err: any) {
-        const modelId = this.resolveModelId(alias);
+        const errMsg = String(err?.message || '').toLowerCase();
+        const errName = String(err?.name || '');
+        // Throttling is NOT a credential / availability problem — the request
+        // reached Bedrock and was rate-limited. The model is reachable; real
+        // calls during traffic will succeed once the burst quota recovers.
+        const isThrottle =
+          errName === 'ThrottlingException' ||
+          errName === 'TooManyRequestsException' ||
+          err?.$retryable?.throttling === true ||
+          errMsg.includes('too many requests') ||
+          errMsg.includes('throttl') ||
+          err?.$metadata?.httpStatusCode === 429;
+        if (isThrottle) {
+          console.log(`[Bedrock] ✅ Model "${alias}" (${modelId}) reachable (warmup throttled — counted as healthy)`);
+          if (!firstWorking) firstWorking = alias;
+          continue;
+        }
+        // Retry once on timeout because Bedrock can be transiently slow.
+        if (errMsg.includes('timeout')) {
+          try {
+            await tryOnce();
+            console.log(`[Bedrock] ✅ Model "${alias}" (${modelId}) is accessible`);
+            if (!firstWorking) firstWorking = alias;
+            continue;
+          } catch (err2: any) {
+            console.warn(`[Bedrock] ❌ Model "${alias}" (${modelId}) warmup timed out twice`);
+            continue;
+          }
+        }
         console.warn(`[Bedrock] ❌ Model "${alias}" (${modelId}) is NOT accessible: ${err.message}`);
       }
     }
@@ -652,7 +688,7 @@ ${options.systemPrompt}`;
     if (firstWorking) {
       console.log(`[Bedrock] Warm connection established with "${firstWorking}"`);
     } else {
-      console.error(`[Bedrock] ⚠️ No Bedrock models are accessible! Check AWS credentials and model access.`);
+      console.warn(`[Bedrock] ⚠️ Bedrock warmup did not confirm an accessible model (may be transient). Calls may still work.`);
     }
   }
 

@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
-import { useBranding } from "@/components/BrandingProvider";
+import { SidebarBrand } from "@/components/SidebarBrand";
 import { TeamAuth } from "@/lib/team-auth";
 import { Badge } from "@/components/ui/badge";
 
@@ -96,7 +96,7 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
   crm: [],
   calls: [
     { url: "/app/calls", icon: Phone, label: "Call History", group: "evaluate", iconColor: "text-blue-500" },
-    { url: "/app/live-monitoring", icon: Phone, label: "Live Monitoring", group: "evaluate", iconColor: "text-red-500" },
+    { url: "/app/live", icon: Phone, label: "Live", group: "evaluate", iconColor: "text-red-500" },
   ],
   analytics: [
     { url: "/app/analytics", icon: BarChart3, label: "Analytics", group: "evaluate", iconColor: "text-purple-500" },
@@ -126,7 +126,6 @@ const FLOW_AUTOMATION_ROUTES = [
 export function TeamMemberSidebar() {
   const [location, setLocation] = useLocation();
   const { t } = useTranslation();
-  const { branding, currentLogo, showLogo, showFavicon } = useBranding();
   const { setOpenMobile, isMobile } = useSidebar();
 
   // Fetch team member data and permissions
@@ -227,29 +226,17 @@ export function TeamMemberSidebar() {
     <Sidebar collapsible="icon">
       {/* Header with responsive logo */}
       <SidebarHeader className="px-3 py-3 border-b border-sidebar-border">
-        {/* When expanded: Logo on left, toggle on right */}
         <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden">
-          {showLogo && (
-            <img 
-              src={currentLogo!} 
-              alt={branding.app_name} 
-              className="h-8 w-auto max-w-[140px] object-contain"
-            />
-          )}
+          <div className="min-w-0 flex-1">
+            <SidebarBrand size="lg" href="/app" />
+          </div>
           <SidebarTrigger 
             className="h-6 w-6 shrink-0" 
             data-testid="button-sidebar-toggle" 
           />
         </div>
-        {/* When collapsed: Favicon + toggle stacked */}
         <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-2">
-          {showFavicon && (
-            <img 
-              src={branding.favicon_url!} 
-              alt={branding.app_name} 
-              className="h-6 w-6 object-contain"
-            />
-          )}
+          <SidebarBrand collapsed size="lg" href="/app" />
           <SidebarTrigger 
             className="h-5 w-5 shrink-0" 
             data-testid="button-sidebar-toggle-collapsed" 

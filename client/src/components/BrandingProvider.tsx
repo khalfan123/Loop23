@@ -15,7 +15,7 @@
  * ============================================================
  */
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "./ThemeProvider";
 
 interface BrandingData {
@@ -47,18 +47,47 @@ type BrandingProviderState = {
   showFavicon: boolean;
   isLoading: boolean;
   refetch: () => void;
+  invalidate: () => Promise<void>;
 };
 
-const CACHE_KEY = "agentlabs-branding:v1";
+const CACHE_KEY = "agentlabs-branding:v4";
+const LEGACY_CACHE_KEYS = [
+  "agentlabs-branding:v1",
+  "agentlabs-branding:v2",
+  "agentlabs-branding:v3",
+];
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours max cache age
 
+export function clearBrandingCache() {
+  try {
+    for (const key of LEGACY_CACHE_KEYS) {
+      localStorage.removeItem(key);
+    }
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// Drop legacy Byan caches so they cannot stick after the Loop9 rebrand defaults.
+if (typeof window !== "undefined") {
+  try {
+    for (const key of LEGACY_CACHE_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Loop9 defaults — wordmark for light UI, icon for dark/favicon/collapsed. */
 const defaultBranding: BrandingData = {
-  app_name: "",
-  app_tagline: "",
-  logo_url: null,
-  logo_url_light: null,
-  logo_url_dark: null,
-  favicon_url: null,
+  app_name: "Loop9",
+  app_tagline: "AI call center",
+  logo_url: "/images/loop9-wordmark.png",
+  logo_url_light: "/images/loop9-wordmark.png",
+  logo_url_dark: "/images/loop9-icon.png",
+  favicon_url: "/images/loop9-icon.png",
   logo_size: "medium",
   social_twitter_url: null,
   social_linkedin_url: null,
@@ -119,6 +148,15 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
 
   const { data, isLoading, refetch } = useQuery<BrandingData>({
     queryKey: ["/api/branding"],
+    // Bypass browser HTTP cache so admin-uploaded assets appear immediately.
+    queryFn: async () => {
+      const res = await fetch("/api/branding", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed to load branding (${res.status})`);
+      return res.json();
+    },
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     initialData: cachedData || undefined,
@@ -130,10 +168,10 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
       const newBranding: BrandingData = {
         app_name: data.app_name || defaultBranding.app_name,
         app_tagline: data.app_tagline || defaultBranding.app_tagline,
-        logo_url: data.logo_url,
-        logo_url_light: data.logo_url_light,
-        logo_url_dark: data.logo_url_dark,
-        favicon_url: data.favicon_url,
+        logo_url: data.logo_url ?? defaultBranding.logo_url,
+        logo_url_light: data.logo_url_light ?? defaultBranding.logo_url_light,
+        logo_url_dark: data.logo_url_dark ?? defaultBranding.logo_url_dark,
+        favicon_url: data.favicon_url ?? defaultBranding.favicon_url,
         logo_size: data.logo_size || defaultBranding.logo_size,
         social_twitter_url: data.social_twitter_url,
         social_linkedin_url: data.social_linkedin_url,
@@ -176,6 +214,13 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
     refetch();
   }, [refetch]);
 
+  const queryClient = useQueryClient();
+  const invalidate = useCallback(async () => {
+    clearBrandingCache();
+    await queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
+    await refetch();
+  }, [queryClient, refetch]);
+
   const currentLogo = theme === 'dark' 
     ? (branding.logo_url_dark || branding.logo_url_light || branding.logo_url)
     : (branding.logo_url_light || branding.logo_url);
@@ -190,7 +235,8 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
       showLogo,
       showFavicon,
       isLoading: isLoading && !hasLoaded, 
-      refetch: handleRefetch 
+      refetch: handleRefetch,
+      invalidate,
     }}>
       {children}
     </BrandingProviderContext.Provider>

@@ -36,6 +36,10 @@ import { correlationIdMiddleware } from "./middleware/correlation-id";
 import { emailService } from "./services/email-service";
 import { initializeDirectories } from "./utils/init-directories";
 import { RAGKnowledgeService } from "./services/rag-knowledge";
+import { bootstrapElevenLabsPoolFromEnv } from "./services/bootstrap-elevenlabs-pool";
+import { callErrorLogger } from "./services/call-error-logger";
+import { seedPlatformLanguages } from "./seed-platform-languages";
+import { seedIntegrationApps } from "./seed-integration-apps";
 
 // Setup global error handlers and shutdown signals FIRST
 // This ensures crashes are caught even during initialization
@@ -119,6 +123,38 @@ app.use(correlationIdMiddleware);
 app.use((_req, res, next) => {
   res.setHeader('X-Author', 'Diploy');
   res.setHeader('X-Powered-By', 'Diploy');
+  next();
+});
+
+// Baseline security headers (keep CSP in Report-Only to avoid breaking the app).
+app.use((req, res, next) => {
+  // Only enable HSTS when behind HTTPS (Replit autoscale uses TLS at the edge).
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '');
+  if (forwardedProto.includes('https') || req.secure) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-Frame-Options', 'DENY');
+
+  // Very permissive report-only CSP; tighten after observing reports.
+  res.setHeader(
+    'Content-Security-Policy-Report-Only',
+    [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data: https:",
+      "style-src 'self' 'unsafe-inline' https:",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+      "connect-src 'self' https: wss:",
+      // Allow third-party payment / checkout iframes (Stripe, Razorpay, PayPal, etc.)
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://api.razorpay.com https://checkout.razorpay.com https://www.paypal.com https://www.sandbox.paypal.com",
+    ].join('; '),
+  );
   next();
 });
 
@@ -210,6 +246,21 @@ server.listen({
     console.error('❌ [Startup] Health check failed:', error);
   }
 
+  // Boot marker in DB for observability. This makes it obvious when a deploy/restart
+  // is actually running the latest server code (useful when debugging call latency).
+  // Never include callId/userId here to avoid foreign key issues.
+  callErrorLogger.logCallError({
+    engineType: 'bedrock-polly',
+    errorCategory: 'latency',
+    severity: 'info',
+    message: `server_boot ${new Date().toISOString()}`,
+    metadata: {
+      nodeEnv: process.env.NODE_ENV,
+      region: process.env.AWS_REGION,
+      bedrockRegion: process.env.BEDROCK_REGION,
+    },
+  }).catch(() => undefined);
+
   try {
     const backfilled = await RAGKnowledgeService.backfillPgvectorEmbeddings();
     console.log(`🔍 [RAG] pgvector ready — ${backfilled} embeddings backfilled`);
@@ -218,7 +269,36 @@ server.listen({
   }
   
   await preloadJwtExpiry(storage);
-  
+
+  // Ensure platform UI languages exist (required for language picker + IVR language selection UX).
+  // Safe to run on every boot; the seeder is a no-op if languages already exist.
+  try {
+    const seedResult = await seedPlatformLanguages(false);
+    if (seedResult.success) {
+      console.log(`🌐 [Startup] ${seedResult.message}`);
+    }
+  } catch (err: any) {
+    console.warn("⚠️ [Startup] Platform languages seed failed:", err?.message || err);
+  }
+
+  // Ensure the integration apps catalog is populated and up to date.
+  // Uses ON CONFLICT DO UPDATE on `slug` so re-running is idempotent and any
+  // metadata updates (description / category / popular flag / n8n node type)
+  // automatically propagate. Required so the marketplace + concierge wizard
+  // can resolve apps like Zendesk, Slack, HubSpot, etc. by slug.
+  try {
+    await seedIntegrationApps();
+    console.log("🔌 [Startup] Integration apps catalog ready");
+  } catch (err: any) {
+    console.warn("⚠️ [Startup] Integration apps seed failed:", err?.message || err);
+  }
+
+  try {
+    await bootstrapElevenLabsPoolFromEnv();
+  } catch (err: any) {
+    console.warn("⚠️ [Startup] ElevenLabs pool bootstrap failed:", err?.message || err);
+  }
+
   await registerRoutes(app, server);
 
   try {
@@ -226,6 +306,14 @@ server.listen({
     await fixExistingConnectionWebhooks();
   } catch (fixError: any) {
     console.warn('⚠️  [Startup] Webhook fix failed:', fixError.message);
+  }
+
+  // Ensure Twilio phone number Voice webhook URLs are correct for this deployment (SaaS-safe).
+  try {
+    const { syncTwilioPhoneNumberWebhooks } = await import('./services/twilio-phone-number-webhook-sync');
+    await syncTwilioPhoneNumberWebhooks();
+  } catch (err: any) {
+    console.warn('⚠️  [Startup] Twilio phone number webhook sync failed:', err?.message || err);
   }
 
   startCallpilotWorker();
@@ -381,9 +469,123 @@ server.listen({
       );
     }
     
+    const sendFromDist = (res: Response, fileName: string, contentType?: string) => {
+      const filePath = path.resolve(distPath, fileName);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).end();
+      }
+      if (contentType) {
+        res.setHeader('Content-Type', contentType);
+      }
+      return res.sendFile(filePath);
+    };
+
+    // Serve common static/special endpoints explicitly so they don't get swallowed
+    // by the SPA HTML fallback. Also avoids noisy 500s when crawlers probe these paths.
+    app.get("/favicon.ico", (_req, res) => sendFromDist(res, "favicon.ico", "image/x-icon"));
+    app.get("/favicon.png", (_req, res) => sendFromDist(res, "favicon.png", "image/png"));
+    app.get("/apple-touch-icon.png", (_req, res) => {
+      // We don't currently ship a dedicated apple touch icon; reuse favicon.png.
+      return sendFromDist(res, "favicon.png", "image/png");
+    });
+
+    // Additional lightweight health endpoint for external uptime checks.
+    app.get("/healthz", (_req, res) => {
+      res.status(200).type('text/plain').send('ok');
+    });
+
+    app.get("/robots.txt", (req, res) => {
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
+      const baseUrl = `${protocol}://${host}`;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.send(
+        [
+          'User-agent: *',
+          'Disallow: /api/',
+          'Disallow: /app/',
+          '',
+          `Sitemap: ${baseUrl}/sitemap.xml`,
+          '',
+        ].join('\n'),
+      );
+    });
+
+    app.get("/sitemap.xml", (req, res) => {
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
+      const baseUrl = `${protocol}://${host}`;
+      const urls = ["/", "/login", "/privacy", "/terms", "/cookies"].map((p) => `${baseUrl}${p}`);
+      const now = new Date().toISOString();
+
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.send(
+        [
+          '<?xml version="1.0" encoding="UTF-8"?>',
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+          ...urls.map(
+            (loc) =>
+              [
+                '  <url>',
+                `    <loc>${loc}</loc>`,
+                `    <lastmod>${now}</lastmod>`,
+                '  </url>',
+              ].join('\n'),
+          ),
+          '</urlset>',
+          '',
+        ].join('\n'),
+      );
+    });
+
+    app.get("/.well-known/security.txt", (req, res) => {
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
+      const baseUrl = `${protocol}://${host}`;
+      const contact = process.env.SECURITY_CONTACT || 'mailto:security@loopnine.replit.app';
+
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.send(
+        [
+          `Contact: ${contact}`,
+          `Canonical: ${baseUrl}/.well-known/security.txt`,
+          'Preferred-Languages: en',
+          '',
+        ].join('\n'),
+      );
+    });
+
     app.use(express.static(distPath));
     
-    app.use("*", async (req, res) => {
+    app.get("*", async (req, res) => {
+      // Only serve the SPA HTML shell for known client-side routes.
+      // Everything else should return a real 404 (important for SEO and correct probing).
+      const p = (() => {
+        // `app.use("*")` style mounting can strip `req.url`/`req.path` in Express.
+        // Use `originalUrl` as the source of truth.
+        try {
+          return new URL(req.originalUrl, "http://localhost").pathname;
+        } catch {
+          return req.path;
+        }
+      })();
+      const isKnownClientRoute =
+        p === "/" ||
+        p === "/login" ||
+        p === "/register" ||
+        p === "/onboarding" ||
+        p === "/team/login" ||
+        p === "/privacy" ||
+        p === "/terms" ||
+        p === "/cookies" ||
+        p === "/ops" ||
+        p.startsWith("/app/");
+
+      if (!isKnownClientRoute) {
+        res.status(404).type('text/plain').send('Not found');
+        return;
+      }
+
       try {
         const indexPath = path.resolve(distPath, "index.html");
         let html = await fs.promises.readFile(indexPath, 'utf-8');

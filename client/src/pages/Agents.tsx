@@ -121,7 +121,7 @@ interface Agent {
   appointmentBookingEnabled: boolean | null;
   knowledgeBaseOnly: boolean | null;
   telephonyProvider: 'twilio' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
-  voiceProvider: 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia' | null;
+  voiceProvider: string | null;
   openaiVoice: string | null;
   awsPollyVoiceId: string | null;
   sourceTemplateId: string | null;
@@ -267,6 +267,7 @@ export default function Agents() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
+  const [brokenAvatarByAgentId, setBrokenAvatarByAgentId] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     type: "incoming" as 'incoming' | 'flow',
     name: "",
@@ -338,19 +339,10 @@ export default function Agents() {
     queryKey: ["/api/elevenlabs/voices"],
   });
 
-  const { data: cartesiaVoices = [] } = useQuery<Array<{ id: string; name: string; language: string }>>({
-    queryKey: ["/api/deprock/cartesia-voices"],
-    staleTime: 60000,
-  });
-
   const getVoiceName = useMemo(() => {
     const voiceMap = new Map(voices.map(v => [v.voice_id, v.name]));
-    const cartesiaMap = new Map(cartesiaVoices.map(v => [v.id, v.name]));
     return (agent: Agent): string => {
       const provider = agent.voiceProvider;
-      if (provider === 'cartesia' && agent.openaiVoice) {
-        return cartesiaMap.get(agent.openaiVoice) || agent.openaiVoice;
-      }
       if (provider === 'aws_polly' && agent.awsPollyVoiceId) {
         return agent.awsPollyVoiceId;
       }
@@ -363,7 +355,7 @@ export default function Agents() {
       }
       return 'Not set';
     };
-  }, [voices, cartesiaVoices]);
+  }, [voices]);
 
   const availableVoiceLanguages = useMemo(() => {
     const langMap = new Map<string, string>();
@@ -745,7 +737,7 @@ export default function Agents() {
     // Legacy dialog-based edit (kept for reference)
     setEditingAgent(agent);
     setFormData({
-      type: agent.type || "incoming",
+      type: (agent.type === 'inbound' ? 'incoming' : agent.type) || "incoming",
       name: agent.name,
       voiceTone: agent.voiceTone || "professional",
       personality: agent.personality || "helpful",
@@ -1327,11 +1319,14 @@ export default function Agents() {
                           <TableCell>
                             <div className="flex items-center gap-2 md:gap-3">
                               <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab hidden md:block" />
-                              {agent.avatarUrl ? (
+                              {agent.avatarUrl && !brokenAvatarByAgentId[agent.id] ? (
                                 <img 
                                   src={agent.avatarUrl} 
                                   alt={agent.name}
                                   className="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover border-2 border-background shadow-sm flex-shrink-0"
+                                  onError={() => {
+                                    setBrokenAvatarByAgentId(prev => ({ ...prev, [agent.id]: true }));
+                                  }}
                                 />
                               ) : (
                                 <div className={`h-8 w-8 md:h-10 md:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -2812,7 +2807,7 @@ export default function Agents() {
                       </Label>
                       <Input
                         id="transfer-phone"
-                        placeholder="+1234567890"
+                        placeholder={t('agents.systemTools.transferPhonePlaceholder')}
                         value={formData.transferPhoneNumber}
                         onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
                         data-testid="input-transfer-phone"

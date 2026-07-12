@@ -60,7 +60,187 @@
     "settings": "Configurações",
     "help": "Ajuda",
     "language": "Idioma",
-    "selectLanguage": "Selecionar idioma"
+    "selectLanguage": "Selecionar idioma",
+    "creating": "Creating…",
+    "done": "Done"
+  },
+  "automation": {
+    "breadcrumb": {
+      "settings": "Settings",
+      "automation": "Automation"
+    },
+    "hub": {
+      "title": "Automation",
+      "subtitle": "Connect your AI call center to the rest of your stack — install a template, browse the marketplace, or wire up a custom webhook.",
+      "tabsLabel": "Automation sections"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "marketplace": "Marketplace",
+      "mine": "My Automations",
+      "api": "API & Webhooks"
+    },
+    "subnav": {
+      "sections": "Sections",
+      "yours": "Your automations"
+    },
+    "starterPack": {
+      "title": "AI Call Center starter pack",
+      "curated": "Curated",
+      "subtitle": "Battle-tested workflows for real call-center jobs — recover missed calls, convert hot leads, stay compliant, and keep humans in the loop. One click to install.",
+      "browseAll": "Browse all templates",
+      "installs": "installs",
+      "minSetup": "min setup",
+      "installing": "Installing",
+      "install": "Install",
+      "preview": "Preview",
+      "verified": "Verified",
+      "toast": {
+        "installed": "Automation installed",
+        "opening": "Opening marketplace",
+        "needsCreds": "This template needs a few credentials. Opening the marketplace…"
+      }
+    },
+    "overview": {
+      "stats": {
+        "total": "Total automations",
+        "active": "Active",
+        "subscriptions": "Event subscriptions"
+      },
+      "recentRuns": "Recent runs",
+      "noRuns": "No automation runs yet. Install a template above to get started.",
+      "quickActions": "Quick actions",
+      "actionMarketplace": {
+        "title": "Browse the marketplace",
+        "desc": "500+ templates across 70+ apps. Filter by trigger event, app, or industry."
+      },
+      "actionCustom": {
+        "title": "Build a custom webhook",
+        "desc": "Wire any event group to your own endpoint with HMAC signing and per-campaign filters."
+      },
+      "actionApi": {
+        "title": "Manage API keys",
+        "desc": "Create scoped API keys for the REST API and view payload schemas."
+      }
+    },
+    "mine": {
+      "title": "My automations",
+      "subtitle": "Custom webhooks that listen for AI call-center events and forward them to your stack.",
+      "create": "Create automation",
+      "empty": {
+        "title": "No custom automations yet",
+        "subtitle": "Browse the marketplace for one-click templates, or build a custom webhook in 3 steps.",
+        "marketplace": "Browse marketplace",
+        "create": "Create custom"
+      }
+    },
+    "wizard": {
+      "title": "New automation",
+      "submit": "Create automation",
+      "steps": {
+        "trigger": "Trigger",
+        "destination": "Destination",
+        "review": "Review"
+      },
+      "trigger": {
+        "title": "Pick trigger events",
+        "subtitle": "Choose which AI call-center events should fire this automation.",
+        "search": "Search events…"
+      },
+      "destination": {
+        "title": "Where should events go?",
+        "subtitle": "Give your automation a name, an HTTPS endpoint, and optional auth."
+      },
+      "review": {
+        "title": "Review & create",
+        "subtitle": "Double-check your trigger and destination, then create the automation.",
+        "name": "Name",
+        "url": "Endpoint",
+        "events": "Trigger events",
+        "auth": "Authentication",
+        "campaigns": "Campaigns"
+      }
+    },
+    "api": {
+      "title": "API & webhook reference",
+      "subtitle": "Manage API keys for the REST API and review payload schemas + signature verification for outgoing webhooks.",
+      "hmac": {
+        "title": "Signed payloads",
+        "subtitle": "Every outgoing webhook is signed so you can verify it's from us.",
+        "loading": "Loading signature info…"
+      },
+      "payloadRef": "Payload field reference",
+      "loadingCatalog": "Loading reference…",
+      "events": {
+        "title": "Event catalog",
+        "subtitle": "All events your endpoints can subscribe to.",
+        "loading": "Loading events…"
+      }
+    }
+  },
+  "marketplace": {
+    "searchPlaceholder": "Search templates and apps…",
+    "modes": {
+      "templates": "Templates",
+      "apps": "Apps"
+    },
+    "filters": {
+      "industry": "Industry",
+      "useCase": "Use case",
+      "trigger": "Trigger event",
+      "destination": "Destination",
+      "category": "Category",
+      "reset": "Reset all filters",
+      "activeLabel": "Filters:",
+      "clearAll": "Clear all"
+    },
+    "featured": "Featured this week",
+    "allTemplates": "All templates",
+    "allApps": "All apps",
+    "loadMore": "Load more",
+    "noApps": "No apps match your filter.",
+    "installs": "installs",
+    "popular": "Popular",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "viewTemplates": "View templates",
+    "starterPack": "Starter pack",
+    "verified": "Verified",
+    "empty": {
+      "title": "No templates match those filters",
+      "subtitle": "Tell our AI Concierge what you're trying to build and it'll generate a workflow for you.",
+      "cta": "Request a custom template"
+    },
+    "preview": {
+      "what": "What this does",
+      "required": "Required credentials",
+      "payload": "Sample event payload",
+      "credentials": "Credentials",
+      "customize": "Customize with AI",
+      "hideChat": "Hide chat",
+      "useAsIs": "Use as-is",
+      "deploy": "Deploy"
+    },
+    "steps": {
+      "preview": "Preview",
+      "credentials": "Connect",
+      "deploy": "Deploy"
+    },
+    "deploy": {
+      "success": "Automation deployed",
+      "failed": "Deploy failed",
+      "deployed": "Workflow deployed"
+    },
+    "chat": {
+      "title": "Customize with AI",
+      "recipeReady": "Recipe ready. Add credentials below to deploy.",
+      "needsAnswers": "I need a few details to generate this workflow.",
+      "error": "Concierge failed",
+      "thinking": "Thinking…",
+      "placeholder": "Tweak the workflow…",
+      "workflowReadyNeedsCredentials": "Workflow is ready. Add the required credentials below to deploy it.",
+      "unsupportedDirectDeploy": "This template uses a destination that is not available for one-click deploy yet. Choose Zendesk, Slack, or HubSpot, or customize the workflow."
+    }
   },
   "auth": {
     "login": "Entrar",
@@ -116,7 +296,7 @@
     "incomingConnections": "Conexões de entrada",
     "flowBuilder": "Construtor de fluxos",
     "executionLogs": "Logs de execução",
-    "webhooks": "Webhooks",
+    "webhooks": "Automation",
     "forms": "Formulários",
     "appointments": "Agendamentos",
     "templates": "Modelos",
@@ -2556,7 +2736,7 @@
         "email": "E-mail",
         "authorizedOn": "Autorizado em",
         "fieldMapping": "Mapeamento de campos",
-        "fieldMappingDesc": "Configure como os campos de dados são mapeados do Loop9 para {{name}}.",
+        "fieldMappingDesc": "Configure como os campos de dados são mapeados do Byan AI para {{name}}.",
         "contactName": "Nome do contato",
         "phoneNumber": "Número de telefone",
         "company": "Empresa",

@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Save, Loader2, Trash2, AlertTriangle, LogOut, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, ExternalLink, MapPin, RefreshCw, Plus, ChevronRight, ChevronDown, Lock, Bell, UserCog, Key, Mail, TestTube, Eye, EyeOff } from "lucide-react";
-import { ApiKeysTab } from "@/components/api-keys/ApiKeysTab";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
@@ -756,9 +755,6 @@ export default function Settings() {
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
-          </div>
-          <div className="mt-3">
-            <ApiKeysTab />
           </div>
         </div>
       )}

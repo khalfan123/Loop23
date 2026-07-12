@@ -20,9 +20,22 @@ import {
   knowledgeFolders,
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { BEDROCK_MODELS, type BedrockModelAlias } from "./aws-bedrock";
 
-const DEFAULT_BEDROCK_CLAUDE_MODEL =
-  process.env.BEDROCK_CLAUDE_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0";
+// Default to the central alias resolver so this works in any AWS region
+// (incl. me-central-1). The `claude-sonnet-4-6` alias is mapped to a global
+// cross-region inference profile in `aws-bedrock.ts`.
+const DEFAULT_MODEL_ALIAS: BedrockModelAlias = "claude-sonnet-4-6";
+
+function resolveBedrockModelId(input?: string): string {
+  const candidate = input || process.env.BEDROCK_CLAUDE_MODEL_ID || DEFAULT_MODEL_ALIAS;
+  if (candidate in BEDROCK_MODELS) {
+    return BEDROCK_MODELS[candidate as BedrockModelAlias];
+  }
+  return candidate;
+}
+
+const DEFAULT_BEDROCK_CLAUDE_MODEL = resolveBedrockModelId();
 
 export interface ArticleFold {
   name: string;

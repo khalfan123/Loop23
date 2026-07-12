@@ -10,8 +10,25 @@
 
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { DeepgramAgentBridge } from '../services/agent-bridge.service';
-import { consumePendingSettings } from './webhooks';
+import { DeepgramAgentBridge, type KBLookupFn } from '../services/agent-bridge.service';
+import { consumePendingCall } from './webhooks';
+import { RAGKnowledgeService } from '../../../services/rag-knowledge';
+
+/**
+ * Build the production KB lookup for a call: search the agent's knowledge
+ * bases and format the top results for the agent to speak. Mirrors the
+ * Deprock engine's lookup_knowledge_base handler.
+ */
+function buildKBLookup(userId: string | undefined, knowledgeBaseIds: string[]): KBLookupFn | undefined {
+  if (!userId || knowledgeBaseIds.length === 0) return undefined;
+  return async (query: string) => {
+    const results = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 5);
+    if (results.length === 0) {
+      return 'No exact match found for that query. Try different keywords, or offer the closest option you know about.';
+    }
+    return RAGKnowledgeService.formatResultsForAgent(results, 1200);
+  };
+}
 
 let sharedWss: WebSocketServer | null = null;
 
@@ -46,11 +63,11 @@ function handleTwilioStreamConnection(twilioWs: WebSocket, callSid: string): voi
       const event = JSON.parse(typeof message === 'string' ? message : message.toString());
 
       if (event.event === 'start' && event.start && !started) {
-        const settings = consumePendingSettings(callSid);
-        if (!settings) {
+        const pending = consumePendingCall(callSid);
+        if (!pending) {
           // Not staged by our webhook — reject rather than serve an
           // arbitrary call SID.
-          console.error(`[DeepgramAgent Stream] No staged settings for ${callSid}, closing`);
+          console.error(`[DeepgramAgent Stream] No staged call for ${callSid}, closing`);
           twilioWs.close();
           return;
         }
@@ -59,8 +76,9 @@ function handleTwilioStreamConnection(twilioWs: WebSocket, callSid: string): voi
           callSid,
           twilioWs,
           streamSid: event.start.streamSid,
-          settings,
+          settings: pending.settings,
           apiKey: process.env.DEEPGRAM_API_KEY || '',
+          kbLookup: buildKBLookup(pending.userId, pending.knowledgeBaseIds),
         });
         return;
       }

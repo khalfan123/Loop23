@@ -19,7 +19,12 @@ export { buildAgentSettings, DEEPGRAM_AGENT_URL, DEEPGRAM_AGENT_DEFAULTS } from 
 export const deepgramAgentWebhookRoutes = createDeepgramAgentWebhookRoutes({
   loadAgent: async (agentId: string) => {
     const [agent] = await db
-      .select({ systemPrompt: agents.systemPrompt, firstMessage: agents.firstMessage })
+      .select({
+        systemPrompt: agents.systemPrompt,
+        firstMessage: agents.firstMessage,
+        userId: agents.userId,
+        knowledgeBaseIds: agents.knowledgeBaseIds,
+      })
       .from(agents)
       .where(eq(agents.id, agentId))
       .limit(1);
@@ -27,6 +32,8 @@ export const deepgramAgentWebhookRoutes = createDeepgramAgentWebhookRoutes({
     return {
       systemPrompt: agent.systemPrompt || 'You are a helpful voice assistant.',
       greeting: agent.firstMessage,
+      userId: agent.userId ?? undefined,
+      knowledgeBaseIds: agent.knowledgeBaseIds ?? [],
     };
   },
 });

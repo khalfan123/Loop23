@@ -8,7 +8,7 @@ vi.mock('../../../server/storage', () => ({
 
 import {
   createDeepgramAgentWebhookRoutes,
-  consumePendingSettings,
+  consumePendingCall,
 } from '../../../server/engines/deepgram-voice-agent/routes/webhooks';
 
 let server: Server;
@@ -55,7 +55,7 @@ describe('POST /api/deepgram-agent/voice/incoming', () => {
     expect(loadAgent).not.toHaveBeenCalled();
   });
 
-  it('returns Connect/Stream TwiML and stages settings for the stream handler', async () => {
+  it('returns Connect/Stream TwiML and stages the call for the stream handler', async () => {
     process.env.DEEPGRAM_API_KEY = 'dg-test-key';
     loadAgent.mockResolvedValue({ systemPrompt: 'Billing agent prompt', greeting: 'Hi there!' });
 
@@ -65,11 +65,31 @@ describe('POST /api/deepgram-agent/voice/incoming', () => {
     expect(twiml).toContain('<Connect>');
     expect(twiml).toContain('/api/deepgram-agent/stream/CA-dg-2');
 
-    const staged = consumePendingSettings('CA-dg-2');
-    expect(staged?.agent.think.prompt).toBe('Billing agent prompt');
-    expect(staged?.agent.greeting).toBe('Hi there!');
+    const staged = consumePendingCall('CA-dg-2');
+    expect(staged?.settings.agent.think.prompt).toBe('Billing agent prompt');
+    expect(staged?.settings.agent.greeting).toBe('Hi there!');
+    // No KBs on this agent → no client-side function exposed
+    expect(staged?.settings.agent.think.functions).toBeUndefined();
+    expect(staged?.knowledgeBaseIds).toEqual([]);
     // consume-once semantics
-    expect(consumePendingSettings('CA-dg-2')).toBeUndefined();
+    expect(consumePendingCall('CA-dg-2')).toBeUndefined();
+  });
+
+  it('stages KB context and exposes the lookup function when the agent has knowledge bases', async () => {
+    process.env.DEEPGRAM_API_KEY = 'dg-test-key';
+    loadAgent.mockResolvedValue({
+      systemPrompt: 'KB agent',
+      greeting: 'Hello',
+      userId: 'user-9',
+      knowledgeBaseIds: ['kb-1', 'kb-2'],
+    });
+
+    const res = await postIncoming('agent-2', 'CA-dg-kb');
+    expect(res.status).toBe(200);
+    const staged = consumePendingCall('CA-dg-kb');
+    expect(staged?.userId).toBe('user-9');
+    expect(staged?.knowledgeBaseIds).toEqual(['kb-1', 'kb-2']);
+    expect(staged?.settings.agent.think.functions?.[0].name).toBe('lookup_knowledge_base');
   });
 
   it('returns 404 for an unknown agent', async () => {

@@ -17,19 +17,27 @@ import { buildAgentSettings, type DeepgramAgentSettings } from '../config/settin
 export interface DeepgramAgentDescriptor {
   systemPrompt: string;
   greeting?: string | null;
+  userId?: string;
+  knowledgeBaseIds?: string[];
 }
 
 export interface DeepgramAgentWebhookDeps {
   loadAgent: (agentId: string) => Promise<DeepgramAgentDescriptor | null>;
 }
 
-/** Settings staged by the webhook, consumed once by the stream handler. */
-const pendingSettings: Map<string, DeepgramAgentSettings> = new Map();
+/** Call context staged by the webhook, consumed once by the stream handler. */
+export interface PendingCall {
+  settings: DeepgramAgentSettings;
+  userId?: string;
+  knowledgeBaseIds: string[];
+}
 
-export function consumePendingSettings(callSid: string): DeepgramAgentSettings | undefined {
-  const settings = pendingSettings.get(callSid);
-  pendingSettings.delete(callSid);
-  return settings;
+const pendingCalls: Map<string, PendingCall> = new Map();
+
+export function consumePendingCall(callSid: string): PendingCall | undefined {
+  const pending = pendingCalls.get(callSid);
+  pendingCalls.delete(callSid);
+  return pending;
 }
 
 function escapeXml(value: string): string {
@@ -70,10 +78,16 @@ export function createDeepgramAgentWebhookRoutes(deps: DeepgramAgentWebhookDeps)
           );
         }
 
-        pendingSettings.set(callSid, buildAgentSettings({
-          systemPrompt: agent.systemPrompt,
-          greeting: agent.greeting,
-        }));
+        const knowledgeBaseIds = agent.knowledgeBaseIds ?? [];
+        pendingCalls.set(callSid, {
+          settings: buildAgentSettings({
+            systemPrompt: agent.systemPrompt,
+            greeting: agent.greeting,
+            hasKnowledgeBase: knowledgeBaseIds.length > 0,
+          }),
+          userId: agent.userId,
+          knowledgeBaseIds,
+        });
 
         const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
         const host = ((req.headers['x-forwarded-host'] as string) || req.get('host') || '').split(',')[0].trim();

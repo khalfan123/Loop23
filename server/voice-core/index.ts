@@ -31,6 +31,8 @@ export { estimateTTSCostUsd, setTTSCostRates, TTS_COST_PER_1K_CHARS_USD } from '
 export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, mulawToPcm16, MULAW_DECODE_TABLE } from './audio/g711';
 export { createMulawWavHeader, createPcm16WavHeader } from './audio/wav';
 export { applyAgc, computeAgcGain, rmsFraction } from './audio/agc';
+export { VoiceActivityDetector } from './audio/vad';
+export type { VadOptions, VadFrameResult } from './audio/vad';
 export { splitSentences } from './text/sentence-split';
 export { sanitizeForTTS } from './text/tts-sanitize';
 export {

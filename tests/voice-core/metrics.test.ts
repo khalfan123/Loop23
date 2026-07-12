@@ -144,6 +144,42 @@ describe('MetricsRecorder', () => {
     expect(healthy.summary().recommendations).toEqual([]);
   });
 
+  it('raises a critical alert when system health collapses', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 2000, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 2500, ttsFellBack: true }));
+    const alerts = m.summary().alerts;
+    expect(alerts.some(a => a.severity === 'critical' && a.code === 'health_critical')).toBe(true);
+  });
+
+  it('flags a provider failing half its attempts as critical', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 400 }));
+    m.recordTTSAttempt({ providerId: 'cartesia', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'cartesia', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'cartesia', ok: true, latencyMs: 50 });
+    const alerts = m.summary().alerts;
+    expect(alerts.some(a => a.severity === 'critical' && a.code === 'provider_failing')).toBe(true);
+  });
+
+  it('raises a latency warning without going critical when the health score holds at 40', () => {
+    const m = new MetricsRecorder(10);
+    // 4 of 10 turns under target → turnsUnderTargetPct = 40, healthScore = 40 (not < 40)
+    for (let i = 0; i < 4; i++) m.recordTurn(turn({ streamTotalMs: 500 }));
+    for (let i = 0; i < 6; i++) m.recordTurn(turn({ streamTotalMs: 1500 }));
+    const alerts = m.summary().alerts;
+    expect(alerts.some(a => a.code === 'latency_over_target' && a.severity === 'warning')).toBe(true);
+    expect(alerts.some(a => a.severity === 'critical')).toBe(false);
+  });
+
+  it('has no alerts for an empty or healthy system', () => {
+    expect(new MetricsRecorder(10).summary().alerts).toEqual([]);
+    const healthy = new MetricsRecorder(10);
+    healthy.recordTurn(turn({ streamTotalMs: 500 }));
+    healthy.recordTurn(turn({ streamTotalMs: 520 }));
+    expect(healthy.summary().alerts).toEqual([]);
+  });
+
   it('aggregates STT attempts, separating confidence rejects from failures', () => {
     const m = new MetricsRecorder(10);
     m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });

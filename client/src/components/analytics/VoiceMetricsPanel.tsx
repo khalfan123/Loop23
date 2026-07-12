@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/MetricCard";
-import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign, Lightbulb } from "lucide-react";
+import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign, Lightbulb, AlertTriangle } from "lucide-react";
 
 interface LatencyPercentiles {
   p50: number;
@@ -47,6 +47,7 @@ interface VoiceMetricsSummary {
   estimatedTtsCostUsd: number;
   quality: QualitySummary;
   recommendations: string[];
+  alerts: { severity: "critical" | "warning"; code: string; message: string }[];
 }
 
 interface TurnMetric {
@@ -158,6 +159,34 @@ export function VoiceMetricsPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {summary?.alerts && summary.alerts.length > 0 && (
+        <Card className="border-red-300/50 dark:border-red-700/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+              Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5 text-sm">
+              {summary.alerts.map((a, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={a.severity === "critical"
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"}
+                  >
+                    {a.severity}
+                  </Badge>
+                  <span>{a.message}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {summary?.recommendations && summary.recommendations.length > 0 && (
         <Card className="border-amber-300/50 dark:border-amber-700/40">

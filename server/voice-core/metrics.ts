@@ -63,6 +63,15 @@ export interface QualitySummary {
   healthScore: number;
 }
 
+export type AlertSeverity = 'critical' | 'warning';
+
+export interface Alert {
+  severity: AlertSeverity;
+  /** Stable machine code for filtering/routing (e.g. to a pager). */
+  code: string;
+  message: string;
+}
+
 export interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<'sttMs' | 'llmFirstMs' | 'ttsStartMs' | 'streamTotalMs', LatencyPercentiles>;
@@ -80,6 +89,8 @@ export interface VoiceMetricsSummary {
   quality: QualitySummary;
   /** Actionable, plain-language recommendations derived from the signals. */
   recommendations: string[];
+  /** Severity-tagged operational conditions needing attention now. */
+  alerts: Alert[];
 }
 
 /**
@@ -118,6 +129,43 @@ export function deriveRecommendations(
     );
   }
   return recs;
+}
+
+/**
+ * Severity-tagged operational alerts (distinct from advisory recommendations):
+ * conditions an operator should notice now. Pure — no side effects.
+ */
+export function deriveAlerts(
+  turnCount: number,
+  quality: QualitySummary,
+  tts: VoiceMetricsSummary['tts']
+): Alert[] {
+  const alerts: Alert[] = [];
+  if (turnCount === 0) return alerts;
+
+  if (quality.healthScore < 40) {
+    alerts.push({ severity: 'critical', code: 'health_critical', message: `System health critical (${quality.healthScore}/100).` });
+  }
+  const badProvider = Object.entries(tts).find(
+    ([, v]) => v && v.attempts >= 3 && v.failures / v.attempts >= 0.5
+  );
+  if (badProvider) {
+    alerts.push({
+      severity: 'critical',
+      code: 'provider_failing',
+      message: `Provider "${badProvider[0]}" is failing at least half of its synthesis attempts.`,
+    });
+  }
+  if (quality.turnsUnderTargetPct < 50) {
+    alerts.push({ severity: 'warning', code: 'latency_over_target', message: `Most turns exceed the ${TURN_LATENCY_TARGET_MS}ms latency target.` });
+  }
+  if (quality.ttsFallbackRatePct > 30) {
+    alerts.push({ severity: 'warning', code: 'tts_fallback_high', message: `TTS fallback rate is ${Math.round(quality.ttsFallbackRatePct)}%.` });
+  }
+  if (quality.sttConfidenceRejectRatePct > 35) {
+    alerts.push({ severity: 'warning', code: 'stt_low_confidence', message: `STT low-confidence rate is ${Math.round(quality.sttConfidenceRejectRatePct)}%.` });
+  }
+  return alerts;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -216,7 +264,8 @@ export class MetricsRecorder {
 
     const quality = this.computeQuality(all, sttAttempts, sttConfidenceRejects);
     const recommendations = deriveRecommendations(all.length, quality, tts);
-    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality, recommendations };
+    const alerts = deriveAlerts(all.length, quality, tts);
+    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality, recommendations, alerts };
   }
 
   /** Derive conversation-quality signals from the recorded turns + STT stats. */

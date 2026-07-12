@@ -61,6 +61,7 @@ import {
 } from './tts-router';
 import { getDeprockSTTProvider } from './stt-provider';
 import { voiceMetrics } from '../../../voice-core';
+import { recordVoiceTurnSpan } from '../../../observability/tracing';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -1500,10 +1501,10 @@ CONVERSATION STYLE:
       console.log(`[LATENCY] call=${callSid} stt=${sttMs || 0}ms llm_first=${llmFirstMs}ms tts_start=${ttsFirstMs}ms tts_audio=${ttsAudioMs}ms stream_total=${elapsed}ms`);
 
       const ttsOutcome = consumeTTSOutcome(callSid);
-      voiceMetrics.recordTurn({
+      const turnMetric = {
         callSid,
         at: Date.now(),
-        engine: 'bedrock-polly',
+        engine: 'bedrock-polly' as const,
         sttMs: sttMs || 0,
         llmFirstMs,
         ttsStartMs: ttsFirstMs,
@@ -1511,7 +1512,9 @@ CONVERSATION STYLE:
         streamTotalMs: elapsed,
         ttsProvider: ttsOutcome?.provider,
         ttsFellBack: ttsOutcome?.fellBack,
-      });
+      };
+      voiceMetrics.recordTurn(turnMetric);
+      recordVoiceTurnSpan(turnMetric);
 
       return fullText;
     } catch (error: any) {

@@ -36,10 +36,15 @@ import { correlationIdMiddleware } from "./middleware/correlation-id";
 import { emailService } from "./services/email-service";
 import { initializeDirectories } from "./utils/init-directories";
 import { RAGKnowledgeService } from "./services/rag-knowledge";
+import { initVoiceTracing } from "./observability/tracing";
 
 // Setup global error handlers and shutdown signals FIRST
 // This ensures crashes are caught even during initialization
 setupGlobalHandlers();
+
+// Register OpenTelemetry tracing before anything creates spans.
+// No-op unless OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_ENABLED is set.
+initVoiceTracing();
 
 // Ensure all required directories exist before starting
 initializeDirectories();

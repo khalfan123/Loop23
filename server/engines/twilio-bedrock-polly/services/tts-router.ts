@@ -30,6 +30,7 @@ import { PollyTTSProvider, defaultPollyVoiceForLanguage } from '../../../voice-c
 import { ElevenLabsTTSProvider } from '../../../voice-core/providers/elevenlabs-tts.provider';
 import { CartesiaTTSProvider } from '../../../voice-core/providers/cartesia-tts.provider';
 import { humanizeToSSML } from './ssml-humanizer';
+import { recordTTSAttemptSpan } from '../../../observability/tracing';
 import type { AgentConfig, TtsProvider } from '../types';
 
 let router: ProviderRouter | null = null;
@@ -51,6 +52,7 @@ export function getDeprockTTSRouter(): ProviderRouter {
     router = new ProviderRouter(registry, {
       onAttempt: (attempt) => {
         voiceMetrics.recordTTSAttempt(attempt);
+        recordTTSAttemptSpan(attempt);
         if (!attempt.ok && !attempt.skipped) {
           console.warn(
             `[BedrockPolly Bridge] TTS attempt failed on ${attempt.providerId} (${attempt.latencyMs}ms): ${attempt.error}`

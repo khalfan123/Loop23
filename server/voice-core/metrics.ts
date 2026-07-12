@@ -49,6 +49,20 @@ export interface LatencyPercentiles {
   avg: number;
 }
 
+/** Target p50 turn latency (ms) below which callers stop noticing the AI. */
+export const TURN_LATENCY_TARGET_MS = 700;
+
+export interface QualitySummary {
+  /** % of turns whose full-turn latency met the <700ms target. */
+  turnsUnderTargetPct: number;
+  /** % of turns that fell back off the agent's preferred TTS provider. */
+  ttsFallbackRatePct: number;
+  /** % of STT attempts rejected on low confidence (noise/silence gating). */
+  sttConfidenceRejectRatePct: number;
+  /** Composite 0–100 health score (higher is better). */
+  healthScore: number;
+}
+
 export interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<'sttMs' | 'llmFirstMs' | 'ttsStartMs' | 'streamTotalMs', LatencyPercentiles>;
@@ -62,6 +76,8 @@ export interface VoiceMetricsSummary {
   stt: Record<string, { attempts: number; failures: number; confidenceRejects: number; avgLatencyMs: number }>;
   /** Sum of estimatedCostUsd across all TTS providers. */
   estimatedTtsCostUsd: number;
+  /** Derived conversation-quality / system-health signals. */
+  quality: QualitySummary;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -145,6 +161,8 @@ export class MetricsRecorder {
       estimatedTtsCostUsd += agg.estimatedCostUsd;
     }
     const stt: VoiceMetricsSummary['stt'] = {};
+    let sttAttempts = 0;
+    let sttConfidenceRejects = 0;
     for (const [providerId, agg] of Array.from(this.sttAggregates.entries())) {
       stt[providerId] = {
         attempts: agg.attempts,
@@ -152,8 +170,39 @@ export class MetricsRecorder {
         confidenceRejects: agg.confidenceRejects,
         avgLatencyMs: agg.attempts ? agg.totalLatencyMs / agg.attempts : 0,
       };
+      sttAttempts += agg.attempts;
+      sttConfidenceRejects += agg.confidenceRejects;
     }
-    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd };
+
+    const quality = this.computeQuality(all, sttAttempts, sttConfidenceRejects);
+    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality };
+  }
+
+  /** Derive conversation-quality signals from the recorded turns + STT stats. */
+  private computeQuality(
+    turns: TurnLatencyMetric[],
+    sttAttempts: number,
+    sttConfidenceRejects: number
+  ): QualitySummary {
+    const pct = (n: number, d: number) => (d > 0 ? (n / d) * 100 : 0);
+    const underTarget = turns.filter(t => t.streamTotalMs > 0 && t.streamTotalMs < TURN_LATENCY_TARGET_MS).length;
+    const fellBack = turns.filter(t => t.ttsFellBack === true).length;
+
+    const turnsUnderTargetPct = pct(underTarget, turns.length);
+    const ttsFallbackRatePct = pct(fellBack, turns.length);
+    const sttConfidenceRejectRatePct = pct(sttConfidenceRejects, sttAttempts);
+
+    // Composite: reward hitting the latency target, penalize fallbacks and
+    // confidence rejects. With no data yet, report a neutral 100.
+    const healthScore = turns.length === 0
+      ? 100
+      : Math.round(Math.max(0, Math.min(100,
+          turnsUnderTargetPct
+          - ttsFallbackRatePct * 0.5
+          - sttConfidenceRejectRatePct * 0.5
+        )));
+
+    return { turnsUnderTargetPct, ttsFallbackRatePct, sttConfidenceRejectRatePct, healthScore };
   }
 
   private orderedTurns(): TurnLatencyMetric[] {

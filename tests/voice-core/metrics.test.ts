@@ -74,6 +74,38 @@ describe('MetricsRecorder', () => {
     expect(s.turnCount).toBe(0);
     expect(s.latency.streamTotalMs).toEqual({ p50: 0, p95: 0, avg: 0 });
     expect(s.stt).toEqual({});
+    expect(s.quality.healthScore).toBe(100); // neutral with no data
+  });
+
+  it('derives conversation-quality signals from turns and STT stats', () => {
+    const m = new MetricsRecorder(20);
+    // 3 fast turns (<700ms), 1 slow; one of the fast turns fell back
+    m.recordTurn(turn({ streamTotalMs: 500 }));
+    m.recordTurn(turn({ streamTotalMs: 600, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 650 }));
+    m.recordTurn(turn({ streamTotalMs: 1200 }));
+    // STT: 4 attempts, 1 confidence reject
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: false, latencyMs: 500, rejected: 'confidence' });
+
+    const q = m.summary().quality;
+    expect(q.turnsUnderTargetPct).toBe(75);   // 3 of 4 under 700ms
+    expect(q.ttsFallbackRatePct).toBe(25);    // 1 of 4
+    expect(q.sttConfidenceRejectRatePct).toBe(25); // 1 of 4
+    // 75 - 25*0.5 - 25*0.5 = 50
+    expect(q.healthScore).toBe(50);
+  });
+
+  it('clamps the health score to 0..100', () => {
+    const m = new MetricsRecorder(10);
+    // All slow + all fell back → score would go negative, clamp to 0
+    m.recordTurn(turn({ streamTotalMs: 2000, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 2500, ttsFellBack: true }));
+    const q = m.summary().quality;
+    expect(q.turnsUnderTargetPct).toBe(0);
+    expect(q.healthScore).toBe(0);
   });
 
   it('aggregates STT attempts, separating confidence rejects from failures', () => {

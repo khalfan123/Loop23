@@ -78,6 +78,46 @@ export interface VoiceMetricsSummary {
   estimatedTtsCostUsd: number;
   /** Derived conversation-quality / system-health signals. */
   quality: QualitySummary;
+  /** Actionable, plain-language recommendations derived from the signals. */
+  recommendations: string[];
+}
+
+/**
+ * Turn the derived quality signals into a short, actionable, plain-language
+ * recommendation list for the Operations Center. Pure — no side effects.
+ */
+export function deriveRecommendations(
+  turnCount: number,
+  quality: QualitySummary,
+  tts: VoiceMetricsSummary['tts']
+): string[] {
+  const recs: string[] = [];
+  if (turnCount === 0) return recs;
+
+  if (quality.turnsUnderTargetPct < 60) {
+    recs.push(
+      `Only ${Math.round(quality.turnsUnderTargetPct)}% of turns are under the ${TURN_LATENCY_TARGET_MS}ms target — enable streaming STT (Deepgram Flux) to remove batch-transcription dead air.`
+    );
+  }
+  if (quality.ttsFallbackRatePct > 20) {
+    recs.push(
+      `TTS fell back on ${Math.round(quality.ttsFallbackRatePct)}% of turns — check the preferred voice provider's credentials and health.`
+    );
+  }
+  if (quality.sttConfidenceRejectRatePct > 25) {
+    recs.push(
+      `${Math.round(quality.sttConfidenceRejectRatePct)}% of transcriptions were low-confidence — likely noisy audio; enable input AGC / noise suppression.`
+    );
+  }
+  const failingProvider = Object.entries(tts).find(
+    ([, v]) => v && v.attempts >= 3 && v.failures / v.attempts > 0.3
+  );
+  if (failingProvider) {
+    recs.push(
+      `Provider "${failingProvider[0]}" is failing >30% of synthesis attempts — investigate or route around it.`
+    );
+  }
+  return recs;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -175,7 +215,8 @@ export class MetricsRecorder {
     }
 
     const quality = this.computeQuality(all, sttAttempts, sttConfidenceRejects);
-    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality };
+    const recommendations = deriveRecommendations(all.length, quality, tts);
+    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality, recommendations };
   }
 
   /** Derive conversation-quality signals from the recorded turns + STT stats. */

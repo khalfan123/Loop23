@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/MetricCard";
-import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign } from "lucide-react";
+import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign, Lightbulb } from "lucide-react";
 
 interface LatencyPercentiles {
   p50: number;
@@ -46,6 +46,7 @@ interface VoiceMetricsSummary {
   providers: ProviderHealth[];
   estimatedTtsCostUsd: number;
   quality: QualitySummary;
+  recommendations: string[];
 }
 
 interface TurnMetric {
@@ -157,6 +158,27 @@ export function VoiceMetricsPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {summary?.recommendations && summary.recommendations.length > 0 && (
+        <Card className="border-amber-300/50 dark:border-amber-700/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5 text-sm">
+              {summary.recommendations.map((r, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-amber-500 mt-0.5">•</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard

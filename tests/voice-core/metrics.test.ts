@@ -108,6 +108,42 @@ describe('MetricsRecorder', () => {
     expect(q.healthScore).toBe(0);
   });
 
+  it('recommends streaming STT when turns run over the latency target', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 1800 }));
+    m.recordTurn(turn({ streamTotalMs: 2200 }));
+    const recs = m.summary().recommendations;
+    expect(recs.some(r => /streaming STT|Deepgram Flux/i.test(r))).toBe(true);
+  });
+
+  it('recommends checking the provider when TTS fallback is high', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 400, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 400, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 400, ttsFellBack: false }));
+    const recs = m.summary().recommendations;
+    expect(recs.some(r => /fell back/i.test(r))).toBe(true);
+  });
+
+  it('flags a provider failing most of its synthesis attempts', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 400 }));
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: true, latencyMs: 50 });
+    const recs = m.summary().recommendations;
+    expect(recs.some(r => /elevenlabs/i.test(r) && /failing/i.test(r))).toBe(true);
+  });
+
+  it('returns no recommendations for a healthy, empty, or on-target system', () => {
+    const empty = new MetricsRecorder(10);
+    expect(empty.summary().recommendations).toEqual([]);
+    const healthy = new MetricsRecorder(10);
+    healthy.recordTurn(turn({ streamTotalMs: 500 }));
+    healthy.recordTurn(turn({ streamTotalMs: 550 }));
+    expect(healthy.summary().recommendations).toEqual([]);
+  });
+
   it('aggregates STT attempts, separating confidence rejects from failures', () => {
     const m = new MetricsRecorder(10);
     m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });

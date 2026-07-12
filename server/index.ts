@@ -189,7 +189,8 @@ registerServer(server);
 server.listen({
   port,
   host: "0.0.0.0",
-  reusePort: true,
+  // SO_REUSEPORT is Linux-only; macOS/Windows throw ENOTSUP at listen time.
+  reusePort: process.platform === 'linux',
 }, () => {
   log(`serving on port ${port}`);
 });

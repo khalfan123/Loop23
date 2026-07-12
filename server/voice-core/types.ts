@@ -45,19 +45,44 @@ export interface TTSProvider {
   synthesize(request: TTSRequest): Promise<TTSResult>;
 }
 
+export interface STTRequest {
+  /** Raw mulaw 8kHz audio; the provider handles container framing. */
+  audio: Buffer;
+  /** BCP-47-ish language hint, e.g. 'en', 'ar', 'es-MX'. */
+  language?: string;
+  /** Recent user utterances for vocabulary priming. */
+  promptContext?: string[];
+  /** Cancel an in-flight transcription (barge-in / new speech). */
+  signal?: AbortSignal;
+}
+
+export interface STTResult {
+  /**
+   * The transcript. Empty on error/abort; on a confidence reject the raw
+   * text is preserved for logging but MUST be discarded by the caller.
+   */
+  text: string;
+  latencyMs: number;
+  /** Why text is empty, when it is. */
+  rejected?: 'confidence' | 'error' | 'aborted';
+  /** Failure detail for the caller's logging; set when rejected === 'error'. */
+  errorMessage?: string;
+  /** HTTP status of a failed provider call, when applicable. */
+  errorStatus?: number;
+  /** Batch-Whisper quality metadata, when available. */
+  noSpeechProb?: number;
+  avgLogprob?: number;
+  segmentCount?: number;
+}
+
 /**
- * Streaming STT seam, reserved for the next increment
- * (Deepgram/AssemblyAI). Kept minimal so the batch-Whisper path can be
- * adapted first without committing to a streaming shape prematurely.
+ * STT seam. Batch Whisper implements it today; streaming providers
+ * (Deepgram/AssemblyAI) slot in behind the same boundary next.
  */
 export interface STTProvider {
   readonly id: string;
-  transcribe(request: {
-    audio: Buffer;
-    format: 'mulaw8k_wav';
-    language?: string;
-    promptContext?: string[];
-  }): Promise<{ text: string; confidence?: number; latencyMs: number }>;
+  isConfigured(): boolean | Promise<boolean>;
+  transcribe(request: STTRequest): Promise<STTResult>;
 }
 
 export interface TTSAttempt {

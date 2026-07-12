@@ -10,9 +10,12 @@ export type {
   TTSResult,
   TTSProvider,
   STTProvider,
+  STTRequest,
+  STTResult,
   TTSAttempt,
 } from './types';
 export { TTSAllProvidersFailedError } from './types';
+export { WhisperBatchSTTProvider } from './stt/whisper-batch.provider';
 
 export { ProviderRegistry } from './registry';
 export { CircuitBreaker } from './circuit-breaker';

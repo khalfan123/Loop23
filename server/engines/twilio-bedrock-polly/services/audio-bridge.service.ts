@@ -20,7 +20,6 @@ import { awsBedrockService } from '../../../services/aws-bedrock';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/config';
 import { db } from '../../../db';
-import { agents, openaiCredentials } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { callErrorLogger } from '../../../services/call-error-logger';
 import type {
@@ -45,7 +44,6 @@ import {
   mulawEnergy,
   pcmToMulaw as corePcmToMulaw,
 } from '../../../voice-core/audio/g711';
-import { createMulawWavHeader } from '../../../voice-core/audio/wav';
 import { splitSentences as coreSplitSentences } from '../../../voice-core/text/sentence-split';
 import { sanitizeForTTS as coreSanitizeForTTS } from '../../../voice-core/text/tts-sanitize';
 import {
@@ -61,6 +59,7 @@ import {
   noteTTSAttempts,
   consumeTTSOutcome,
 } from './tts-router';
+import { getDeprockSTTProvider } from './stt-provider';
 import { voiceMetrics } from '../../../voice-core';
 
 /**
@@ -1059,57 +1058,7 @@ export class BedrockPollyAudioBridge {
     return coreIsLanguageMismatch(text, expectedLang);
   }
 
-  private static cachedOpenAIKey: string | null = null;
-  private static cachedKeyTimestamp: number = 0;
-  private static readonly KEY_CACHE_TTL_MS = 300_000;
-
-  private static isValidApiKey(key: string | undefined): key is string {
-    if (!key || key.trim().length === 0) return false;
-    const dummyPatterns = ['_DUMMY_', 'YOUR_KEY', 'placeholder', 'xxx', 'REPLACE', 'changeme', 'test_key'];
-    const upper = key.toUpperCase();
-    return !dummyPatterns.some(p => upper.includes(p.toUpperCase()));
-  }
-
-  private static async resolveOpenAIKey(): Promise<string | null> {
-    if (this.isValidApiKey(process.env.OPENAI_API_KEY)) {
-      console.log('[BedrockPolly Bridge] Using OpenAI key from OPENAI_API_KEY env var');
-      return process.env.OPENAI_API_KEY;
-    }
-    if (this.isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) {
-      console.log('[BedrockPolly Bridge] Using OpenAI key from AI_INTEGRATIONS env var');
-      return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-    }
-
-    const now = Date.now();
-    if (this.cachedOpenAIKey && (now - this.cachedKeyTimestamp) < this.KEY_CACHE_TTL_MS) {
-      return this.cachedOpenAIKey;
-    }
-
-    try {
-      const [cred] = await db
-        .select({ apiKey: openaiCredentials.apiKey })
-        .from(openaiCredentials)
-        .limit(1);
-      if (cred?.apiKey && this.isValidApiKey(cred.apiKey)) {
-        this.cachedOpenAIKey = cred.apiKey;
-        this.cachedKeyTimestamp = now;
-        console.log(`[BedrockPolly Bridge] Resolved OpenAI key from DB (${cred.apiKey.substring(0, 12)}...)`);
-        return cred.apiKey;
-      }
-    } catch (err: any) {
-      console.error('[BedrockPolly Bridge] Failed to resolve OpenAI key from DB:', err.message);
-    }
-    console.error('[BedrockPolly Bridge] No valid OpenAI key found in env vars or DB');
-    return null;
-  }
-
   private static async transcribeAudio(audioBuffer: Buffer, language?: string, conversationContext?: string[], callSid?: string): Promise<string> {
-    const apiKey = await this.resolveOpenAIKey();
-    if (!apiKey) {
-      console.error('[BedrockPolly Bridge] No OpenAI API key available (env or DB) — cannot transcribe');
-      return '';
-    }
-
     if (callSid) {
       const existing = whisperAbortControllers.get(callSid);
       if (existing) {
@@ -1124,104 +1073,48 @@ export class BedrockPollyAudioBridge {
     }
 
     try {
-      const wavHeader = createMulawWavHeader(audioBuffer.length);
-      const wavBuffer = Buffer.concat([wavHeader, audioBuffer]);
-
-      const formData = new FormData();
-      formData.append(
-        'file',
-        new Blob([wavBuffer], { type: 'audio/wav' }),
-        'audio.wav'
-      );
-      formData.append('model', 'whisper-1');
-      formData.append('response_format', 'verbose_json');
-      formData.append('temperature', '0');
-      if (language) {
-        const whisperLang = language.split('-')[0].toLowerCase();
-        formData.append('language', whisperLang);
-      }
-
-      let whisperPrompt = '';
-      if (language === 'ar') {
-        whisperPrompt = 'ألو، مرحبا، أهلا، أريد، ممكن، سؤال، مساعدة، حساب، فاتورة، رصيد، دفع، موعد، حجز، إلغاء، اشتراك، تجوال، خدمة، مشكلة، شكوى، استفسار';
-      }
-      if (conversationContext && conversationContext.length > 0) {
-        const recentContext = conversationContext.slice(-2).join(' ').substring(0, 200);
-        whisperPrompt = whisperPrompt ? `${whisperPrompt}. ${recentContext}` : recentContext;
-      }
-      if (whisperPrompt) {
-        formData.append('prompt', whisperPrompt);
-      }
-
-      const sttStart = Date.now();
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: formData,
+      const provider = getDeprockSTTProvider();
+      const result = await provider.transcribe({
+        audio: audioBuffer,
+        language,
+        promptContext: conversationContext,
         signal: abortController.signal,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[BedrockPolly Bridge] Whisper API error ${response.status}: ${errorText}`);
+      voiceMetrics.recordSTTAttempt({
+        providerId: provider.id,
+        ok: result.rejected === undefined,
+        latencyMs: result.latencyMs,
+        rejected: result.rejected,
+      });
+
+      if (result.rejected === 'aborted') {
+        console.log(`[BedrockPolly Bridge] Whisper request aborted for ${callSid}`);
+        return '';
+      }
+
+      if (result.rejected === 'error') {
+        console.error(`[BedrockPolly Bridge] ${result.errorMessage}`);
         callErrorLogger.logCallError({
           engineType: 'bedrock-polly',
           errorCategory: 'stt_failure', severity: 'error',
-          message: `Whisper API error ${response.status}: ${errorText.substring(0, 200)}`,
-          latencyMs: Date.now() - sttStart, metadata: { callSid },
+          message: result.errorMessage || 'STT failure',
+          latencyMs: result.latencyMs, metadata: { callSid },
         });
         return '';
       }
 
-      const rawBody = await response.text();
-      const sttMs = Date.now() - sttStart;
+      const noSpeechProb = result.noSpeechProb ?? 0;
+      const avgLogprob = result.avgLogprob ?? 0;
+      const segmentCount = result.segmentCount ?? 0;
+      console.log(`[BedrockPolly Bridge] Whisper: ${result.latencyMs}ms, "${result.text.substring(0, 200)}" (${result.text.length} chars, noSpeech=${noSpeechProb.toFixed(2)}, avgLogprob=${avgLogprob.toFixed(2)}, segs=${segmentCount})`);
 
-      let text = '';
-      let noSpeechProb = 0;
-      let avgLogprob = 0;
-      let segmentCount = 0;
-
-      try {
-        const jsonResult = JSON.parse(rawBody);
-        text = (jsonResult.text || '').trim();
-
-        if (jsonResult.segments && Array.isArray(jsonResult.segments) && jsonResult.segments.length > 0) {
-          segmentCount = jsonResult.segments.length;
-          let totalNoSpeech = 0;
-          let totalLogprob = 0;
-          for (const seg of jsonResult.segments) {
-            totalNoSpeech += (seg.no_speech_prob || 0);
-            totalLogprob += (seg.avg_logprob || 0);
-          }
-          noSpeechProb = totalNoSpeech / segmentCount;
-          avgLogprob = totalLogprob / segmentCount;
-        }
-      } catch {
-        text = rawBody.trim();
-      }
-
-      console.log(`[BedrockPolly Bridge] Whisper: ${sttMs}ms, "${text.substring(0, 200)}" (${text.length} chars, ${wavBuffer.length}b WAV, noSpeech=${noSpeechProb.toFixed(2)}, avgLogprob=${avgLogprob.toFixed(2)}, segs=${segmentCount})`);
-
-      if (segmentCount > 0 && noSpeechProb > 0.6) {
-        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)} > 0.6 for ${callSid}: "${text.substring(0, 100)}"`);
+      if (result.rejected === 'confidence') {
+        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)}, avgLogprob=${avgLogprob.toFixed(3)} for ${callSid}`);
         return '';
       }
 
-      if (segmentCount > 0 && avgLogprob < -1.0) {
-        console.log(`[BedrockPolly Bridge] Whisper confidence reject: avgLogprob=${avgLogprob.toFixed(3)} < -1.0 for ${callSid}: "${text.substring(0, 100)}"`);
-        return '';
-      }
-
-      return text;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log(`[BedrockPolly Bridge] Whisper request aborted for ${callSid}`);
-        return '';
-      }
-      console.error(`[BedrockPolly Bridge] Transcription error:`, error.message);
-      return '';
+      return result.text;
     } finally {
       if (callSid) {
         whisperAbortControllers.delete(callSid);

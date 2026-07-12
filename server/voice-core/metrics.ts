@@ -30,6 +30,13 @@ interface ProviderAggregate {
   totalLatencyMs: number;
 }
 
+export interface STTAttemptMetric {
+  providerId: string;
+  ok: boolean;
+  latencyMs: number;
+  rejected?: 'confidence' | 'error' | 'aborted';
+}
+
 export interface LatencyPercentiles {
   p50: number;
   p95: number;
@@ -40,6 +47,7 @@ export interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<'sttMs' | 'llmFirstMs' | 'ttsStartMs' | 'streamTotalMs', LatencyPercentiles>;
   tts: Partial<Record<TTSProviderId, { attempts: number; failures: number; avgLatencyMs: number }>>;
+  stt: Record<string, { attempts: number; failures: number; confidenceRejects: number; avgLatencyMs: number }>;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -53,6 +61,7 @@ export class MetricsRecorder {
   private next = 0;
   private filled = false;
   private ttsAggregates: Map<TTSProviderId, ProviderAggregate> = new Map();
+  private sttAggregates: Map<string, ProviderAggregate & { confidenceRejects: number }> = new Map();
 
   constructor(private capacity = 1000) {
     this.turns = new Array(capacity);
@@ -73,6 +82,18 @@ export class MetricsRecorder {
     if (attempt.skipped) return; // skipped candidates are not real attempts
     agg.attempts++;
     if (!attempt.ok) agg.failures++;
+    agg.totalLatencyMs += attempt.latencyMs;
+  }
+
+  recordSTTAttempt(attempt: STTAttemptMetric): void {
+    let agg = this.sttAggregates.get(attempt.providerId);
+    if (!agg) {
+      agg = { attempts: 0, failures: 0, totalLatencyMs: 0, confidenceRejects: 0 };
+      this.sttAggregates.set(attempt.providerId, agg);
+    }
+    agg.attempts++;
+    if (attempt.rejected === 'confidence') agg.confidenceRejects++;
+    else if (!attempt.ok) agg.failures++;
     agg.totalLatencyMs += attempt.latencyMs;
   }
 
@@ -101,7 +122,16 @@ export class MetricsRecorder {
         avgLatencyMs: agg.attempts ? agg.totalLatencyMs / agg.attempts : 0,
       };
     }
-    return { turnCount: all.length, latency, tts };
+    const stt: VoiceMetricsSummary['stt'] = {};
+    for (const [providerId, agg] of Array.from(this.sttAggregates.entries())) {
+      stt[providerId] = {
+        attempts: agg.attempts,
+        failures: agg.failures,
+        confidenceRejects: agg.confidenceRejects,
+        avgLatencyMs: agg.attempts ? agg.totalLatencyMs / agg.attempts : 0,
+      };
+    }
+    return { turnCount: all.length, latency, tts, stt };
   }
 
   private orderedTurns(): TurnLatencyMetric[] {

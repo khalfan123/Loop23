@@ -58,5 +58,20 @@ describe('MetricsRecorder', () => {
     const s = m.summary();
     expect(s.turnCount).toBe(0);
     expect(s.latency.streamTotalMs).toEqual({ p50: 0, p95: 0, avg: 0 });
+    expect(s.stt).toEqual({});
+  });
+
+  it('aggregates STT attempts, separating confidence rejects from failures', () => {
+    const m = new MetricsRecorder(10);
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: false, latencyMs: 500, rejected: 'confidence' });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: false, latencyMs: 100, rejected: 'error' });
+    const stt = m.summary().stt;
+    expect(stt['whisper-batch']).toMatchObject({
+      attempts: 3,
+      failures: 1,
+      confidenceRejects: 1,
+    });
+    expect(stt['whisper-batch'].avgLatencyMs).toBeCloseTo(1000 / 3);
   });
 });

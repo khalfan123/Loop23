@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildAgentSettings,
   DEEPGRAM_AGENT_DEFAULTS,
+  KB_FUNCTION_NAME,
 } from '../../../server/engines/deepgram-voice-agent/config/settings';
 
 describe('buildAgentSettings', () => {
@@ -55,5 +56,20 @@ describe('buildAgentSettings', () => {
       type: DEEPGRAM_AGENT_DEFAULTS.thinkProvider,
       model: DEEPGRAM_AGENT_DEFAULTS.thinkModel,
     });
+  });
+
+  it('omits the KB function by default', () => {
+    const s = buildAgentSettings({ systemPrompt: 'x' });
+    expect(s.agent.think.functions).toBeUndefined();
+  });
+
+  it('exposes the client-side KB function when the agent has knowledge bases', () => {
+    const s = buildAgentSettings({ systemPrompt: 'x', hasKnowledgeBase: true });
+    expect(s.agent.think.functions).toHaveLength(1);
+    const fn = s.agent.think.functions![0];
+    expect(fn.name).toBe(KB_FUNCTION_NAME);
+    expect(fn.parameters).toMatchObject({ type: 'object', required: ['query'] });
+    // No endpoint → Deepgram treats it as client-side (answered over the socket)
+    expect((fn as any).endpoint).toBeUndefined();
   });
 });

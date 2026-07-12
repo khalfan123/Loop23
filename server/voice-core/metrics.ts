@@ -10,6 +10,7 @@
  */
 
 import type { TTSAttempt, TTSProviderId } from './types';
+import { estimateTTSCostUsd } from './cost';
 
 export interface TurnLatencyMetric {
   callSid: string;
@@ -30,6 +31,11 @@ interface ProviderAggregate {
   totalLatencyMs: number;
 }
 
+interface TTSProviderAggregate extends ProviderAggregate {
+  characters: number;
+  estimatedCostUsd: number;
+}
+
 export interface STTAttemptMetric {
   providerId: string;
   ok: boolean;
@@ -46,8 +52,16 @@ export interface LatencyPercentiles {
 export interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<'sttMs' | 'llmFirstMs' | 'ttsStartMs' | 'streamTotalMs', LatencyPercentiles>;
-  tts: Partial<Record<TTSProviderId, { attempts: number; failures: number; avgLatencyMs: number }>>;
+  tts: Partial<Record<TTSProviderId, {
+    attempts: number;
+    failures: number;
+    avgLatencyMs: number;
+    characters: number;
+    estimatedCostUsd: number;
+  }>>;
   stt: Record<string, { attempts: number; failures: number; confidenceRejects: number; avgLatencyMs: number }>;
+  /** Sum of estimatedCostUsd across all TTS providers. */
+  estimatedTtsCostUsd: number;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -60,7 +74,7 @@ export class MetricsRecorder {
   private turns: TurnLatencyMetric[];
   private next = 0;
   private filled = false;
-  private ttsAggregates: Map<TTSProviderId, ProviderAggregate> = new Map();
+  private ttsAggregates: Map<TTSProviderId, TTSProviderAggregate> = new Map();
   private sttAggregates: Map<string, ProviderAggregate & { confidenceRejects: number }> = new Map();
 
   constructor(private capacity = 1000) {
@@ -77,12 +91,16 @@ export class MetricsRecorder {
     if (attempt.skipped) return; // skipped candidates are not real attempts
     let agg = this.ttsAggregates.get(attempt.providerId);
     if (!agg) {
-      agg = { attempts: 0, failures: 0, totalLatencyMs: 0 };
+      agg = { attempts: 0, failures: 0, totalLatencyMs: 0, characters: 0, estimatedCostUsd: 0 };
       this.ttsAggregates.set(attempt.providerId, agg);
     }
     agg.attempts++;
     if (!attempt.ok) agg.failures++;
     agg.totalLatencyMs += attempt.latencyMs;
+    if (attempt.ok && attempt.characters) {
+      agg.characters += attempt.characters;
+      agg.estimatedCostUsd += estimateTTSCostUsd(attempt.providerId, attempt.characters);
+    }
   }
 
   recordSTTAttempt(attempt: STTAttemptMetric): void {
@@ -115,12 +133,16 @@ export class MetricsRecorder {
       };
     }
     const tts: VoiceMetricsSummary['tts'] = {};
+    let estimatedTtsCostUsd = 0;
     for (const [providerId, agg] of Array.from(this.ttsAggregates.entries())) {
       tts[providerId] = {
         attempts: agg.attempts,
         failures: agg.failures,
         avgLatencyMs: agg.attempts ? agg.totalLatencyMs / agg.attempts : 0,
+        characters: agg.characters,
+        estimatedCostUsd: agg.estimatedCostUsd,
       };
+      estimatedTtsCostUsd += agg.estimatedCostUsd;
     }
     const stt: VoiceMetricsSummary['stt'] = {};
     for (const [providerId, agg] of Array.from(this.sttAggregates.entries())) {
@@ -131,7 +153,7 @@ export class MetricsRecorder {
         avgLatencyMs: agg.attempts ? agg.totalLatencyMs / agg.attempts : 0,
       };
     }
-    return { turnCount: all.length, latency, tts, stt };
+    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd };
   }
 
   private orderedTurns(): TurnLatencyMetric[] {

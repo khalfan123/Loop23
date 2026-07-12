@@ -95,6 +95,8 @@ export interface TTSAttempt {
   latencyMs: number;
   error?: string;
   skipped?: 'breaker_open' | 'unusable';
+  /** Characters synthesized on a successful attempt (for cost estimation). */
+  characters?: number;
 }
 
 export class TTSAllProvidersFailedError extends Error {

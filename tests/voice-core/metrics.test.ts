@@ -55,6 +55,19 @@ describe('MetricsRecorder', () => {
     expect(tts.cartesia).toBeUndefined();
   });
 
+  it('accumulates characters and estimated TTS cost from successful attempts', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTTSAttempt({ providerId: 'aws_polly', ok: true, latencyMs: 80, characters: 1000 });
+    m.recordTTSAttempt({ providerId: 'aws_polly', ok: true, latencyMs: 90, characters: 500 });
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: false, latencyMs: 50, characters: 999, error: 'x' });
+    const summary = m.summary();
+    expect(summary.tts.aws_polly?.characters).toBe(1500);
+    expect(summary.tts.aws_polly?.estimatedCostUsd).toBeCloseTo(0.024); // 1500/1000 * 0.016
+    // Failed attempt contributes no characters/cost
+    expect(summary.tts.elevenlabs?.characters).toBe(0);
+    expect(summary.estimatedTtsCostUsd).toBeCloseTo(0.024);
+  });
+
   it('summary handles the empty state', () => {
     const m = new MetricsRecorder(5);
     const s = m.summary();

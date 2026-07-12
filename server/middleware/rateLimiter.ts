@@ -20,10 +20,23 @@ import { Request, Response, NextFunction } from "express";
 import { RateLimitError } from "../utils/errors";
 import { AuthenticatedRequest } from "./errorHandler";
 
-interface RateLimitEntry {
+export interface RateLimitEntry {
   count: number;
   firstRequest: number;
   lastRequest: number;
+}
+
+/**
+ * Storage seam for rate-limit windows. The default store is in-process
+ * memory (single-instance semantics); a Redis-backed implementation of
+ * this interface makes limits consistent across horizontally scaled
+ * instances without touching the middleware. `hit` may be async.
+ */
+export interface RateLimitStore {
+  /** Register a request against the key's fixed window and return its state. */
+  hit(key: string, windowMs: number, now: number): RateLimitEntry | Promise<RateLimitEntry>;
+  size(): number;
+  top(limit: number): Array<{ key: string; count: number }>;
 }
 
 interface RateLimiterOptions {
@@ -32,30 +45,57 @@ interface RateLimiterOptions {
   keyGenerator?: (req: Request) => string;
   skip?: (req: Request) => boolean;
   message?: string;
+  store?: RateLimitStore;
 }
-
-const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const CLEANUP_INTERVAL = 60 * 1000;
-let cleanupTimer: NodeJS.Timeout | null = null;
+const IDLE_EVICTION_MS = 60 * 60 * 1000;
 
-function startCleanup() {
-  if (cleanupTimer) return;
-  
-  cleanupTimer = setInterval(() => {
-    const now = Date.now();
-    const entries = Array.from(rateLimitStore.entries());
-    for (const [key, entry] of entries) {
-      if (now - entry.lastRequest > 60 * 60 * 1000) {
-        rateLimitStore.delete(key);
-      }
+export class MemoryRateLimitStore implements RateLimitStore {
+  private entries = new Map<string, RateLimitEntry>();
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  hit(key: string, windowMs: number, now: number): RateLimitEntry {
+    this.startCleanup();
+    let entry = this.entries.get(key);
+    if (!entry || now - entry.firstRequest > windowMs) {
+      entry = { count: 1, firstRequest: now, lastRequest: now };
+      this.entries.set(key, entry);
+    } else {
+      entry.count++;
+      entry.lastRequest = now;
     }
-  }, CLEANUP_INTERVAL);
-  
-  if (cleanupTimer.unref) {
-    cleanupTimer.unref();
+    return entry;
+  }
+
+  size(): number {
+    return this.entries.size;
+  }
+
+  top(limit: number): Array<{ key: string; count: number }> {
+    return Array.from(this.entries.entries())
+      .map(([key, entry]) => ({ key, count: entry.count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  private startCleanup() {
+    if (this.cleanupTimer) return;
+    this.cleanupTimer = setInterval(() => {
+      const now = Date.now();
+      for (const [key, entry] of Array.from(this.entries.entries())) {
+        if (now - entry.lastRequest > IDLE_EVICTION_MS) {
+          this.entries.delete(key);
+        }
+      }
+    }, CLEANUP_INTERVAL);
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
   }
 }
+
+const defaultStore = new MemoryRateLimitStore();
 
 function defaultKeyGenerator(req: Request): string {
   const authReq = req as AuthenticatedRequest;
@@ -77,10 +117,9 @@ export function createRateLimiter(options: RateLimiterOptions) {
     maxRequests,
     keyGenerator = defaultKeyGenerator,
     skip,
-    message = "Too many requests, please try again later"
+    message = "Too many requests, please try again later",
+    store = defaultStore
   } = options;
-
-  startCleanup();
 
   return (req: Request, res: Response, next: NextFunction): void => {
     if (skip && skip(req)) {
@@ -89,35 +128,30 @@ export function createRateLimiter(options: RateLimiterOptions) {
 
     const key = keyGenerator(req);
     const now = Date.now();
-    
-    let entry = rateLimitStore.get(key);
-    
-    if (!entry || now - entry.firstRequest > windowMs) {
-      entry = {
-        count: 1,
-        firstRequest: now,
-        lastRequest: now
-      };
-      rateLimitStore.set(key, entry);
-    } else {
-      entry.count++;
-      entry.lastRequest = now;
-    }
 
-    const remaining = Math.max(0, maxRequests - entry.count);
-    const reset = Math.ceil((entry.firstRequest + windowMs - now) / 1000);
-    
-    res.setHeader("X-RateLimit-Limit", String(maxRequests));
-    res.setHeader("X-RateLimit-Remaining", String(remaining));
-    res.setHeader("X-RateLimit-Reset", String(reset));
+    Promise.resolve(store.hit(key, windowMs, now))
+      .then((entry) => {
+        const remaining = Math.max(0, maxRequests - entry.count);
+        const reset = Math.ceil((entry.firstRequest + windowMs - now) / 1000);
 
-    if (entry.count > maxRequests) {
-      res.setHeader("Retry-After", String(reset));
-      const error = new RateLimitError(message, reset);
-      return next(error);
-    }
+        res.setHeader("X-RateLimit-Limit", String(maxRequests));
+        res.setHeader("X-RateLimit-Remaining", String(remaining));
+        res.setHeader("X-RateLimit-Reset", String(reset));
 
-    next();
+        if (entry.count > maxRequests) {
+          res.setHeader("Retry-After", String(reset));
+          const error = new RateLimitError(message, reset);
+          return next(error);
+        }
+
+        next();
+      })
+      .catch((error) => {
+        // A failing store (e.g. Redis outage) must not take the API down;
+        // fail open and let the request through.
+        console.error(`[RateLimiter] Store error for ${key}: ${error?.message}`);
+        next();
+      });
   };
 }
 
@@ -152,13 +186,8 @@ export const paymentRateLimiter = createRateLimiter({
 });
 
 export function getRateLimitStats(): { totalKeys: number; entries: Array<{ key: string; count: number }> } {
-  const entries = Array.from(rateLimitStore.entries())
-    .map(([key, entry]) => ({ key, count: entry.count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 20);
-  
   return {
-    totalKeys: rateLimitStore.size,
-    entries
+    totalKeys: defaultStore.size(),
+    entries: defaultStore.top(20)
   };
 }

@@ -127,7 +127,7 @@ export function VoiceMetricsPanel() {
           title="Full Turn"
           value={ms(latency?.streamTotalMs.p50)}
           icon={Timer}
-          subtitle={`p95 ${ms(latency?.streamTotalMs.p95)} · avg ${ms(latency?.streamTotalMs.avg)}`}
+          subtitle={`p95 ${ms(latency?.streamTotalMs.p95)} · avg ${ms(latency?.streamTotalMs.avg)} · target <700ms p50`}
           testId="metric-turn-latency"
         />
       </div>

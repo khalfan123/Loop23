@@ -17,8 +17,6 @@
 
 import WebSocket from 'ws';
 import { awsBedrockService } from '../../../services/aws-bedrock';
-import { awsPollyService } from '../../../services/aws-polly';
-import { cartesiaTTSService } from '../../../services/cartesia-tts';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/config';
 import { db } from '../../../db';
@@ -37,7 +35,6 @@ import { openaiInvokeStream, openaiInvoke, openaiInvokeStreamStructured } from '
 import { ToolRegistry, toBedrockToolSpecs, agentToolToDefinition } from '../../../services/agent-orchestration/tool-registry';
 import { converseStream, converseWithToolResults } from '../../../services/agent-orchestration/bedrock-converse';
 import type { LLMStreamEvent, StructuredToolCall, StructuredToolResult, ToolDefinition } from '../../../services/agent-orchestration/tool-registry';
-import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
@@ -47,7 +44,6 @@ import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../.
 import {
   mulawEnergy,
   pcmToMulaw as corePcmToMulaw,
-  downsamplePcm16By2,
 } from '../../../voice-core/audio/g711';
 import { createMulawWavHeader } from '../../../voice-core/audio/wav';
 import { splitSentences as coreSplitSentences } from '../../../voice-core/text/sentence-split';
@@ -57,6 +53,13 @@ import {
   isLikelyBackgroundSpeech as coreIsLikelyBackgroundSpeech,
   isLanguageMismatch as coreIsLanguageMismatch,
 } from '../../../voice-core/stt/whisper-filters';
+import { defaultPollyVoiceForLanguage } from '../../../voice-core/providers/polly-tts.provider';
+import {
+  getDeprockTTSRouter,
+  getDeprockPollyProvider,
+  buildTTSRouteContext,
+  noteTTSAttempts,
+} from './tts-router';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -683,29 +686,7 @@ export class BedrockPollyAudioBridge {
   };
 
   private static getPollyFallbackVoice(language?: string): string {
-    const langVoiceMap: Record<string, string> = {
-      ar: 'Hala',
-      en: 'Joanna',
-      es: 'Lupe',
-      fr: 'Lea',
-      de: 'Vicki',
-      it: 'Bianca',
-      pt: 'Camila',
-      hi: 'Kajal',
-      ja: 'Kazuha',
-      ko: 'Seoyeon',
-      zh: 'Zhiyu',
-      tr: 'Burcu',
-      nl: 'Laura',
-      pl: 'Ola',
-      sv: 'Elin',
-      da: 'Sofie',
-      nb: 'Ida',
-      fi: 'Suvi',
-    };
-    if (!language) return 'Joanna';
-    const langPrefix = language.split('-')[0].toLowerCase();
-    return langVoiceMap[langPrefix] || 'Joanna';
+    return defaultPollyVoiceForLanguage(language);
   }
 
   private static getRandomFiller(fillers: string[]): string {
@@ -2162,44 +2143,6 @@ CONVERSATION STYLE:
   }
 
   /**
-   * Synthesize text to speech via ElevenLabs TTS API returning PCM audio buffer.
-   * Uses the /v1/text-to-speech/{voice_id} endpoint with pcm_16000 output format,
-   * then downsamples to 8kHz PCM for Twilio mulaw conversion.
-   */
-  private static async synthesizeWithElevenLabs(
-    text: string,
-    voiceId: string,
-    apiKey: string
-  ): Promise<Buffer> {
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=pcm_16000`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.55,
-          similarity_boost: 0.85,
-          speed: 1.0,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`ElevenLabs TTS API error ${response.status}: ${errorText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const pcm16k = Buffer.from(arrayBuffer);
-
-    return downsamplePcm16By2(pcm16k);
-  }
-
-  /**
    * Synthesize the given text into speech and stream
    * the resulting audio back to the Twilio WebSocket as mulaw chunks.
    * Routes to ElevenLabs or AWS Polly based on session ttsProvider.
@@ -2261,32 +2204,10 @@ CONVERSATION STYLE:
         ? trimmedText.substring(0, MAX_CHARS) 
         : trimmedText;
 
-      let pcmBuffer: Buffer;
-
-      if (ttsProvider === 'cartesia' && agentConfig.cartesiaVoiceId) {
-        try {
-          pcmBuffer = await this.synthesizeWithCartesia(synthesisText, agentConfig.cartesiaVoiceId, agentConfig.language);
-        } catch (cartesiaError: any) {
-          console.warn(`[BedrockPolly Bridge] Cartesia TTS failed for ${callSid}, falling back to Polly: ${cartesiaError.message}`);
-          const pollyFallbackVoice = (agentConfig.voice && !agentConfig.voice.match(/^[0-9a-f-]{36}$/i)) ? agentConfig.voice : this.getPollyFallbackVoice(agentConfig.language);
-          pcmBuffer = await this.synthesizeWithPolly(synthesisText, pollyFallbackVoice);
-        }
-      } else if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
-        const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
-        if (!apiKey) {
-          console.warn(`[BedrockPolly Bridge] No ElevenLabs API key for ${callSid}, falling back to Polly`);
-          pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
-        } else {
-          try {
-            pcmBuffer = await this.synthesizeWithElevenLabs(synthesisText, agentConfig.elevenLabsVoiceId, apiKey);
-          } catch (elError: any) {
-            console.warn(`[BedrockPolly Bridge] ElevenLabs TTS failed for ${callSid}, falling back to Polly: ${elError.message}`);
-            pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
-          }
-        }
-      } else {
-        pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
-      }
+      const routeContext = buildTTSRouteContext(agentConfig, ttsProvider, synthesisText);
+      const { result, attempts } = await getDeprockTTSRouter().synthesize(routeContext);
+      noteTTSAttempts(callSid, routeContext.preferred, attempts);
+      const pcmBuffer: Buffer = result.pcm;
 
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
       this.sendMulawToTwilio(session, mulawBuffer);
@@ -2325,71 +2246,18 @@ CONVERSATION STYLE:
     return coreSanitizeForTTS(text);
   }
 
-  private static ssmlBlockedVoices: Set<string> = new Set();
-  private static neuralBlockedVoices: Set<string> = new Set();
-
   /**
    * Synthesize text using AWS Polly returning 8kHz PCM buffer.
+   * Delegates to the shared Polly adapter so the filler path and the
+   * routed path share one SSML/neural blocklist and health stats.
    */
-  private static async synthesizeWithCartesia(text: string, voiceId: string, language?: string): Promise<Buffer> {
-    const result = await cartesiaTTSService.synthesizeSpeech({
-      text,
-      voiceId,
-      language: language || 'en',
-      sampleRate: 8000,
-      speed: 1.25,
-    });
-    return result.audioStream;
-  }
-
   private static async synthesizeWithPolly(text: string, voiceId: string): Promise<Buffer> {
-    const useSSML = !this.ssmlBlockedVoices.has(voiceId);
-    const useNeural = !this.neuralBlockedVoices.has(voiceId);
-
-    let result;
-
-    if (useSSML && useNeural) {
-      try {
-        const ssmlText = humanizeToSSML(text);
-        result = await awsPollyService.synthesizeSpeech({
-          text: ssmlText,
-          voiceId,
-          engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-          textType: 'ssml',
-        });
-        return result.audioStream;
-      } catch (e: any) {
-        console.warn(`[BedrockPolly Bridge] SSML+Neural failed for ${voiceId}, caching: ${e.message}`);
-        this.ssmlBlockedVoices.add(voiceId);
-      }
-    }
-
-    if (useNeural) {
-      try {
-        result = await awsPollyService.synthesizeSpeech({
-          text,
-          voiceId,
-          engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-        });
-        return result.audioStream;
-      } catch (e: any) {
-        console.warn(`[BedrockPolly Bridge] Neural failed for ${voiceId}, caching: ${e.message}`);
-        this.neuralBlockedVoices.add(voiceId);
-      }
-    }
-
-    result = await awsPollyService.synthesizeSpeech({
+    const result = await getDeprockPollyProvider().synthesize({
       text,
       voiceId,
-      engine: 'standard',
-      outputFormat: 'pcm',
-      sampleRate: '8000',
+      sampleRateHz: 8000,
     });
-    return result.audioStream;
+    return result.pcm;
   }
 
   /**

@@ -83,6 +83,7 @@ import {
 import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenaiIncomingConnectionsRoutes } from "./engines/twilio-openai";
 // Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
 import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler, setupBrowserVoiceStreamHandler } from "./engines/twilio-bedrock-polly";
+import { deepgramAgentWebhookRoutes, setupDeepgramAgentStreamHandler } from "./engines/deepgram-voice-agent";
 // KYC Engine
 import { registerKycRoutes } from "./engines/kyc";
 import { checkAdmin } from "./middleware/admin-auth";
@@ -103,6 +104,7 @@ import { registerBedrockKBRoutes } from "./routes/bedrock-kb-routes";
 import { createKnowledgeIntelligenceRoutes } from "./routes/knowledge-intelligence-routes";
 import { createDepartmentRoutes, createIvrAudioRoutes } from "./routes/department-routes";
 import { createDeprockRoutes, createDeprockIvrAudioRoutes } from "./routes/deprock-routes";
+import { createVoiceMetricsRoutes } from "./routes/voice-metrics-routes";
 import { createNotificationRoutes } from "./routes/notification-routes";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
@@ -252,6 +254,10 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Initialize Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
   app.use('/api/bedrock-polly', bedrockPollyWebhookRoutes);
   console.log('✅ Twilio + Bedrock + Polly Engine initialized');
+
+  // Initialize Deepgram Voice Agent Engine (Flux listening + Aura-2 speaking)
+  app.use('/api/deepgram-agent', deepgramAgentWebhookRoutes);
+  console.log('✅ Deepgram Voice Agent Engine initialized');
 
   (async () => {
     try {
@@ -1611,6 +1617,10 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   const deprockRoutes = createDeprockRoutes(routeContext.authenticateHybrid);
   app.use("/api/deprock", deprockRoutes);
 
+  // Voice-core per-turn latency metrics and TTS provider health
+  const voiceMetricsRoutes = createVoiceMetricsRoutes(routeContext.authenticateHybrid as unknown as import('express').RequestHandler);
+  app.use("/api/voice-metrics", voiceMetricsRoutes);
+
   // Live Call Monitoring routes
   const liveMonitoringRoutes = createLiveMonitoringRoutes(routeContext.authenticateHybrid);
   app.use(liveMonitoringRoutes);
@@ -2387,6 +2397,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   
   // Setup Browser Voice WebSocket stream for Call Simulator real-time conversation
   setupBrowserVoiceStreamHandler(httpServer);
+
+  // Setup Deepgram Voice Agent WebSocket stream (Flux + Aura-2 bridged to Twilio)
+  setupDeepgramAgentStreamHandler(httpServer);
   
   // Setup Live Call Monitoring WebSocket for real-time supervisor dashboard
   liveMonitoringWs.setup(httpServer);

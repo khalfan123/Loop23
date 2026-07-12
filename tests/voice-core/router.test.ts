@@ -1,0 +1,179 @@
+import { describe, it, expect, vi } from 'vitest';
+import { ProviderRegistry } from '../../server/voice-core/registry';
+import { ProviderRouter, type TTSRouteContext } from '../../server/voice-core/router';
+import {
+  TTSAllProvidersFailedError,
+  type TTSProvider,
+  type TTSProviderId,
+  type TTSRequest,
+} from '../../server/voice-core/types';
+
+function mockProvider(
+  id: TTSProviderId,
+  behavior: { fail?: boolean; failTimes?: number; configured?: boolean; languages?: string[] } = {}
+): TTSProvider & { calls: TTSRequest[] } {
+  let remainingFailures = behavior.failTimes ?? (behavior.fail ? Infinity : 0);
+  const calls: TTSRequest[] = [];
+  return {
+    id,
+    calls,
+    isConfigured: () => behavior.configured ?? true,
+    supportsLanguage: (lang) => !behavior.languages || !lang || behavior.languages.includes(lang),
+    async synthesize(request) {
+      calls.push(request);
+      if (remainingFailures > 0) {
+        remainingFailures--;
+        throw new Error(`${id} synth failed`);
+      }
+      return { audio: Buffer.from([1, 2]), providerId: id, latencyMs: 5, characters: request.text.length };
+    },
+  };
+}
+
+function makeContext(
+  preferred: TTSProviderId,
+  usable: TTSProviderId[] = ['aws_polly', 'elevenlabs', 'cartesia'],
+  language?: string
+): TTSRouteContext {
+  return {
+    preferred,
+    finalFallback: 'aws_polly',
+    language,
+    buildRequest: (id) =>
+      usable.includes(id)
+        ? { text: 'hello there', voiceId: `${id}-voice`, language, sampleRateHz: 8000 }
+        : null,
+  };
+}
+
+describe('ProviderRouter', () => {
+  it('uses the preferred provider on the happy path with one attempt', async () => {
+    const registry = new ProviderRegistry();
+    const eleven = mockProvider('elevenlabs');
+    registry.registerTTS(eleven);
+    registry.registerTTS(mockProvider('aws_polly'));
+    const router = new ProviderRouter(registry);
+
+    const { result, attempts } = await router.synthesize(makeContext('elevenlabs'));
+    expect(result.providerId).toBe('elevenlabs');
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]).toMatchObject({ providerId: 'elevenlabs', ok: true });
+  });
+
+  it('falls back when the preferred provider throws, recording both attempts', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('elevenlabs', { fail: true }));
+    registry.registerTTS(mockProvider('aws_polly'));
+    const onAttempt = vi.fn();
+    const router = new ProviderRouter(registry, { onAttempt });
+
+    const { result, attempts } = await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(result.providerId).toBe('aws_polly');
+    expect(attempts.map(a => [a.providerId, a.ok])).toEqual([
+      ['elevenlabs', false],
+      ['aws_polly', true],
+    ]);
+    expect(onAttempt).toHaveBeenCalledTimes(2);
+  });
+
+  it('excludes providers whose buildRequest returns null', async () => {
+    const registry = new ProviderRegistry();
+    const cartesia = mockProvider('cartesia');
+    registry.registerTTS(cartesia);
+    registry.registerTTS(mockProvider('aws_polly'));
+    registry.registerTTS(mockProvider('elevenlabs'));
+    const router = new ProviderRouter(registry);
+
+    // Agent only has polly + elevenlabs voices configured
+    const { result } = await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(result.providerId).toBe('elevenlabs');
+    expect(cartesia.calls).toHaveLength(0);
+  });
+
+  it('skips a breaker-open provider and records the skip', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('elevenlabs', { fail: true }));
+    registry.registerTTS(mockProvider('aws_polly'));
+    const router = new ProviderRouter(registry, {
+      breakerOptions: { consecutiveFailuresToOpen: 2, openMs: 30_000 },
+    });
+    const ctx = makeContext('elevenlabs', ['elevenlabs', 'aws_polly']);
+
+    await router.synthesize(ctx); // eleven fails #1
+    await router.synthesize(ctx); // eleven fails #2 -> breaker opens
+    const { result, attempts } = await router.synthesize(ctx);
+    expect(result.providerId).toBe('aws_polly');
+    expect(attempts[0]).toMatchObject({ providerId: 'elevenlabs', skipped: 'breaker_open' });
+  });
+
+  it('always attempts the final fallback even when its breaker is open', async () => {
+    const registry = new ProviderRegistry();
+    const polly = mockProvider('aws_polly', { failTimes: 3 });
+    registry.registerTTS(polly);
+    const router = new ProviderRouter(registry, {
+      breakerOptions: { consecutiveFailuresToOpen: 1, openMs: 60_000 },
+    });
+    const ctx = makeContext('aws_polly', ['aws_polly']);
+
+    await expect(router.synthesize(ctx)).rejects.toThrow(TTSAllProvidersFailedError); // fail 1, breaker opens
+    await expect(router.synthesize(ctx)).rejects.toThrow(TTSAllProvidersFailedError); // still attempted
+    await expect(router.synthesize(ctx)).rejects.toThrow(TTSAllProvidersFailedError);
+    const { result } = await router.synthesize(ctx); // provider recovered
+    expect(result.providerId).toBe('aws_polly');
+    expect(polly.calls).toHaveLength(4);
+  });
+
+  it('throws TTSAllProvidersFailedError with the full attempt list', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('elevenlabs', { fail: true }));
+    registry.registerTTS(mockProvider('aws_polly', { fail: true }));
+    const router = new ProviderRouter(registry);
+
+    const error = await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly'])).catch(e => e);
+    expect(error).toBeInstanceOf(TTSAllProvidersFailedError);
+    expect(error.attempts.map((a: any) => a.providerId)).toEqual(['elevenlabs', 'aws_polly']);
+    expect(error.attempts.every((a: any) => !a.ok)).toBe(true);
+  });
+
+  it('orders alternates by EWMA latency and collapses to [preferred, fallback] for legacy agents', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    registry.registerTTS(mockProvider('elevenlabs'));
+    registry.registerTTS(mockProvider('cartesia'));
+    const router = new ProviderRouter(registry);
+
+    // Legacy agent shape: only preferred + fallback usable
+    const legacyCtx = makeContext('cartesia', ['cartesia', 'aws_polly']);
+    expect(router.candidateOrder(legacyCtx)).toEqual(['cartesia', 'elevenlabs', 'aws_polly']);
+    // elevenlabs is in candidateOrder but buildRequest(null) excludes it at attempt time:
+    const { attempts } = await router.synthesize(legacyCtx);
+    expect(attempts.map(a => [a.providerId, a.ok ?? false, a.skipped])).toEqual([
+      ['cartesia', true, undefined],
+    ]);
+
+    // Seed latency stats: cartesia slow, elevenlabs fast
+    const seedCtx = makeContext('aws_polly');
+    await router.synthesize(seedCtx);
+    const full = router.candidateOrder(makeContext('aws_polly'));
+    expect(full[0]).toBe('aws_polly');
+    // dedup: preferred === finalFallback appears exactly once, at the front
+    expect(full.filter(id => id === 'aws_polly')).toHaveLength(1);
+    expect(full).toHaveLength(3);
+  });
+
+  it('healthSnapshot reports per-provider breaker state and stats', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    registry.registerTTS(mockProvider('elevenlabs', { fail: true }));
+    const router = new ProviderRouter(registry, { breakerOptions: { consecutiveFailuresToOpen: 1 } });
+    await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+
+    const snapshot = router.healthSnapshot();
+    const eleven = snapshot.find(s => s.providerId === 'elevenlabs')!;
+    const polly = snapshot.find(s => s.providerId === 'aws_polly')!;
+    expect(eleven.breaker).toBe('open');
+    expect(eleven.failures).toBe(1);
+    expect(polly.breaker).toBe('closed');
+    expect(polly.attempts).toBe(1);
+  });
+});

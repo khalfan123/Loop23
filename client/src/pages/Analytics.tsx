@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown } from "lucide-react";
+import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown, Gauge } from "lucide-react";
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -30,6 +30,7 @@ import { AuthStorage } from "@/lib/auth-storage";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import LiveMonitoring from "@/pages/LiveMonitoring";
 import Calls from "@/pages/Calls";
+import { VoiceMetricsPanel } from "@/components/analytics/VoiceMetricsPanel";
 
 import { HeatmapChart } from "@/components/analytics/HeatmapChart";
 import { FunnelChart } from "@/components/analytics/FunnelChart";
@@ -96,7 +97,7 @@ export default function Analytics() {
   const { t } = useTranslation();
   const [timeRange, setTimeRange] = useState("7days");
   const callType = 'all';
-  const [activeView, setActiveView] = useState<"analytics" | "call-history" | "live-monitoring">("analytics");
+  const [activeView, setActiveView] = useState<"analytics" | "call-history" | "live-monitoring" | "voice-metrics">("analytics");
   const [activeTab, setActiveTab] = useState("overview");
   const [isExporting, setIsExporting] = useState(false);
   const [drillFilter, setDrillFilter] = useState<{ type: string; value: string } | null>(null);
@@ -257,6 +258,13 @@ export default function Analytics() {
           onClick={() => setActiveView("live-monitoring")}
           data-testid="nav-live-monitoring-view"
         />
+        <SubPanelItem
+          icon={<Gauge className="w-4 h-4" />}
+          label="Voice Metrics"
+          isActive={activeView === "voice-metrics"}
+          onClick={() => setActiveView("voice-metrics")}
+          data-testid="nav-voice-metrics-view"
+        />
       </SubPanelSection>
 
       {activeView === "analytics" && (
@@ -300,6 +308,14 @@ export default function Analytics() {
     return (
       <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}>
         <LiveMonitoring />
+      </ThreeColumnLayout>
+    );
+  }
+
+  if (activeView === "voice-metrics") {
+    return (
+      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}>
+        <VoiceMetricsPanel />
       </ThreeColumnLayout>
     );
   }

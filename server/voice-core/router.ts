@@ -40,11 +40,33 @@ export interface ProviderHealthSnapshot extends ProviderStatsSnapshot {
   breaker: BreakerState;
 }
 
+export interface SelectionWeights {
+  /** Weight on normalized EWMA latency (0..1, lower is better). */
+  latency: number;
+  /** Weight on rolling error rate (0..1). */
+  errorRate: number;
+  /** Weight on normalized cost (0..1). */
+  cost: number;
+}
+
+const DEFAULT_WEIGHTS: SelectionWeights = { latency: 0.5, errorRate: 0.35, cost: 0.15 };
+
 interface RouterOptions {
   breakerOptions?: Partial<CircuitBreakerOptions>;
   ewmaAlpha?: number;
   onAttempt?: (attempt: TTSAttempt) => void;
   now?: () => number;
+  /**
+   * 'preferred' (default): honor the agent's preferred provider first, then
+   * healthy alternates by latency — the legacy, behavior-preserving order.
+   * 'health_aware': rank ALL usable providers (except the always-last final
+   * fallback) by a weighted latency/error/cost score, so a degraded or
+   * expensive preferred provider yields to a healthier/cheaper one.
+   */
+  selectionStrategy?: 'preferred' | 'health_aware';
+  selectionWeights?: Partial<SelectionWeights>;
+  /** Cost per provider (e.g. USD per 1k chars) for the cost term. */
+  costOf?: (id: TTSProviderId) => number;
 }
 
 export class ProviderRouter {
@@ -58,22 +80,44 @@ export class ProviderRouter {
 
   /** Exported for deterministic tests. */
   candidateOrder(ctx: TTSRouteContext): TTSProviderId[] {
-    const order: TTSProviderId[] = [ctx.preferred];
-
-    const alternates = this.registry
+    const usable = this.registry
       .listTTS()
-      .filter(p => p.id !== ctx.preferred && p.id !== ctx.finalFallback)
+      .filter(p => p.id !== ctx.finalFallback)
       .filter(p => p.isConfigured() && p.supportsLanguage(ctx.language))
-      .filter(p => this.breakerFor(p.id).state() !== 'open')
-      .sort((a, b) => {
-        const la = this.statsFor(a.id).ewmaLatencyMs() ?? Number.MAX_SAFE_INTEGER;
-        const lb = this.statsFor(b.id).ewmaLatencyMs() ?? Number.MAX_SAFE_INTEGER;
-        return la - lb;
-      })
-      .map(p => p.id);
+      .filter(p => this.breakerFor(p.id).state() !== 'open');
 
-    order.push(...alternates, ctx.finalFallback);
-    return Array.from(new Set(order));
+    let ranked: TTSProviderId[];
+    if ((this.options.selectionStrategy ?? 'preferred') === 'health_aware') {
+      // Score every usable provider by weighted latency/error/cost; the
+      // preferred provider no longer gets automatic priority.
+      ranked = usable
+        .map(p => ({ id: p.id, score: this.score(p.id) }))
+        .sort((a, b) => a.score - b.score)
+        .map(x => x.id);
+    } else {
+      // Legacy: preferred first, then remaining usable by latency.
+      const alternates = usable
+        .filter(p => p.id !== ctx.preferred)
+        .sort((a, b) => (this.statsFor(a.id).ewmaLatencyMs() ?? Number.MAX_SAFE_INTEGER)
+                       - (this.statsFor(b.id).ewmaLatencyMs() ?? Number.MAX_SAFE_INTEGER))
+        .map(p => p.id);
+      ranked = [ctx.preferred, ...alternates];
+    }
+
+    // The final fallback is always attempted last, whatever the strategy.
+    return Array.from(new Set([...ranked, ctx.finalFallback]));
+  }
+
+  /** Lower is better. Normalizes latency against the fastest observed provider. */
+  private score(id: TTSProviderId): number {
+    const w = { ...DEFAULT_WEIGHTS, ...(this.options.selectionWeights ?? {}) };
+    const snap = this.statsFor(id).snapshot();
+    // Latency normalized to a 0..1-ish range against a 1s reference; a
+    // provider with no data yet is treated as neutral (0.5) so it can be tried.
+    const latency = snap.ewmaLatencyMs === null ? 0.5 : Math.min(1, snap.ewmaLatencyMs / 1000);
+    const errorRate = snap.errorRate;
+    const cost = this.options.costOf ? Math.min(1, this.options.costOf(id) / 0.3) : 0;
+    return w.latency * latency + w.errorRate * errorRate + w.cost * cost;
   }
 
   async synthesize(ctx: TTSRouteContext): Promise<TTSRouteResult> {

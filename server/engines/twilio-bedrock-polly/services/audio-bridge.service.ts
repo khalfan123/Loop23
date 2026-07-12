@@ -44,6 +44,19 @@ import { RealtimeSentimentService } from '../../../services/realtime-sentiment.s
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
+import {
+  mulawEnergy,
+  pcmToMulaw as corePcmToMulaw,
+  downsamplePcm16By2,
+} from '../../../voice-core/audio/g711';
+import { createMulawWavHeader } from '../../../voice-core/audio/wav';
+import { splitSentences as coreSplitSentences } from '../../../voice-core/text/sentence-split';
+import { sanitizeForTTS as coreSanitizeForTTS } from '../../../voice-core/text/tts-sanitize';
+import {
+  isWhisperHallucination as coreIsWhisperHallucination,
+  isLikelyBackgroundSpeech as coreIsLikelyBackgroundSpeech,
+  isLanguageMismatch as coreIsLanguageMismatch,
+} from '../../../voice-core/stt/whisper-filters';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -96,63 +109,11 @@ const ECHO_COOLDOWN_MS = 600;
 
 const whisperAbortControllers: Map<string, AbortController> = new Map();
 
-const MULAW_DECODE_TABLE: Int16Array = (() => {
-  const table = new Int16Array(256);
-  for (let i = 0; i < 256; i++) {
-    let val = ~i;
-    const sign = val & 0x80;
-    const exponent = (val >> 4) & 0x07;
-    const mantissa = val & 0x0F;
-    let magnitude = ((mantissa << 1) | 0x21) << (exponent + 2);
-    magnitude -= 0x21 << 2;
-    table[i] = sign ? -magnitude : magnitude;
-  }
-  return table;
-})();
-
 /**
  * Twilio stream ready flags, tracked separately from session to avoid
  * race conditions during first-message sending.
  */
 const twilioStreamReady: Map<string, boolean> = new Map();
-
-/**
- * Creates a proper WAV header for mulaw-encoded audio data.
- * Format code 7 = mu-law compression, 8-bit samples, mono, 8 kHz.
- *
- * @param dataLength - Length of the raw mulaw audio data in bytes
- * @param sampleRate - Sample rate (default 8000)
- * @param channels   - Number of audio channels (default 1)
- * @returns Buffer containing a 46-byte WAV header
- */
-function createMulawWavHeader(
-  dataLength: number,
-  sampleRate: number = 8000,
-  channels: number = 1
-): Buffer {
-  const fmtChunkSize = 18;
-  const headerSize = 12 + 8 + fmtChunkSize + 8;
-  const header = Buffer.alloc(headerSize);
-
-  header.write('RIFF', 0);
-  header.writeUInt32LE(dataLength + headerSize - 8, 4);
-  header.write('WAVE', 8);
-
-  header.write('fmt ', 12);
-  header.writeUInt32LE(fmtChunkSize, 16);
-  header.writeUInt16LE(7, 20);
-  header.writeUInt16LE(channels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * channels, 28);
-  header.writeUInt16LE(channels, 32);
-  header.writeUInt16LE(8, 34);
-  header.writeUInt16LE(0, 36);
-
-  header.write('data', 38);
-  header.writeUInt32LE(dataLength, 42);
-
-  return header;
-}
 
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
@@ -182,13 +143,7 @@ export class BedrockPollyAudioBridge {
   private static readonly ENERGY_VARIANCE_MAX_RATIO = 4.0;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
-    if (chunk.length === 0) return 0;
-    let sumSquares = 0;
-    for (let i = 0; i < chunk.length; i++) {
-      const linear = MULAW_DECODE_TABLE[chunk[i]];
-      sumSquares += linear * linear;
-    }
-    return Math.sqrt(sumSquares / chunk.length);
+    return mulawEnergy(chunk);
   }
 
   private static collectNoiseFloorSample(callSid: string, energy: number): void {
@@ -1106,284 +1061,19 @@ export class BedrockPollyAudioBridge {
     }
   }
 
-  private static readonly WHISPER_HALLUCINATION_EXACT: string[] = [
-    'شكراً على المشاهدة',
-    'وشكراً على المشاهدة',
-    'شكرا على المشاهدة',
-    'شكرا للمشاهدة',
-    'اشتركوا في القناة',
-    'اشترك في القناة',
-    'لا تنسوا الاشتراك',
-    'ترجمة',
-    'أعوذ بالله من الشيطان الرجيم',
-    'بسم الله الرحمن الرحيم',
-    'السلام عليكم ورحمة الله وبركاته',
-    'صلى الله عليه وسلم',
-    'سبحان الله وبحمده',
-    'الحمد لله رب العالمين',
-    'والسلام عليكم ورحمة الله',
-    'إن شاء الله',
-    'ما شاء الله',
-    'لا حول ولا قوة إلا بالله',
-    'سبحان الله',
-    'الله أكبر',
-    'لا إله إلا الله',
-    'استغفر الله',
-    'أشهد أن لا إله إلا الله',
-    'رضي الله عنه',
-    'جزاكم الله خيرا',
-    'بارك الله فيكم',
-    'حسبي الله ونعم الوكيل',
-    'إنا لله وإنا إليه راجعون',
-    'تحياتي',
-    'مع السلامة',
-    'الى اللقاء',
-    'subscribe',
-    'thank you for watching',
-    'thanks for watching',
-    'like and subscribe',
-    'please subscribe',
-    'don\'t forget to subscribe',
-    'hit the bell',
-    'Shabbat shalom',
-    'subtitles by',
-    'amara.org',
-    'www.mooji.org',
-    '♪',
-    '...',
-    'you',
-    'bye',
-    'the end',
-    'thank you',
-    'thanks',
-    'MBC',
-    'SBS',
-    'TV',
-    'FM',
-  ];
-
-  private static readonly WHISPER_HALLUCINATION_CONTAINS: string[] = [
-    'شكرا على المشاهدة',
-    'شكراً على المشاهدة',
-    'اشتركوا في القناة',
-    'لا تنسوا الاشتراك',
-    'thank you for watching',
-    'thanks for watching',
-    'like and subscribe',
-    'please subscribe',
-    'subtitles by',
-    'amara.org',
-    'www.mooji.org',
-    'مشاهدة ممتعة',
-    'تابعونا على',
-    'قناتنا على',
-    'ترجمة الأخ',
-    'ترجمة فريق',
-    'أخرجها',
-    'إخراج',
-    'مونتاج',
-    'تصوير',
-    'إعداد وتقديم',
-    'حلقة جديدة',
-    'الحلقة القادمة',
-    'في الحلقة',
-    'نراكم في',
-    'كونوا معنا',
-    'لا تنسى الإعجاب',
-    'اضغط لايك',
-    'فعل الجرس',
-    'رابط القناة',
-  ];
-
   private static isWhisperHallucination(text: string): boolean {
-    const trimmed = text.trim();
-    if (trimmed.length < 3) return true;
-
-    const lower = trimmed.toLowerCase();
-
-    for (const h of this.WHISPER_HALLUCINATION_EXACT) {
-      if (lower === h.toLowerCase()) return true;
-    }
-
-    for (const h of this.WHISPER_HALLUCINATION_CONTAINS) {
-      if (lower.includes(h.toLowerCase())) return true;
-    }
-
-    if (/^[♪♫🎵🎶\s.,!?]+$/.test(trimmed)) return true;
-
-    if (/^\.{2,}$/.test(trimmed)) return true;
-
-    const exactRepeat = /^(.{2,30})\1{2,}$/;
-    if (exactRepeat.test(trimmed)) return true;
-
-    const isArabic = /[\u0600-\u06FF]/.test(trimmed);
-    if (isArabic) {
-      const arabicOnly = trimmed.replace(/[^\u0600-\u06FF\s]/g, '').trim();
-      const arabicRatio = arabicOnly.length / trimmed.length;
-      if (arabicRatio > 0.8) {
-        const cleanedForCheck = trimmed.replace(/[؟?!.,،؛\s]+$/g, '').replace(/(.)\1{2,}/g, '$1$1');
-        const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك)$/i;
-        const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
-
-        if (arabicWords.length <= 2 && trimmed.length < 15) {
-          if (!validShortArabic.test(cleanedForCheck)) return true;
-        }
-
-        if (/الله|سبحان|بسم|صلى|رحمة|الحمد|أعوذ|الشيطان/.test(trimmed) && arabicWords.length <= 6) return true;
-
-        if (/المشاهدة|الاشتراك|القناة|الحلقة|تابعونا|لايك|الجرس/.test(trimmed)) return true;
-      }
-    }
-
-    const words = trimmed.split(/\s+/).filter(w => w.length > 1);
-    if (words.length >= 4) {
-      const uniqueWords = new Set(words.map(w => w.toLowerCase()));
-      if (uniqueWords.size === 1) return true;
-
-      const windowSize = Math.min(4, Math.floor(words.length / 3));
-      if (windowSize >= 2) {
-        for (let phraseLen = 2; phraseLen <= windowSize; phraseLen++) {
-          const phraseCounts = new Map<string, number>();
-          for (let i = 0; i <= words.length - phraseLen; i++) {
-            const phrase = words.slice(i, i + phraseLen).join(' ').toLowerCase();
-            phraseCounts.set(phrase, (phraseCounts.get(phrase) || 0) + 1);
-          }
-          for (const count of phraseCounts.values()) {
-            if (count >= 3) return true;
-          }
-        }
-      }
-    }
-
-    return false;
+    return coreIsWhisperHallucination(text);
   }
-
-  private static readonly BACKGROUND_NOISE_PHRASES: string[] = [
-    'pass me the salt',
-    'pass the salt',
-    'what do you want to eat',
-    'what should we eat',
-    'what\'s for dinner',
-    'what\'s for lunch',
-    'let\'s order food',
-    'change the channel',
-    'what\'s on tv',
-    'volume up',
-    'volume down',
-    'stay tuned',
-    'breaking news',
-    'back after the break',
-    'brought to you by',
-    'sponsored by',
-    'and now a word from',
-    'tonight on',
-    'next on',
-    'previously on',
-    'the following program',
-    'viewer discretion',
-    'brush your teeth',
-    'do your homework',
-    'clean your room',
-    'dinner is ready',
-    'food is ready',
-    'lunch is ready',
-    'time for bed',
-    'bad dog',
-    'here kitty',
-    'who scored',
-    'what\'s the score',
-    'touchdown',
-    'home run',
-    'what a play',
-    'pass the remote',
-    'where\'s the remote',
-    'someone\'s at the door',
-    'answer the door',
-    'hey google',
-    'ok google',
-    'hey siri',
-    'alexa',
-    'ناولني الملح',
-    'وش نأكل',
-    'شو بدك تاكل',
-    'غير القناة',
-    'ارفع الصوت',
-    'وطي الصوت',
-    'اسكت',
-    'روح نام',
-    'الأكل جاهز',
-    'العشاء جاهز',
-    'الغداء جاهز',
-    'مين سجل',
-    'كم النتيجة',
-    'مين على الباب',
-  ];
-
-  private static readonly BACKGROUND_TOPIC_PATTERNS: RegExp[] = [
-    /\b(?:recipe|ingredient|tablespoon|teaspoon|cups? of|oven|stir|chop|dice|bake|fry|boil)\b/i,
-    /\b(?:episode|season \d|series|movie|film|actor|actress|character|plot|scene)\b/i,
-    /\b(?:homework|math|science|teacher|school|class|exam|test|grade)\b/i,
-    /\b(?:walk the dog|feed the cat|pet food|veterinar|litter box)\b/i,
-    /\b(?:laundry|dishes|vacuum|mop|sweep|trash|garbage|recycl)\b/i,
-    /\b(?:weather forecast|traffic update|sports update|headline)\b/i,
-    /\b(?:commercial|advertisement|promo|trailer)\b/i,
-  ];
 
   private static isLikelyBackgroundSpeech(
     text: string,
     conversationMessages: { role: string; content: string }[]
   ): boolean {
-    const trimmed = text.trim().toLowerCase();
-    if (trimmed.length < 3) return false;
-
-    for (const phrase of this.BACKGROUND_NOISE_PHRASES) {
-      if (trimmed === phrase.toLowerCase() || trimmed.includes(phrase.toLowerCase())) {
-        return true;
-      }
-    }
-
-    for (const pattern of this.BACKGROUND_TOPIC_PATTERNS) {
-      if (pattern.test(trimmed)) {
-        const recentContext = conversationMessages
-          .slice(-6)
-          .map(m => m.content.toLowerCase())
-          .join(' ');
-
-        const words = trimmed.split(/\s+/).filter(w => w.length > 3);
-        const contextOverlap = words.filter(w => recentContext.includes(w)).length;
-        const overlapRatio = words.length > 0 ? contextOverlap / words.length : 0;
-
-        if (overlapRatio < 0.15) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return coreIsLikelyBackgroundSpeech(text, conversationMessages);
   }
 
   private static isLanguageMismatch(text: string, expectedLang: string): boolean {
-    const trimmed = text.trim();
-    if (trimmed.length < 5) return false;
-
-    const arabicChars = (trimmed.match(/[\u0600-\u06FF]/g) || []).length;
-    const latinChars = (trimmed.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-    const cjkChars = (trimmed.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
-    const totalAlpha = arabicChars + latinChars + cjkChars;
-    if (totalAlpha < 3) return false;
-
-    if (expectedLang === 'ar') {
-      if (arabicChars / totalAlpha < 0.3) return true;
-    } else if (expectedLang === 'en') {
-      if (arabicChars / totalAlpha > 0.5) return true;
-      if (cjkChars / totalAlpha > 0.3) return true;
-      const frenchPatterns = /\b(je suis|nous|vous|qu['']|c['']est|pas de|il semble|voulez|s['']il vous|en tout cas|on est)\b/i;
-      const spanishPatterns = /\b(está|usted|nosotros|también|pero|porque|entonces|gracias por|quiero|necesito)\b/i;
-      if (frenchPatterns.test(trimmed) && latinChars > 10) return true;
-      if (spanishPatterns.test(trimmed) && latinChars > 10) return true;
-    }
-
-    return false;
+    return coreIsLanguageMismatch(text, expectedLang);
   }
 
   private static cachedOpenAIKey: string | null = null;
@@ -1557,24 +1247,7 @@ export class BedrockPollyAudioBridge {
   }
 
   private static splitSentences(text: string, eager: boolean = false): string[] {
-    const sentences: string[] = [];
-    const pattern = eager
-      ? /[.!?؟]\s|[.!?؟]$|[,،:؛]\s/gm
-      : /[.!?؟]\s|[.!?؟]$/gm;
-    const minLen = eager ? 3 : 8;
-    let lastIndex = 0;
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-      const end = match.index + match[0].length;
-      const sentence = text.substring(lastIndex, end).trim();
-      if (sentence.length >= minLen) {
-        sentences.push(sentence);
-        lastIndex = end;
-      }
-    }
-    const remaining = text.substring(lastIndex).trim();
-    if (remaining.length > 0) sentences.push(remaining);
-    return sentences;
+    return coreSplitSentences(text, eager);
   }
 
 
@@ -2523,14 +2196,7 @@ CONVERSATION STYLE:
     const arrayBuffer = await response.arrayBuffer();
     const pcm16k = Buffer.from(arrayBuffer);
 
-    const sampleCount = pcm16k.length / 2;
-    const outputCount = Math.floor(sampleCount / 2);
-    const pcm8k = Buffer.alloc(outputCount * 2);
-    for (let i = 0; i < outputCount; i++) {
-      pcm8k.writeInt16LE(pcm16k.readInt16LE(i * 4), i * 2);
-    }
-
-    return pcm8k;
+    return downsamplePcm16By2(pcm16k);
   }
 
   /**
@@ -2656,15 +2322,7 @@ CONVERSATION STYLE:
   }
 
   private static sanitizeForTTS(text: string): string {
-    let sanitized = text;
-    sanitized = sanitized.replace(/\[TOOL_CALL\]\s*\{[\s\S]*?\}/g, '');
-    sanitized = sanitized.replace(/\[TOOL_CALL\]/g, '');
-    sanitized = sanitized.replace(/\{"name"\s*:\s*"[^"]*"\s*,\s*"params"\s*:\s*\{[\s\S]*?\}\s*\}/g, '');
-    sanitized = sanitized.replace(/Tool\s+"[^"]*"\s+returned:\s*\{[\s\S]*?\}/g, '');
-    sanitized = sanitized.replace(/Tool\s+"undefined"\s+returned:[\s\S]*/g, '');
-    sanitized = sanitized.replace(/\{\s*"error"\s*:\s*"[^"]*"\s*\}/g, '');
-    sanitized = sanitized.replace(/\s{2,}/g, ' ');
-    return sanitized.trim();
+    return coreSanitizeForTTS(text);
   }
 
   private static ssmlBlockedVoices: Set<string> = new Set();
@@ -2740,50 +2398,7 @@ CONVERSATION STYLE:
    * buffer length.
    */
   private static pcmToMulaw(pcmBuffer: Buffer): Buffer {
-    const mulawBuffer = Buffer.alloc(pcmBuffer.length / 2);
-    for (let i = 0; i < pcmBuffer.length; i += 2) {
-      const sample = pcmBuffer.readInt16LE(i);
-      mulawBuffer[i / 2] = this.linearToMulaw(sample);
-    }
-    return mulawBuffer;
-  }
-
-  /**
-   * Encode a single signed 16-bit PCM sample into an 8-bit mu-law byte.
-   * Uses the standard ITU-T G.711 mu-law compression algorithm with a
-   * lookup table for the exponent.
-   */
-  private static linearToMulaw(pcmVal: number): number {
-    const BIAS = 0x84;
-    const CLIP = 32635;
-    const expLut = [
-      0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
-      4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-      5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-      5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-    ];
-
-    let sign = (pcmVal >> 8) & 0x80;
-    if (sign !== 0) pcmVal = -pcmVal;
-    if (pcmVal > CLIP) pcmVal = CLIP;
-    pcmVal = pcmVal + BIAS;
-    const exponent = expLut[(pcmVal >> 7) & 0xFF];
-    const mantissa = (pcmVal >> (exponent + 3)) & 0x0F;
-    let mulawByte = ~(sign | (exponent << 4) | mantissa);
-    mulawByte &= 0xFF;
-    return mulawByte;
+    return corePcmToMulaw(pcmBuffer);
   }
 
   /**

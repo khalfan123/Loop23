@@ -6,13 +6,12 @@ import { db } from '../../../db';
 import { agents, globalSettings, twilioOpenaiCalls } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { awsBedrockService } from '../../../services/aws-bedrock';
-import { awsPollyService } from '../../../services/aws-polly';
 import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import type { AgentConfig, PollyVoiceId, BedrockModel, TtsProvider } from '../types';
 import { elevenLabsCredentials } from '@shared/schema';
-import { humanizeToSSML } from '../services/ssml-humanizer';
 import { liveCallRegistry } from '../../../services/live-call-registry';
+import { getDeprockTTSRouter, buildBrowserTTSRouteContext } from '../services/tts-router';
 
 interface BrowserVoiceSession {
   sessionId: string;
@@ -91,74 +90,19 @@ async function transcribeAudio(audioBuffer: Buffer, language?: string): Promise<
   return result.text || '';
 }
 
-async function synthesizeSpeechWithElevenLabs(text: string, voiceId: string, apiKey: string): Promise<Buffer> {
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-    method: 'POST',
-    headers: {
-      'xi-api-key': apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'audio/mpeg',
-    },
-    body: JSON.stringify({
-      text,
-      model_id: 'eleven_multilingual_v2',
-      output_format: 'mp3_22050_32',
-      voice_settings: {
-        stability: 0.55,
-        similarity_boost: 0.85,
-        speed: 1.0,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`ElevenLabs TTS API error ${response.status}: ${errorText}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-}
-
 async function synthesizeSpeech(text: string, voiceId: string, agentConfig?: AgentConfig): Promise<Buffer> {
   const MAX_CHARS = 3000;
   const synthesisText = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) : text;
 
-  if (agentConfig?.ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
-    const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
-    if (apiKey) {
-      try {
-        return await synthesizeSpeechWithElevenLabs(synthesisText, agentConfig.elevenLabsVoiceId, apiKey);
-      } catch (elError: any) {
-        console.warn(`[BrowserVoice] ElevenLabs TTS failed, falling back to Polly: ${elError.message}`);
-      }
-    }
-  }
-
-  const ssmlText = humanizeToSSML(synthesisText);
-
-  let result;
-  try {
-    result = await awsPollyService.synthesizeSpeech({
-      text: ssmlText,
-      voiceId,
-      engine: 'neural',
-      outputFormat: 'mp3',
-      sampleRate: '22050',
-      textType: 'ssml',
-    });
-  } catch (neuralError: any) {
-    console.warn(`[BrowserVoice] Neural SSML failed for voice ${voiceId}, trying plain text: ${neuralError.message}`);
-    result = await awsPollyService.synthesizeSpeech({
-      text: synthesisText,
-      voiceId,
-      engine: 'neural',
-      outputFormat: 'mp3',
-      sampleRate: '22050',
-    });
-  }
-
-  return result.audioStream;
+  // Shared voice-core router: same providers, circuit breakers, and health
+  // stats as production telephony calls, but requesting browser mp3 output.
+  const routeContext = buildBrowserTTSRouteContext(
+    agentConfig ?? ({ voice: voiceId } as AgentConfig),
+    voiceId,
+    synthesisText
+  );
+  const { result } = await getDeprockTTSRouter().synthesize(routeContext);
+  return result.audio;
 }
 
 async function getBedrockResponse(session: BrowserVoiceSession): Promise<string> {

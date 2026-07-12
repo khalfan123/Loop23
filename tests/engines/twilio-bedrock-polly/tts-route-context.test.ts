@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { buildTTSRouteContext } from '../../../server/engines/twilio-bedrock-polly/services/tts-router';
+import { buildTTSRouteContext, buildBrowserTTSRouteContext } from '../../../server/engines/twilio-bedrock-polly/services/tts-router';
 import type { AgentConfig } from '../../../server/engines/twilio-bedrock-polly/types';
 
 /**
@@ -100,5 +100,44 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     expect(ctx.preferred).toBe('aws_polly');
     const ctx2 = buildTTSRouteContext(agent({ voice: 'Joanna' }), 'elevenlabs', 'hello');
     expect(ctx2.preferred).toBe('aws_polly');
+  });
+});
+
+describe('buildBrowserTTSRouteContext — browser test-call shapes', () => {
+  it('polly agent: mp3 at 22.05kHz with neural-only degradation, cartesia excluded', () => {
+    const ctx = buildBrowserTTSRouteContext(agent({ voice: 'Matthew' }), 'Matthew', 'hello');
+    expect(ctx.preferred).toBe('aws_polly');
+    expect(ctx.buildRequest('aws_polly')).toMatchObject({
+      voiceId: 'Matthew',
+      sampleRateHz: 22050,
+      format: 'mp3',
+      options: { pollyNeuralOnly: true },
+    });
+    expect(ctx.buildRequest('cartesia')).toBeNull();
+    expect(ctx.buildRequest('elevenlabs')).toBeNull();
+  });
+
+  it('elevenlabs agent with key: mp3 ElevenLabs preferred, Polly mp3 fallback', () => {
+    const config = agent({
+      voice: 'Joanna',
+      ttsProvider: 'elevenlabs',
+      elevenLabsVoiceId: 'v-eleven-1',
+      elevenLabsApiKey: 'agent-key',
+    });
+    const ctx = buildBrowserTTSRouteContext(config, 'Joanna', 'hi');
+    expect(ctx.preferred).toBe('elevenlabs');
+    expect(ctx.buildRequest('elevenlabs')).toMatchObject({
+      voiceId: 'v-eleven-1',
+      sampleRateHz: 22050,
+      format: 'mp3',
+      options: { apiKey: 'agent-key' },
+    });
+    expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Joanna', format: 'mp3' });
+  });
+
+  it('elevenlabs agent without key demotes to Polly (legacy skip)', () => {
+    const config = agent({ voice: 'Joanna', ttsProvider: 'elevenlabs', elevenLabsVoiceId: 'v-1' });
+    const ctx = buildBrowserTTSRouteContext(config, 'Joanna', 'hi');
+    expect(ctx.buildRequest('elevenlabs')).toBeNull();
   });
 });

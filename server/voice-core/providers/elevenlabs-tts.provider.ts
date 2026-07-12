@@ -28,27 +28,31 @@ export class ElevenLabsTTSProvider implements TTSProvider {
     if (!apiKey) {
       throw new Error('ElevenLabs API key not configured');
     }
+    const isMp3 = request.format === 'mp3';
     const startedAt = Date.now();
 
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${request.voiceId}?output_format=pcm_16000`,
-      {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey,
-          'Content-Type': 'application/json',
+    const url = isMp3
+      ? `https://api.elevenlabs.io/v1/text-to-speech/${request.voiceId}`
+      : `https://api.elevenlabs.io/v1/text-to-speech/${request.voiceId}?output_format=pcm_16000`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        ...(isMp3 ? { Accept: 'audio/mpeg' } : {}),
+      },
+      body: JSON.stringify({
+        text: request.text,
+        model_id: 'eleven_multilingual_v2',
+        ...(isMp3 ? { output_format: 'mp3_22050_32' } : {}),
+        voice_settings: {
+          stability: 0.55,
+          similarity_boost: 0.85,
+          speed: 1.0,
         },
-        body: JSON.stringify({
-          text: request.text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: 0.55,
-            similarity_boost: 0.85,
-            speed: 1.0,
-          },
-        }),
-      }
-    );
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -56,10 +60,10 @@ export class ElevenLabsTTSProvider implements TTSProvider {
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const pcm16k = Buffer.from(arrayBuffer);
+    const payload = Buffer.from(arrayBuffer);
 
     return {
-      pcm: downsamplePcm16By2(pcm16k),
+      audio: isMp3 ? payload : downsamplePcm16By2(payload),
       providerId: this.id,
       latencyMs: Date.now() - startedAt,
       characters: request.text.length,

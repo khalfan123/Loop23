@@ -124,6 +124,53 @@ export function buildTTSRouteContext(
 }
 
 /**
+ * Route context for the in-browser test call, which plays mp3 at 22.05kHz
+ * instead of telephony PCM. Legacy rules preserved: ElevenLabs (agent key
+ * or env key) when the agent prefers it, otherwise Polly with SSML-neural
+ * then plain-neural (never the standard tier); Cartesia is not offered.
+ * Shares the same router singleton, so browser test calls exercise the
+ * same breakers and feed the same health stats as production calls.
+ */
+export function buildBrowserTTSRouteContext(
+  agentConfig: AgentConfig,
+  voiceId: string,
+  text: string
+): TTSRouteContext {
+  const preferred: TTSProviderId =
+    agentConfig.ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId ? 'elevenlabs' : 'aws_polly';
+
+  return {
+    preferred,
+    finalFallback: 'aws_polly',
+    language: agentConfig.language,
+    buildRequest: (id: TTSProviderId): TTSRequest | null => {
+      if (id === 'cartesia') return null;
+      if (id === 'elevenlabs') {
+        if (!agentConfig.elevenLabsVoiceId) return null;
+        const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
+        if (!apiKey) return null;
+        return {
+          text,
+          voiceId: agentConfig.elevenLabsVoiceId,
+          language: agentConfig.language,
+          sampleRateHz: 22050,
+          format: 'mp3',
+          options: { apiKey },
+        };
+      }
+      return {
+        text,
+        voiceId,
+        language: agentConfig.language,
+        sampleRateHz: 22050,
+        format: 'mp3',
+        options: { pollyNeuralOnly: true },
+      };
+    },
+  };
+}
+
+/**
  * Per-call record of the most recent turn's TTS routing outcome, consumed
  * by the per-turn metrics recorder. Bounded to avoid leaking entries for
  * calls that never reach a [LATENCY] log (e.g. dropped mid-stream).

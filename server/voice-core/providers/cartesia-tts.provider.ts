@@ -25,6 +25,9 @@ export class CartesiaTTSProvider implements TTSProvider {
   }
 
   async synthesize(request: TTSRequest): Promise<TTSResult> {
+    if (request.format === 'mp3') {
+      throw new Error('Cartesia adapter does not support mp3 output');
+    }
     const startedAt = Date.now();
     const result = await cartesiaTTSService.synthesizeSpeech({
       text: request.text,
@@ -34,7 +37,7 @@ export class CartesiaTTSProvider implements TTSProvider {
       speed: request.options?.speed,
     });
     return {
-      pcm: result.audioStream,
+      audio: result.audioStream,
       providerId: this.id,
       latencyMs: Date.now() - startedAt,
       characters: request.text.length,

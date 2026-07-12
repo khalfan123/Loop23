@@ -25,7 +25,7 @@ function mockProvider(
         remainingFailures--;
         throw new Error(`${id} synth failed`);
       }
-      return { pcm: Buffer.from([1, 2]), providerId: id, latencyMs: 5, characters: request.text.length };
+      return { audio: Buffer.from([1, 2]), providerId: id, latencyMs: 5, characters: request.text.length };
     },
   };
 }

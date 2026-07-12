@@ -17,20 +17,24 @@ export interface TTSRequest {
   voiceId: string;
   /** BCP-47-ish language hint, e.g. 'en', 'ar', 'es-MX'. */
   language?: string;
-  /** v1: the engine consumes 8kHz PCM16LE mono. */
-  sampleRateHz: 8000;
+  /** Telephony consumes 8kHz; the browser test-call path uses 22.05kHz mp3. */
+  sampleRateHz: 8000 | 22050;
+  /** Audio container: raw PCM16LE mono (default) or mp3. */
+  format?: 'pcm' | 'mp3';
   /** Provider-specific escape hatches. */
   options?: {
     /** ElevenLabs per-agent API key. */
     apiKey?: string;
     /** Cartesia speech rate multiplier. */
     speed?: number;
+    /** Polly: stop degradation after the neural tier (browser test calls). */
+    pollyNeuralOnly?: boolean;
   };
 }
 
 export interface TTSResult {
-  /** 16-bit signed LE mono PCM at sampleRateHz. */
-  pcm: Buffer;
+  /** Audio payload in the requested format (PCM16LE mono or mp3). */
+  audio: Buffer;
   providerId: TTSProviderId;
   latencyMs: number;
   characters: number;

@@ -2116,7 +2116,7 @@ CONVERSATION STYLE:
       const routeContext = buildTTSRouteContext(agentConfig, ttsProvider, synthesisText);
       const { result, attempts } = await getDeprockTTSRouter().synthesize(routeContext);
       noteTTSAttempts(callSid, routeContext.preferred, attempts);
-      const pcmBuffer: Buffer = result.pcm;
+      const pcmBuffer: Buffer = result.audio;
 
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
       this.sendMulawToTwilio(session, mulawBuffer);
@@ -2166,7 +2166,7 @@ CONVERSATION STYLE:
       voiceId,
       sampleRateHz: 8000,
     });
-    return result.pcm;
+    return result.audio;
   }
 
   /**

@@ -66,6 +66,9 @@ export class PollyTTSProvider implements TTSProvider {
 
   async synthesize(request: TTSRequest): Promise<TTSResult> {
     const { text, voiceId } = request;
+    const outputFormat = request.format === 'mp3' ? 'mp3' : 'pcm';
+    const sampleRate = String(request.sampleRateHz);
+    const neuralOnly = request.options?.pollyNeuralOnly === true;
     const startedAt = Date.now();
     const useSSML = !!this.ssmlify && !this.ssmlBlockedVoices.has(voiceId);
     const useNeural = !this.neuralBlockedVoices.has(voiceId);
@@ -79,8 +82,8 @@ export class PollyTTSProvider implements TTSProvider {
           text: ssmlText,
           voiceId,
           engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: String(request.sampleRateHz),
+          outputFormat,
+          sampleRate,
           textType: 'ssml',
         });
         return this.toResult(result.audioStream, text, startedAt);
@@ -90,17 +93,18 @@ export class PollyTTSProvider implements TTSProvider {
       }
     }
 
-    if (useNeural) {
+    if (useNeural || neuralOnly) {
       try {
         result = await awsPollyService.synthesizeSpeech({
           text,
           voiceId,
           engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: String(request.sampleRateHz),
+          outputFormat,
+          sampleRate,
         });
         return this.toResult(result.audioStream, text, startedAt);
       } catch (e: any) {
+        if (neuralOnly) throw e;
         console.warn(`[VoiceCore Polly] Neural failed for ${voiceId}, caching: ${e.message}`);
         this.neuralBlockedVoices.add(voiceId);
       }
@@ -110,15 +114,15 @@ export class PollyTTSProvider implements TTSProvider {
       text,
       voiceId,
       engine: 'standard',
-      outputFormat: 'pcm',
-      sampleRate: String(request.sampleRateHz),
+      outputFormat,
+      sampleRate,
     });
     return this.toResult(result.audioStream, text, startedAt);
   }
 
-  private toResult(pcm: Buffer, text: string, startedAt: number): TTSResult {
+  private toResult(audio: Buffer, text: string, startedAt: number): TTSResult {
     return {
-      pcm,
+      audio,
       providerId: this.id,
       latencyMs: Date.now() - startedAt,
       characters: text.length,

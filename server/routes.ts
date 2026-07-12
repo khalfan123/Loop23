@@ -103,6 +103,7 @@ import { registerBedrockKBRoutes } from "./routes/bedrock-kb-routes";
 import { createKnowledgeIntelligenceRoutes } from "./routes/knowledge-intelligence-routes";
 import { createDepartmentRoutes, createIvrAudioRoutes } from "./routes/department-routes";
 import { createDeprockRoutes, createDeprockIvrAudioRoutes } from "./routes/deprock-routes";
+import { createVoiceMetricsRoutes } from "./routes/voice-metrics-routes";
 import { createNotificationRoutes } from "./routes/notification-routes";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
@@ -1610,6 +1611,10 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Deprock (Bedrock + Polly) Department Management routes
   const deprockRoutes = createDeprockRoutes(routeContext.authenticateHybrid);
   app.use("/api/deprock", deprockRoutes);
+
+  // Voice-core per-turn latency metrics and TTS provider health
+  const voiceMetricsRoutes = createVoiceMetricsRoutes(routeContext.authenticateHybrid as unknown as import('express').RequestHandler);
+  app.use("/api/voice-metrics", voiceMetricsRoutes);
 
   // Live Call Monitoring routes
   const liveMonitoringRoutes = createLiveMonitoringRoutes(routeContext.authenticateHybrid);

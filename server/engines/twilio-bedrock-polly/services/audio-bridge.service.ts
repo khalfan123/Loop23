@@ -59,7 +59,9 @@ import {
   getDeprockPollyProvider,
   buildTTSRouteContext,
   noteTTSAttempts,
+  consumeTTSOutcome,
 } from './tts-router';
+import { voiceMetrics } from '../../../voice-core';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -1603,6 +1605,20 @@ CONVERSATION STYLE:
       const ttsAudioMs = firstTtsAudioTime ? firstTtsAudioTime - startTime : 0;
       console.log(`[BedrockPolly Bridge] Streaming complete for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments, ${elapsed}ms`);
       console.log(`[LATENCY] call=${callSid} stt=${sttMs || 0}ms llm_first=${llmFirstMs}ms tts_start=${ttsFirstMs}ms tts_audio=${ttsAudioMs}ms stream_total=${elapsed}ms`);
+
+      const ttsOutcome = consumeTTSOutcome(callSid);
+      voiceMetrics.recordTurn({
+        callSid,
+        at: Date.now(),
+        engine: 'bedrock-polly',
+        sttMs: sttMs || 0,
+        llmFirstMs,
+        ttsStartMs: ttsFirstMs,
+        ttsAudioMs,
+        streamTotalMs: elapsed,
+        ttsProvider: ttsOutcome?.provider,
+        ttsFellBack: ttsOutcome?.fellBack,
+      });
 
       return fullText;
     } catch (error: any) {

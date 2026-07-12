@@ -17,12 +17,10 @@
 
 import WebSocket from 'ws';
 import { awsBedrockService } from '../../../services/aws-bedrock';
-import { awsPollyService } from '../../../services/aws-polly';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/config';
 import { resolveHumanAgentBridgeCallerId } from '../../../utils/phone-e164';
 import { db } from '../../../db';
-import { agents, openaiCredentials } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { callErrorLogger } from '../../../services/call-error-logger';
 import type {
@@ -37,13 +35,38 @@ import { openaiInvokeStream, openaiInvoke, openaiInvokeStreamStructured } from '
 import { ToolRegistry, toBedrockToolSpecs, agentToolToDefinition } from '../../../services/agent-orchestration/tool-registry';
 import { converseStream, converseWithToolResults } from '../../../services/agent-orchestration/bedrock-converse';
 import type { LLMStreamEvent, StructuredToolCall, StructuredToolResult, ToolDefinition } from '../../../services/agent-orchestration/tool-registry';
-import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
+import {
+  mulawEnergy,
+  pcmToMulaw as corePcmToMulaw,
+} from '../../../voice-core/audio/g711';
+import { splitSentences as coreSplitSentences } from '../../../voice-core/text/sentence-split';
+import { sanitizeForTTS as coreSanitizeForTTS } from '../../../voice-core/text/tts-sanitize';
+import {
+  isWhisperHallucination as coreIsWhisperHallucination,
+  isLikelyBackgroundSpeech as coreIsLikelyBackgroundSpeech,
+  isLanguageMismatch as coreIsLanguageMismatch,
+} from '../../../voice-core/stt/whisper-filters';
+import { defaultPollyVoiceForLanguage } from '../../../voice-core/providers/polly-tts.provider';
+import { ElevenLabsTTSProvider } from '../../../voice-core/providers/elevenlabs-tts.provider';
+import {
+  getDeprockTTSRouter,
+  getDeprockPollyProvider,
+  buildTTSRouteContext,
+  outcomeFromAttempts,
+  type TTSSynthesisOutcome,
+} from './tts-router';
+import { getDeprockSTTProvider } from './stt-provider';
+import { voiceMetrics } from '../../../voice-core';
+import { recordVoiceTurnSpan } from '../../../observability/tracing';
+
+/** Shared adapter for pre-warming cached ElevenLabs backchannel phrases. */
+const backchannelElevenLabs = new ElevenLabsTTSProvider();
 
 /**
  * Silence detection timers keyed by callSid.
@@ -98,63 +121,11 @@ const ECHO_COOLDOWN_MS = 600;
 
 const whisperAbortControllers: Map<string, AbortController> = new Map();
 
-const MULAW_DECODE_TABLE: Int16Array = (() => {
-  const table = new Int16Array(256);
-  for (let i = 0; i < 256; i++) {
-    let val = ~i;
-    const sign = val & 0x80;
-    const exponent = (val >> 4) & 0x07;
-    const mantissa = val & 0x0F;
-    let magnitude = ((mantissa << 1) | 0x21) << (exponent + 2);
-    magnitude -= 0x21 << 2;
-    table[i] = sign ? -magnitude : magnitude;
-  }
-  return table;
-})();
-
 /**
  * Twilio stream ready flags, tracked separately from session to avoid
  * race conditions during first-message sending.
  */
 const twilioStreamReady: Map<string, boolean> = new Map();
-
-/**
- * Creates a proper WAV header for mulaw-encoded audio data.
- * Format code 7 = mu-law compression, 8-bit samples, mono, 8 kHz.
- *
- * @param dataLength - Length of the raw mulaw audio data in bytes
- * @param sampleRate - Sample rate (default 8000)
- * @param channels   - Number of audio channels (default 1)
- * @returns Buffer containing a 46-byte WAV header
- */
-function createMulawWavHeader(
-  dataLength: number,
-  sampleRate: number = 8000,
-  channels: number = 1
-): Buffer {
-  const fmtChunkSize = 18;
-  const headerSize = 12 + 8 + fmtChunkSize + 8;
-  const header = Buffer.alloc(headerSize);
-
-  header.write('RIFF', 0);
-  header.writeUInt32LE(dataLength + headerSize - 8, 4);
-  header.write('WAVE', 8);
-
-  header.write('fmt ', 12);
-  header.writeUInt32LE(fmtChunkSize, 16);
-  header.writeUInt16LE(7, 20);
-  header.writeUInt16LE(channels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * channels, 28);
-  header.writeUInt16LE(channels, 32);
-  header.writeUInt16LE(8, 34);
-  header.writeUInt16LE(0, 36);
-
-  header.write('data', 38);
-  header.writeUInt32LE(dataLength, 42);
-
-  return header;
-}
 
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
@@ -184,13 +155,7 @@ export class BedrockPollyAudioBridge {
   private static readonly ENERGY_VARIANCE_MAX_RATIO = 4.0;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
-    if (chunk.length === 0) return 0;
-    let sumSquares = 0;
-    for (let i = 0; i < chunk.length; i++) {
-      const linear = MULAW_DECODE_TABLE[chunk[i]];
-      sumSquares += linear * linear;
-    }
-    return Math.sqrt(sumSquares / chunk.length);
+    return mulawEnergy(chunk);
   }
 
   private static collectNoiseFloorSample(callSid: string, energy: number): void {
@@ -745,29 +710,7 @@ export class BedrockPollyAudioBridge {
   > = new Map();
 
   private static getPollyFallbackVoice(language?: string): string {
-    const langVoiceMap: Record<string, string> = {
-      ar: 'Hala',
-      en: 'Joanna',
-      es: 'Lupe',
-      fr: 'Lea',
-      de: 'Vicki',
-      it: 'Bianca',
-      pt: 'Camila',
-      hi: 'Kajal',
-      ja: 'Kazuha',
-      ko: 'Seoyeon',
-      zh: 'Zhiyu',
-      tr: 'Burcu',
-      nl: 'Laura',
-      pl: 'Ola',
-      sv: 'Elin',
-      da: 'Sofie',
-      nb: 'Ida',
-      fi: 'Suvi',
-    };
-    if (!language) return 'Joanna';
-    const langPrefix = language.split('-')[0].toLowerCase();
-    return langVoiceMap[langPrefix] || 'Joanna';
+    return defaultPollyVoiceForLanguage(language);
   }
 
   private static getRandomFiller(fillers: string[]): string {
@@ -800,7 +743,12 @@ export class BedrockPollyAudioBridge {
       for (const phrase of phrases) {
         if (entry.mulawByPhrase.has(phrase)) continue;
         try {
-          const pcm8k = await this.synthesizeWithElevenLabs(phrase, session.agentConfig.elevenLabsVoiceId!, apiKey);
+          const { audio: pcm8k } = await backchannelElevenLabs.synthesize({
+            text: phrase,
+            voiceId: session.agentConfig.elevenLabsVoiceId!,
+            sampleRateHz: 8000,
+            options: { apiKey },
+          });
           const mulaw = this.pcmToMulaw(pcm8k);
           entry.mulawByPhrase.set(phrase, mulaw);
         } catch {
@@ -1356,346 +1304,22 @@ export class BedrockPollyAudioBridge {
     }
   }
 
-  private static readonly WHISPER_HALLUCINATION_EXACT: string[] = [
-    'شكراً على المشاهدة',
-    'وشكراً على المشاهدة',
-    'شكرا على المشاهدة',
-    'شكرا للمشاهدة',
-    'اشتركوا في القناة',
-    'اشترك في القناة',
-    'لا تنسوا الاشتراك',
-    'ترجمة',
-    'أعوذ بالله من الشيطان الرجيم',
-    'بسم الله الرحمن الرحيم',
-    'السلام عليكم ورحمة الله وبركاته',
-    'صلى الله عليه وسلم',
-    'سبحان الله وبحمده',
-    'الحمد لله رب العالمين',
-    'والسلام عليكم ورحمة الله',
-    'إن شاء الله',
-    'ما شاء الله',
-    'لا حول ولا قوة إلا بالله',
-    'سبحان الله',
-    'الله أكبر',
-    'لا إله إلا الله',
-    'استغفر الله',
-    'أشهد أن لا إله إلا الله',
-    'رضي الله عنه',
-    'جزاكم الله خيرا',
-    'بارك الله فيكم',
-    'حسبي الله ونعم الوكيل',
-    'إنا لله وإنا إليه راجعون',
-    'تحياتي',
-    'مع السلامة',
-    'الى اللقاء',
-    'subscribe',
-    'thank you for watching',
-    'thanks for watching',
-    'like and subscribe',
-    'please subscribe',
-    'don\'t forget to subscribe',
-    'hit the bell',
-    'Shabbat shalom',
-    'subtitles by',
-    'amara.org',
-    'www.mooji.org',
-    '♪',
-    '...',
-    'you',
-    'bye',
-    'the end',
-    'thank you',
-    'thanks',
-    'MBC',
-    'SBS',
-    'TV',
-    'FM',
-  ];
-
-  private static readonly WHISPER_HALLUCINATION_CONTAINS: string[] = [
-    'شكرا على المشاهدة',
-    'شكراً على المشاهدة',
-    'اشتركوا في القناة',
-    'لا تنسوا الاشتراك',
-    'thank you for watching',
-    'thanks for watching',
-    'like and subscribe',
-    'please subscribe',
-    'subtitles by',
-    'amara.org',
-    'www.mooji.org',
-    'مشاهدة ممتعة',
-    'تابعونا على',
-    'قناتنا على',
-    'ترجمة الأخ',
-    'ترجمة فريق',
-    'أخرجها',
-    'إخراج',
-    'مونتاج',
-    'تصوير',
-    'إعداد وتقديم',
-    'حلقة جديدة',
-    'الحلقة القادمة',
-    'في الحلقة',
-    'نراكم في',
-    'كونوا معنا',
-    'لا تنسى الإعجاب',
-    'اضغط لايك',
-    'فعل الجرس',
-    'رابط القناة',
-  ];
-
   private static isWhisperHallucination(text: string): boolean {
-    const trimmed = text.trim();
-    if (trimmed.length < 3) return true;
-
-    const lower = trimmed.toLowerCase();
-
-    for (const h of this.WHISPER_HALLUCINATION_EXACT) {
-      if (lower === h.toLowerCase()) return true;
-    }
-
-    for (const h of this.WHISPER_HALLUCINATION_CONTAINS) {
-      if (lower.includes(h.toLowerCase())) return true;
-    }
-
-    if (/^[♪♫🎵🎶\s.,!?]+$/.test(trimmed)) return true;
-
-    if (/^\.{2,}$/.test(trimmed)) return true;
-
-    const exactRepeat = /^(.{2,30})\1{2,}$/;
-    if (exactRepeat.test(trimmed)) return true;
-
-    const isArabic = /[\u0600-\u06FF]/.test(trimmed);
-    if (isArabic) {
-      const arabicOnly = trimmed.replace(/[^\u0600-\u06FF\s]/g, '').trim();
-      const arabicRatio = arabicOnly.length / trimmed.length;
-      if (arabicRatio > 0.8) {
-        const cleanedForCheck = trimmed.replace(/[؟?!.,،؛\s]+$/g, '').replace(/(.)\1{2,}/g, '$1$1');
-        const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك)$/i;
-        const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
-
-        if (arabicWords.length <= 2 && trimmed.length < 15) {
-          if (!validShortArabic.test(cleanedForCheck)) return true;
-        }
-
-        if (/الله|سبحان|بسم|صلى|رحمة|الحمد|أعوذ|الشيطان/.test(trimmed) && arabicWords.length <= 6) return true;
-
-        if (/المشاهدة|الاشتراك|القناة|الحلقة|تابعونا|لايك|الجرس/.test(trimmed)) return true;
-      }
-    }
-
-    const words = trimmed.split(/\s+/).filter(w => w.length > 1);
-    if (words.length >= 4) {
-      const uniqueWords = new Set(words.map(w => w.toLowerCase()));
-      if (uniqueWords.size === 1) return true;
-
-      const windowSize = Math.min(4, Math.floor(words.length / 3));
-      if (windowSize >= 2) {
-        for (let phraseLen = 2; phraseLen <= windowSize; phraseLen++) {
-          const phraseCounts = new Map<string, number>();
-          for (let i = 0; i <= words.length - phraseLen; i++) {
-            const phrase = words.slice(i, i + phraseLen).join(' ').toLowerCase();
-            phraseCounts.set(phrase, (phraseCounts.get(phrase) || 0) + 1);
-          }
-          for (const count of phraseCounts.values()) {
-            if (count >= 3) return true;
-          }
-        }
-      }
-    }
-
-    return false;
+    return coreIsWhisperHallucination(text);
   }
-
-  private static readonly BACKGROUND_NOISE_PHRASES: string[] = [
-    'pass me the salt',
-    'pass the salt',
-    'what do you want to eat',
-    'what should we eat',
-    'what\'s for dinner',
-    'what\'s for lunch',
-    'let\'s order food',
-    'change the channel',
-    'what\'s on tv',
-    'volume up',
-    'volume down',
-    'stay tuned',
-    'breaking news',
-    'back after the break',
-    'brought to you by',
-    'sponsored by',
-    'and now a word from',
-    'tonight on',
-    'next on',
-    'previously on',
-    'the following program',
-    'viewer discretion',
-    'brush your teeth',
-    'do your homework',
-    'clean your room',
-    'dinner is ready',
-    'food is ready',
-    'lunch is ready',
-    'time for bed',
-    'bad dog',
-    'here kitty',
-    'who scored',
-    'what\'s the score',
-    'touchdown',
-    'home run',
-    'what a play',
-    'pass the remote',
-    'where\'s the remote',
-    'someone\'s at the door',
-    'answer the door',
-    'hey google',
-    'ok google',
-    'hey siri',
-    'alexa',
-    'ناولني الملح',
-    'وش نأكل',
-    'شو بدك تاكل',
-    'غير القناة',
-    'ارفع الصوت',
-    'وطي الصوت',
-    'اسكت',
-    'روح نام',
-    'الأكل جاهز',
-    'العشاء جاهز',
-    'الغداء جاهز',
-    'مين سجل',
-    'كم النتيجة',
-    'مين على الباب',
-  ];
-
-  private static readonly BACKGROUND_TOPIC_PATTERNS: RegExp[] = [
-    /\b(?:recipe|ingredient|tablespoon|teaspoon|cups? of|oven|stir|chop|dice|bake|fry|boil)\b/i,
-    /\b(?:episode|season \d|series|movie|film|actor|actress|character|plot|scene)\b/i,
-    /\b(?:homework|math|science|teacher|school|class|exam|test|grade)\b/i,
-    /\b(?:walk the dog|feed the cat|pet food|veterinar|litter box)\b/i,
-    /\b(?:laundry|dishes|vacuum|mop|sweep|trash|garbage|recycl)\b/i,
-    /\b(?:weather forecast|traffic update|sports update|headline)\b/i,
-    /\b(?:commercial|advertisement|promo|trailer)\b/i,
-  ];
 
   private static isLikelyBackgroundSpeech(
     text: string,
     conversationMessages: { role: string; content: string }[]
   ): boolean {
-    const trimmed = text.trim().toLowerCase();
-    if (trimmed.length < 3) return false;
-
-    for (const phrase of this.BACKGROUND_NOISE_PHRASES) {
-      if (trimmed === phrase.toLowerCase() || trimmed.includes(phrase.toLowerCase())) {
-        return true;
-      }
-    }
-
-    for (const pattern of this.BACKGROUND_TOPIC_PATTERNS) {
-      if (pattern.test(trimmed)) {
-        const recentContext = conversationMessages
-          .slice(-6)
-          .map(m => m.content.toLowerCase())
-          .join(' ');
-
-        const words = trimmed.split(/\s+/).filter(w => w.length > 3);
-        const contextOverlap = words.filter(w => recentContext.includes(w)).length;
-        const overlapRatio = words.length > 0 ? contextOverlap / words.length : 0;
-
-        if (overlapRatio < 0.15) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return coreIsLikelyBackgroundSpeech(text, conversationMessages);
   }
 
   private static isLanguageMismatch(text: string, expectedLang: string): boolean {
-    const trimmed = text.trim();
-    if (trimmed.length < 5) return false;
-
-    const arabicChars = (trimmed.match(/[\u0600-\u06FF]/g) || []).length;
-    const latinChars = (trimmed.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-    const cjkChars = (trimmed.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
-    const totalAlpha = arabicChars + latinChars + cjkChars;
-    if (totalAlpha < 3) return false;
-
-    if (expectedLang === 'ar') {
-      if (arabicChars / totalAlpha < 0.3) return true;
-    } else if (expectedLang === 'en') {
-      if (arabicChars / totalAlpha > 0.5) return true;
-      if (cjkChars / totalAlpha > 0.3) return true;
-      const frenchPatterns = /\b(je suis|nous|vous|qu['']|c['']est|pas de|il semble|voulez|s['']il vous|en tout cas|on est)\b/i;
-      const spanishPatterns = /\b(está|usted|nosotros|también|pero|porque|entonces|gracias por|quiero|necesito)\b/i;
-      if (frenchPatterns.test(trimmed) && latinChars > 10) return true;
-      if (spanishPatterns.test(trimmed) && latinChars > 10) return true;
-    }
-
-    return false;
-  }
-
-  private static cachedOpenAIKey: string | null = null;
-  private static cachedKeyTimestamp: number = 0;
-  private static readonly KEY_CACHE_TTL_MS = 300_000;
-
-  private static isValidApiKey(key: string | undefined): key is string {
-    if (!key || key.trim().length === 0) return false;
-    const dummyPatterns = ['_DUMMY_', 'YOUR_KEY', 'placeholder', 'xxx', 'REPLACE', 'changeme', 'test_key'];
-    const upper = key.toUpperCase();
-    return !dummyPatterns.some(p => upper.includes(p.toUpperCase()));
-  }
-
-  private static async resolveOpenAIKey(): Promise<string | null> {
-    if (this.isValidApiKey(process.env.OPENAI_API_KEY)) {
-      console.log('[BedrockPolly Bridge] Using OpenAI key from OPENAI_API_KEY env var');
-      return process.env.OPENAI_API_KEY;
-    }
-    if (this.isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) {
-      console.log('[BedrockPolly Bridge] Using OpenAI key from AI_INTEGRATIONS env var');
-      return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-    }
-
-    const now = Date.now();
-    if (this.cachedOpenAIKey && (now - this.cachedKeyTimestamp) < this.KEY_CACHE_TTL_MS) {
-      return this.cachedOpenAIKey;
-    }
-
-    try {
-      const [cred] = await db
-        .select({ apiKey: openaiCredentials.apiKey })
-        .from(openaiCredentials)
-        .limit(1);
-      if (cred?.apiKey && this.isValidApiKey(cred.apiKey)) {
-        this.cachedOpenAIKey = cred.apiKey;
-        this.cachedKeyTimestamp = now;
-        console.log(`[BedrockPolly Bridge] Resolved OpenAI key from DB (${cred.apiKey.substring(0, 12)}...)`);
-        return cred.apiKey;
-      }
-    } catch (err: any) {
-      console.error('[BedrockPolly Bridge] Failed to resolve OpenAI key from DB:', err.message);
-    }
-    console.error('[BedrockPolly Bridge] No valid OpenAI key found in env vars or DB');
-    return null;
+    return coreIsLanguageMismatch(text, expectedLang);
   }
 
   private static async transcribeAudio(audioBuffer: Buffer, language?: string, conversationContext?: string[], callSid?: string): Promise<string> {
-    const apiKey = await this.resolveOpenAIKey();
-    if (!apiKey) {
-      console.error('[BedrockPolly Bridge] No OpenAI API key available (env or DB) — cannot transcribe');
-      callErrorLogger.logCallError({
-        callId: (callSid ? (this.activeSessions.get(callSid)?.agentConfig as any)?.toolContext?.callId : undefined),
-        userId: (callSid ? (this.activeSessions.get(callSid)?.agentConfig as any)?.toolContext?.userId : undefined),
-        engineType: 'bedrock-polly',
-        errorCategory: 'stt_failure',
-        severity: 'critical',
-        message: 'STT unavailable: missing OpenAI API key (OPENAI_API_KEY / AI_INTEGRATIONS_OPENAI_API_KEY / DB credential)',
-        metadata: { callSid, missingKey: true },
-      });
-      return '';
-    }
-
     if (callSid) {
       const existing = whisperAbortControllers.get(callSid);
       if (existing) {
@@ -1710,130 +1334,60 @@ export class BedrockPollyAudioBridge {
     }
 
     try {
-      const wavHeader = createMulawWavHeader(audioBuffer.length);
-      const wavBuffer = Buffer.concat([wavHeader, audioBuffer]);
-
-      const formData = new FormData();
-      formData.append(
-        'file',
-        new Blob([wavBuffer], { type: 'audio/wav' }),
-        'audio.wav'
-      );
-      formData.append('model', 'whisper-1');
-      formData.append('response_format', 'verbose_json');
-      formData.append('temperature', '0');
-      if (language) {
-        const whisperLang = language.split('-')[0].toLowerCase();
-        formData.append('language', whisperLang);
-      }
-
-      let whisperPrompt = '';
-      if (language === 'ar') {
-        whisperPrompt = 'ألو، مرحبا، أهلا، أريد، ممكن، سؤال، مساعدة، حساب، فاتورة، رصيد، دفع، موعد، حجز، إلغاء، اشتراك، تجوال، خدمة، مشكلة، شكوى، استفسار';
-      }
-      if (conversationContext && conversationContext.length > 0) {
-        const recentContext = conversationContext.slice(-2).join(' ').substring(0, 200);
-        whisperPrompt = whisperPrompt ? `${whisperPrompt}. ${recentContext}` : recentContext;
-      }
-      if (whisperPrompt) {
-        formData.append('prompt', whisperPrompt);
-      }
-
-      const sttStart = Date.now();
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: formData,
+      const provider = getDeprockSTTProvider();
+      const result = await provider.transcribe({
+        audio: audioBuffer,
+        language,
+        promptContext: conversationContext,
         signal: abortController.signal,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[BedrockPolly Bridge] Whisper API error ${response.status}: ${errorText}`);
+      voiceMetrics.recordSTTAttempt({
+        providerId: provider.id,
+        ok: result.rejected === undefined,
+        latencyMs: result.latencyMs,
+        rejected: result.rejected,
+      });
+
+      if (result.rejected === 'aborted') {
+        console.log(`[BedrockPolly Bridge] Whisper request aborted for ${callSid}`);
+        return '';
+      }
+
+      if (result.rejected === 'error') {
+        console.error(`[BedrockPolly Bridge] ${result.errorMessage}`);
         callErrorLogger.logCallError({
           engineType: 'bedrock-polly',
           errorCategory: 'stt_failure', severity: 'error',
-          message: `Whisper API error ${response.status}: ${errorText.substring(0, 200)}`,
-          latencyMs: Date.now() - sttStart, metadata: { callSid },
+          message: result.errorMessage || 'STT failure',
+          latencyMs: result.latencyMs, metadata: { callSid },
         });
         return '';
       }
 
-      const rawBody = await response.text();
-      const sttMs = Date.now() - sttStart;
+      const noSpeechProb = result.noSpeechProb ?? 0;
+      const avgLogprob = result.avgLogprob ?? 0;
+      const segmentCount = result.segmentCount ?? 0;
+      console.log(`[BedrockPolly Bridge] Whisper: ${result.latencyMs}ms, "${result.text.substring(0, 200)}" (${result.text.length} chars, noSpeech=${noSpeechProb.toFixed(2)}, avgLogprob=${avgLogprob.toFixed(2)}, segs=${segmentCount})`);
 
-      let text = '';
-      let noSpeechProb = 0;
-      let avgLogprob = 0;
-      let segmentCount = 0;
-
-      try {
-        const jsonResult = JSON.parse(rawBody);
-        text = (jsonResult.text || '').trim();
-
-        if (jsonResult.segments && Array.isArray(jsonResult.segments) && jsonResult.segments.length > 0) {
-          segmentCount = jsonResult.segments.length;
-          let totalNoSpeech = 0;
-          let totalLogprob = 0;
-          for (const seg of jsonResult.segments) {
-            totalNoSpeech += (seg.no_speech_prob || 0);
-            totalLogprob += (seg.avg_logprob || 0);
-          }
-          noSpeechProb = totalNoSpeech / segmentCount;
-          avgLogprob = totalLogprob / segmentCount;
-        }
-      } catch {
-        text = rawBody.trim();
-      }
-
-      console.log(`[BedrockPolly Bridge] Whisper: ${sttMs}ms, "${text.substring(0, 200)}" (${text.length} chars, ${wavBuffer.length}b WAV, noSpeech=${noSpeechProb.toFixed(2)}, avgLogprob=${avgLogprob.toFixed(2)}, segs=${segmentCount})`);
-
-      if (segmentCount > 0 && noSpeechProb > 0.6) {
-        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)} > 0.6 for ${callSid}: "${text.substring(0, 100)}"`);
+      if (result.rejected === 'confidence') {
+        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)}, avgLogprob=${avgLogprob.toFixed(3)} for ${callSid}`);
         return '';
       }
 
-      if (segmentCount > 0 && avgLogprob < -1.0) {
-        console.log(`[BedrockPolly Bridge] Whisper confidence reject: avgLogprob=${avgLogprob.toFixed(3)} < -1.0 for ${callSid}: "${text.substring(0, 100)}"`);
-        return '';
-      }
-
-      return text;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log(`[BedrockPolly Bridge] Whisper request aborted for ${callSid}`);
-        return '';
-      }
-      console.error(`[BedrockPolly Bridge] Transcription error:`, error.message);
-      return '';
+      return result.text;
     } finally {
-      if (callSid) {
+      // Only remove OUR controller: a newer request may have replaced the
+      // map entry after aborting us; deleting blindly would strip the newer
+      // request's ability to be cancelled by the next barge-in.
+      if (callSid && whisperAbortControllers.get(callSid) === abortController) {
         whisperAbortControllers.delete(callSid);
       }
     }
   }
 
   private static splitSentences(text: string, eager: boolean = false): string[] {
-    const sentences: string[] = [];
-    const pattern = eager
-      ? /[.!?؟]\s|[.!?؟]$|[,،:؛]\s/gm
-      : /[.!?؟]\s|[.!?؟]$/gm;
-    const minLen = eager ? 3 : 8;
-    let lastIndex = 0;
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-      const end = match.index + match[0].length;
-      const sentence = text.substring(lastIndex, end).trim();
-      if (sentence.length >= minLen) {
-        sentences.push(sentence);
-        lastIndex = end;
-      }
-    }
-    const remaining = text.substring(lastIndex).trim();
-    if (remaining.length > 0) sentences.push(remaining);
-    return sentences;
+    return coreSplitSentences(text, eager);
   }
 
 
@@ -1946,6 +1500,8 @@ CONVERSATION STYLE:
       let firstTokenTime = 0;
       let firstTtsStartTime = 0;
       let firstTtsAudioTime = 0;
+      let turnTtsProvider: TTSSynthesisOutcome['provider'] | undefined;
+      let turnTtsFellBack = false;
       const collectedToolCalls: StructuredToolCall[] = [];
 
       bargeInFlags.set(callSid, false);
@@ -1965,9 +1521,13 @@ CONVERSATION STYLE:
           const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
           console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
         }
-        pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
+        pendingSynthesis = this.synthesizeAndSend(session, sentence).then((outcome) => {
           if (!firstTtsAudioTime) {
             firstTtsAudioTime = Date.now();
+          }
+          if (outcome) {
+            turnTtsProvider = outcome.provider;
+            turnTtsFellBack = turnTtsFellBack || outcome.fellBack;
           }
         });
       };
@@ -2201,8 +1761,17 @@ CONVERSATION STYLE:
         if (sentencesSent === 1) {
           firstTtsStartTime = Date.now();
         }
-        await this.synthesizeAndSend(session, sentenceBuffer.trim());
+        const outcome = await this.synthesizeAndSend(session, sentenceBuffer.trim());
         if (!firstTtsAudioTime) firstTtsAudioTime = Date.now();
+        if (outcome) {
+          turnTtsProvider = outcome.provider;
+          turnTtsFellBack = turnTtsFellBack || outcome.fellBack;
+        }
+      }
+
+      if (pendingSynthesis) {
+        await pendingSynthesis;
+        pendingSynthesis = null;
       }
 
       const elapsed = Date.now() - startTime;
@@ -2211,6 +1780,21 @@ CONVERSATION STYLE:
       const ttsAudioMs = firstTtsAudioTime ? firstTtsAudioTime - startTime : 0;
       console.log(`[BedrockPolly Bridge] Streaming complete for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments, ${elapsed}ms`);
       console.log(`[LATENCY] call=${callSid} stt=${sttMs || 0}ms llm_first=${llmFirstMs}ms tts_start=${ttsFirstMs}ms tts_audio=${ttsAudioMs}ms stream_total=${elapsed}ms`);
+
+      const turnMetric = {
+        callSid,
+        at: Date.now(),
+        engine: 'bedrock-polly' as const,
+        sttMs: sttMs || 0,
+        llmFirstMs,
+        ttsStartMs: ttsFirstMs,
+        ttsAudioMs,
+        streamTotalMs: elapsed,
+        ttsProvider: turnTtsProvider,
+        ttsFellBack: turnTtsProvider ? turnTtsFellBack : undefined,
+      };
+      voiceMetrics.recordTurn(turnMetric);
+      recordVoiceTurnSpan(turnMetric);
 
       return fullText;
     } catch (error: any) {
@@ -2751,51 +2335,6 @@ CONVERSATION STYLE:
   }
 
   /**
-   * Synthesize text to speech via ElevenLabs TTS API returning PCM audio buffer.
-   * Uses the /v1/text-to-speech/{voice_id} endpoint with pcm_16000 output format,
-   * then downsamples to 8kHz PCM for Twilio mulaw conversion.
-   */
-  private static async synthesizeWithElevenLabs(
-    text: string,
-    voiceId: string,
-    apiKey: string
-  ): Promise<Buffer> {
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=pcm_16000`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.55,
-          similarity_boost: 0.85,
-          speed: 1.0,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`ElevenLabs TTS API error ${response.status}: ${errorText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const pcm16k = Buffer.from(arrayBuffer);
-
-    const sampleCount = pcm16k.length / 2;
-    const outputCount = Math.floor(sampleCount / 2);
-    const pcm8k = Buffer.alloc(outputCount * 2);
-    for (let i = 0; i < outputCount; i++) {
-      pcm8k.writeInt16LE(pcm16k.readInt16LE(i * 4), i * 2);
-    }
-
-    return pcm8k;
-  }
-
-  /**
    * Synthesize the given text into speech and stream
    * the resulting audio back to the Twilio WebSocket as mulaw chunks.
    * Routes to ElevenLabs or AWS Polly based on session ttsProvider.
@@ -2845,67 +2384,41 @@ CONVERSATION STYLE:
   private static async synthesizeAndSend(
     session: BedrockPollyBridgeSession,
     text: string
-  ): Promise<void> {
+  ): Promise<TTSSynthesisOutcome | undefined> {
     const { callSid, agentConfig, twilioWs, streamSid, ttsProvider } = session;
 
     if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN || !streamSid) {
       console.warn(`[BedrockPolly Bridge] Cannot send audio — stream not ready for ${callSid}`);
-      return;
+      return undefined;
     }
 
     const ttsStart = Date.now();
-    let usedProvider: 'elevenlabs' | 'aws_polly' = 'aws_polly';
+    let usedProvider: string = 'aws_polly';
     let cacheHit: boolean | null = null;
 
     try {
       let trimmedText = text.trim();
       if (!trimmedText || trimmedText.length < 3) {
         console.log(`[BedrockPolly Bridge] Text too short (${trimmedText.length} chars), skipping synthesis for ${callSid}: "${trimmedText}"`);
-        return;
+        return undefined;
       }
 
       trimmedText = this.sanitizeForTTS(trimmedText);
       if (!trimmedText || trimmedText.length < 3) {
         console.log(`[BedrockPolly Bridge] Text too short after TTS sanitization, skipping for ${callSid}`);
-        return;
+        return undefined;
       }
 
       const MAX_CHARS = 3000;
-      const synthesisText = trimmedText.length > MAX_CHARS 
-        ? trimmedText.substring(0, MAX_CHARS) 
+      const synthesisText = trimmedText.length > MAX_CHARS
+        ? trimmedText.substring(0, MAX_CHARS)
         : trimmedText;
 
-      let pcmBuffer: Buffer;
-
-      if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
-        usedProvider = 'elevenlabs';
-        const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
-        if (!apiKey) {
-          console.warn(`[BedrockPolly Bridge] No ElevenLabs API key for ${callSid}, falling back to Polly`);
-          usedProvider = 'aws_polly';
-          pcmBuffer = await this.synthesizeWithPolly(synthesisText, this.getPollyFallbackVoice(agentConfig.language));
-        } else {
-          try {
-            pcmBuffer = await this.synthesizeWithElevenLabs(synthesisText, agentConfig.elevenLabsVoiceId, apiKey);
-          } catch (elError: any) {
-            console.warn(`[BedrockPolly Bridge] ElevenLabs TTS failed for ${callSid}, falling back to Polly: ${elError.message}`);
-            usedProvider = 'aws_polly';
-            pcmBuffer = await this.synthesizeWithPolly(synthesisText, this.getPollyFallbackVoice(agentConfig.language));
-          }
-        }
-      } else {
-        if (ttsProvider && ttsProvider !== 'aws_polly') {
-          console.warn(`[BedrockPolly Bridge] Unsupported TTS provider "${ttsProvider}" for ${callSid}, falling back to Polly`);
-          callErrorLogger.logCallError({
-            engineType: 'bedrock-polly',
-            errorCategory: 'tts_failure',
-            severity: 'error',
-            message: `Unsupported TTS provider "${ttsProvider}" (Cartesia deprecated). Falling back to Polly.`,
-            metadata: { callSid, ttsProvider },
-          });
-        }
-        pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
-      }
+      const routeContext = buildTTSRouteContext(agentConfig, ttsProvider, synthesisText);
+      const { result, attempts } = await getDeprockTTSRouter().synthesize(routeContext);
+      const outcome = outcomeFromAttempts(routeContext.preferred, attempts);
+      usedProvider = outcome?.provider ?? routeContext.preferred;
+      const pcmBuffer: Buffer = result.audio;
 
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
       this.sendMulawToTwilio(session, mulawBuffer);
@@ -2941,6 +2454,8 @@ CONVERSATION STYLE:
       if (session.onAudioCallback) {
         session.onAudioCallback(mulawBuffer.toString('base64'));
       }
+
+      return outcome;
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] TTS synthesis error for ${callSid}:`, error.message);
       callErrorLogger.logCallError({
@@ -2949,6 +2464,7 @@ CONVERSATION STYLE:
         message: `TTS synthesis error: ${error.message?.substring(0, 300)}`,
         metadata: { callSid },
       });
+      return undefined;
     } finally {
       const ttsMs = Date.now() - ttsStart;
       // Best-effort latency breadcrumb for every synthesis call.
@@ -2963,82 +2479,21 @@ CONVERSATION STYLE:
   }
 
   private static sanitizeForTTS(text: string): string {
-    let sanitized = text;
-    sanitized = sanitized.replace(/\[TOOL_CALL\]\s*\{[\s\S]*?\}/g, '');
-    sanitized = sanitized.replace(/\[TOOL_CALL\]/g, '');
-    sanitized = sanitized.replace(/\{"name"\s*:\s*"[^"]*"\s*,\s*"params"\s*:\s*\{[\s\S]*?\}\s*\}/g, '');
-    sanitized = sanitized.replace(/Tool\s+"[^"]*"\s+returned:\s*\{[\s\S]*?\}/g, '');
-    sanitized = sanitized.replace(/Tool\s+"undefined"\s+returned:[\s\S]*/g, '');
-    sanitized = sanitized.replace(/\{\s*"error"\s*:\s*"[^"]*"\s*\}/g, '');
-
-    // Strip emojis / pictographs / variation selectors that can break Polly SSML/TTS.
-    // Keep Arabic/Latin text, numbers, whitespace, and common punctuation.
-    sanitized = sanitized
-      // Common emoji blocks + dingbats
-      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-      // Variation selectors + emoji modifiers + ZWJ
-      .replace(/[\u{FE00}-\u{FE0F}\u{1F3FB}-\u{1F3FF}\u{200D}]/gu, '')
-      // Other control/non-printing chars (keep newline/tab)
-      .replace(/[^\P{Cc}\t\n\r]/gu, ' ');
-
-    sanitized = sanitized.replace(/\s{2,}/g, ' ');
-    return sanitized.trim();
+    return coreSanitizeForTTS(text);
   }
-
-  private static ssmlBlockedVoices: Set<string> = new Set();
-  private static neuralBlockedVoices: Set<string> = new Set();
 
   /**
    * Synthesize text using AWS Polly returning 8kHz PCM buffer.
+   * Delegates to the shared Polly adapter so the filler path and the
+   * routed path share one SSML/neural blocklist and health stats.
    */
   private static async synthesizeWithPolly(text: string, voiceId: string): Promise<Buffer> {
-    const useSSML = !this.ssmlBlockedVoices.has(voiceId);
-    const useNeural = !this.neuralBlockedVoices.has(voiceId);
-
-    let result;
-
-    if (useSSML && useNeural) {
-      try {
-        const ssmlText = humanizeToSSML(text);
-        result = await awsPollyService.synthesizeSpeech({
-          text: ssmlText,
-          voiceId,
-          engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-          textType: 'ssml',
-        });
-        return result.audioStream;
-      } catch (e: any) {
-        console.warn(`[BedrockPolly Bridge] SSML+Neural failed for ${voiceId}, caching: ${e.message}`);
-        this.ssmlBlockedVoices.add(voiceId);
-      }
-    }
-
-    if (useNeural) {
-      try {
-        result = await awsPollyService.synthesizeSpeech({
-          text,
-          voiceId,
-          engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-        });
-        return result.audioStream;
-      } catch (e: any) {
-        console.warn(`[BedrockPolly Bridge] Neural failed for ${voiceId}, caching: ${e.message}`);
-        this.neuralBlockedVoices.add(voiceId);
-      }
-    }
-
-    result = await awsPollyService.synthesizeSpeech({
+    const result = await getDeprockPollyProvider().synthesize({
       text,
       voiceId,
-      engine: 'standard',
-      outputFormat: 'pcm',
-      sampleRate: '8000',
+      sampleRateHz: 8000,
     });
-    return result.audioStream;
+    return result.audio;
   }
 
   /**
@@ -3047,50 +2502,7 @@ CONVERSATION STYLE:
    * buffer length.
    */
   private static pcmToMulaw(pcmBuffer: Buffer): Buffer {
-    const mulawBuffer = Buffer.alloc(pcmBuffer.length / 2);
-    for (let i = 0; i < pcmBuffer.length; i += 2) {
-      const sample = pcmBuffer.readInt16LE(i);
-      mulawBuffer[i / 2] = this.linearToMulaw(sample);
-    }
-    return mulawBuffer;
-  }
-
-  /**
-   * Encode a single signed 16-bit PCM sample into an 8-bit mu-law byte.
-   * Uses the standard ITU-T G.711 mu-law compression algorithm with a
-   * lookup table for the exponent.
-   */
-  private static linearToMulaw(pcmVal: number): number {
-    const BIAS = 0x84;
-    const CLIP = 32635;
-    const expLut = [
-      0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
-      4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-      5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-      5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-    ];
-
-    let sign = (pcmVal >> 8) & 0x80;
-    if (sign !== 0) pcmVal = -pcmVal;
-    if (pcmVal > CLIP) pcmVal = CLIP;
-    pcmVal = pcmVal + BIAS;
-    const exponent = expLut[(pcmVal >> 7) & 0xFF];
-    const mantissa = (pcmVal >> (exponent + 3)) & 0x0F;
-    let mulawByte = ~(sign | (exponent << 4) | mantissa);
-    mulawByte &= 0xFF;
-    return mulawByte;
+    return corePcmToMulaw(pcmBuffer);
   }
 
   /**

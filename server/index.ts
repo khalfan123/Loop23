@@ -40,10 +40,15 @@ import { bootstrapElevenLabsPoolFromEnv } from "./services/bootstrap-elevenlabs-
 import { callErrorLogger } from "./services/call-error-logger";
 import { seedPlatformLanguages } from "./seed-platform-languages";
 import { seedIntegrationApps } from "./seed-integration-apps";
+import { initVoiceTracing } from "./observability/tracing";
 
 // Setup global error handlers and shutdown signals FIRST
 // This ensures crashes are caught even during initialization
 setupGlobalHandlers();
+
+// Register OpenTelemetry tracing before anything creates spans.
+// No-op unless OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_ENABLED is set.
+initVoiceTracing();
 
 // Ensure all required directories exist before starting
 initializeDirectories();
@@ -225,7 +230,8 @@ registerServer(server);
 server.listen({
   port,
   host: "0.0.0.0",
-  reusePort: true,
+  // SO_REUSEPORT is Linux-only; macOS/Windows throw ENOTSUP at listen time.
+  reusePort: process.platform === 'linux',
 }, () => {
   log(`serving on port ${port}`);
 });

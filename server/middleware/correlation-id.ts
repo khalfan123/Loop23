@@ -9,6 +9,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 
 /**
  * Header name for correlation ID
@@ -38,15 +39,23 @@ export function generateCorrelationId(): string {
 /**
  * Get current request's correlation ID
  * Useful for accessing from within services that don't have direct Request access
+ *
+ * Backed by AsyncLocalStorage so concurrent requests each see their own ID
+ * (a module-level variable would bleed IDs across interleaved async work).
  */
-let currentCorrelationId: string | undefined;
+const correlationStore = new AsyncLocalStorage<string | undefined>();
 
 export function getCurrentCorrelationId(): string | undefined {
-  return currentCorrelationId;
+  return correlationStore.getStore();
 }
 
+/**
+ * Bind a correlation ID to the current async context (undefined clears it).
+ * Prefer letting the middleware do this; exposed for non-HTTP entrypoints
+ * (workers, sockets) that manage their own job boundaries.
+ */
 export function setCurrentCorrelationId(id: string | undefined): void {
-  currentCorrelationId = id;
+  correlationStore.enterWith(id);
 }
 
 /**
@@ -82,19 +91,13 @@ export function correlationIdMiddleware(
   
   // Attach to request object
   req.correlationId = correlationId;
-  
-  // Set global correlation ID for services
-  setCurrentCorrelationId(correlationId);
-  
+
   // Add to response headers for client-side correlation
   res.setHeader(CORRELATION_ID_HEADER, correlationId);
-  
-  // Clean up global state on response finish
-  res.on('finish', () => {
-    setCurrentCorrelationId(undefined);
-  });
-  
-  next();
+
+  // Run the rest of the request pipeline inside this ID's async context;
+  // no teardown needed — the context dies with the async chain.
+  correlationStore.run(correlationId, () => next());
 }
 
 /**

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown } from "lucide-react";
+import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown, Gauge } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -30,6 +30,7 @@ import { AuthStorage } from "@/lib/auth-storage";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import Calls from "@/pages/Calls";
 import { useLocation } from "wouter";
+import { VoiceMetricsPanel } from "@/components/analytics/VoiceMetricsPanel";
 
 import { HeatmapChart } from "@/components/analytics/HeatmapChart";
 import { FunnelChart } from "@/components/analytics/FunnelChart";
@@ -97,9 +98,12 @@ export default function Analytics() {
   const [, setLocation] = useLocation();
   const [timeRange, setTimeRange] = useState("7days");
   const callType = 'all';
-  const [activeView, setActiveView] = useState<"analytics" | "call-history">(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "call-history") {
-      return "call-history";
+  const [activeView, setActiveView] = useState<"analytics" | "call-history" | "voice-metrics">(() => {
+    if (typeof window !== "undefined") {
+      const view = new URLSearchParams(window.location.search).get("view");
+      if (view === "call-history" || view === "voice-metrics") {
+        return view;
+      }
     }
     return "analytics";
   });
@@ -284,6 +288,13 @@ export default function Analytics() {
           onClick={() => setLocation("/app/live")}
           data-testid="nav-live-view"
         />
+        <SubPanelItem
+          icon={<Gauge className="w-4 h-4" />}
+          label="Voice Metrics"
+          isActive={activeView === "voice-metrics"}
+          onClick={() => setActiveView("voice-metrics")}
+          data-testid="nav-voice-metrics-view"
+        />
       </SubPanelSection>
 
       {activeView === "analytics" && (
@@ -320,6 +331,15 @@ export default function Analytics() {
       </ThreeColumnLayout>
     );
   }
+
+  if (activeView === "voice-metrics") {
+    return (
+      <ThreeColumnLayout subPanel={subPanelContent} subPanelWidth="sm" subPanelHeader={t('nav.dashboard', 'Dashboard')}>
+        <VoiceMetricsPanel />
+      </ThreeColumnLayout>
+    );
+  }
+
 
   if (isLoading) {
     return (

@@ -30,6 +30,43 @@ export type RawBodyRequest = Request & {
 };
 
 /**
+ * Whether an unverifiable webhook (missing signature header or missing
+ * configured secret) may pass through. Fail closed in production; permissive
+ * in dev/test for local tooling. Operators can explicitly opt out with
+ * WEBHOOK_ALLOW_UNSIGNED=true (logged loudly at each use).
+ */
+function allowUnverifiedWebhooks(): boolean {
+  if (process.env.WEBHOOK_ALLOW_UNSIGNED === "true") return true;
+  return process.env.NODE_ENV !== "production";
+}
+
+/**
+ * Handle an unverifiable webhook according to the fail-closed policy.
+ * Returns true when the caller should continue the request (dev/opt-out);
+ * throws WebhookValidationError when it must be rejected.
+ */
+function handleUnverifiable(provider: string, reason: string): true {
+  if (!allowUnverifiedWebhooks()) {
+    throw new WebhookValidationError(
+      provider,
+      `${reason} — rejecting (fail-closed; set WEBHOOK_ALLOW_UNSIGNED=true to override)`
+    );
+  }
+  console.warn(`[${provider} Webhook] ${reason} — allowing UNVERIFIED request (non-production or WEBHOOK_ALLOW_UNSIGNED)`);
+  return true;
+}
+
+/**
+ * Constant-time comparison of an expected signature against a client-supplied
+ * one. Length mismatch short-circuits (length is not secret here).
+ */
+function safeSignatureEqual(expected: string, provided: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(provided);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+/**
  * Middleware to capture raw body for webhook signature verification.
  * Must be applied before body parsers for webhook routes.
  * 
@@ -79,7 +116,7 @@ export async function validateStripeWebhook(
   try {
     const stripe = await getStripeClient();
     if (!stripe) {
-      console.warn("[Stripe Webhook] Stripe not configured, skipping validation");
+      handleUnverifiable("stripe", "Stripe not configured");
       return next();
     }
 
@@ -91,7 +128,7 @@ export async function validateStripeWebhook(
     }
 
     if (!webhookSecret) {
-      console.warn("[Stripe Webhook] No webhook secret configured, skipping signature verification");
+      handleUnverifiable("stripe", "No webhook secret configured");
       return next();
     }
 
@@ -137,7 +174,7 @@ export async function validateRazorpayWebhook(
     const webhookSecret = webhookSecretSetting?.value;
 
     if (!webhookSecret || typeof webhookSecret !== "string") {
-      console.warn("[Razorpay Webhook] No webhook secret configured, skipping signature verification");
+      handleUnverifiable("razorpay", "No webhook secret configured");
       return next();
     }
 
@@ -148,7 +185,7 @@ export async function validateRazorpayWebhook(
       .update(rawBody)
       .digest("hex");
 
-    if (expectedSignature !== signature) {
+    if (!safeSignatureEqual(expectedSignature, signature)) {
       throw new WebhookValidationError("razorpay", "Invalid webhook signature");
     }
 
@@ -183,9 +220,9 @@ export async function validateTwilioWebhook(
 ): Promise<void> {
   try {
     const twilioSignature = req.headers["x-twilio-signature"] as string;
-    
+
     if (!twilioSignature) {
-      console.warn("[Twilio Webhook] No signature header found, skipping validation");
+      handleUnverifiable("twilio", "No signature header found");
       return next();
     }
 
@@ -195,7 +232,7 @@ export async function validateTwilioWebhook(
     const authTokenValue = authTokenSetting?.value || envCreds.authToken;
 
     if (!authTokenValue || typeof authTokenValue !== "string") {
-      console.warn("[Twilio Webhook] No auth token configured, skipping signature verification");
+      handleUnverifiable("twilio", "No auth token configured");
       return next();
     }
 
@@ -302,9 +339,9 @@ export async function validateElevenLabsWebhook(
 ): Promise<void> {
   try {
     const signature = req.headers["x-elevenlabs-signature"] as string;
-    
+
     if (!signature) {
-      console.warn("[ElevenLabs Webhook] No signature header found, skipping validation");
+      handleUnverifiable("elevenlabs", "No signature header found");
       return next();
     }
 
@@ -312,7 +349,7 @@ export async function validateElevenLabsWebhook(
     const webhookSecret = webhookSecretSetting?.value;
 
     if (!webhookSecret || typeof webhookSecret !== "string") {
-      console.warn("[ElevenLabs Webhook] No webhook secret configured, skipping signature verification");
+      handleUnverifiable("elevenlabs", "No webhook secret configured");
       return next();
     }
 
@@ -323,7 +360,7 @@ export async function validateElevenLabsWebhook(
       .update(rawBody)
       .digest("hex");
 
-    if (expectedSignature !== signature) {
+    if (!safeSignatureEqual(expectedSignature, signature)) {
       throw new WebhookValidationError("elevenlabs", "Invalid webhook signature");
     }
 
@@ -359,9 +396,9 @@ export function createHmacWebhookValidator(config: {
   return async (req: RawBodyRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const signature = req.headers[config.signatureHeader.toLowerCase()] as string;
-      
+
       if (!signature) {
-        console.warn(`[${config.provider} Webhook] No signature header found, skipping validation`);
+        handleUnverifiable(config.provider, "No signature header found");
         return next();
       }
 
@@ -369,7 +406,7 @@ export function createHmacWebhookValidator(config: {
       const secretValue = secretSetting?.value || (config.secretEnvVar ? process.env[config.secretEnvVar] : undefined);
 
       if (!secretValue || typeof secretValue !== "string") {
-        console.warn(`[${config.provider} Webhook] No secret configured, skipping signature verification`);
+        handleUnverifiable(config.provider, "No secret configured");
         return next();
       }
 
@@ -381,7 +418,7 @@ export function createHmacWebhookValidator(config: {
         .update(rawBody)
         .digest("hex");
 
-      if (expectedSignature !== signature) {
+      if (!safeSignatureEqual(expectedSignature, signature)) {
         throw new WebhookValidationError(config.provider, "Invalid webhook signature");
       }
 

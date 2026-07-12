@@ -54,6 +54,13 @@ describe('pcmToMulaw', () => {
     expect(mu[0]).toBe(linearToMulaw(0));
     expect(mu[1]).toBe(linearToMulaw(12345));
   });
+
+  it('floors an odd-length buffer instead of reading past the end', () => {
+    const odd = Buffer.concat([pcmBufferFrom([1000, -1000]), Buffer.from([0x7f])]);
+    const mu = pcmToMulaw(odd);
+    expect(mu.length).toBe(2);
+    expect(mu[0]).toBe(linearToMulaw(1000));
+  });
 });
 
 describe('mulawEnergy', () => {

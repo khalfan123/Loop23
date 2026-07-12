@@ -13,7 +13,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/MetricCard";
-import { AuthStorage } from "@/lib/auth-storage";
 import { Mic, Cpu, Volume2, Timer, Loader2, Activity } from "lucide-react";
 
 interface LatencyPercentiles {
@@ -51,15 +50,6 @@ interface TurnMetric {
   ttsFellBack?: boolean;
 }
 
-async function fetchWithAuth<T>(url: string): Promise<T> {
-  const headers: Record<string, string> = {};
-  const authHeader = AuthStorage.getAuthHeader();
-  if (authHeader) headers["Authorization"] = authHeader;
-  const response = await fetch(url, { credentials: "include", headers });
-  if (!response.ok) throw new Error(`Failed to fetch ${url}`);
-  return response.json();
-}
-
 const BREAKER_STYLES: Record<ProviderHealth["breaker"], string> = {
   closed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   half_open: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
@@ -78,15 +68,16 @@ function ms(value: number | null | undefined): string {
 }
 
 export function VoiceMetricsPanel() {
+  // No queryFn: the QueryClient default (getQueryFn) handles auth headers,
+  // proactive token refresh, and 401 retry — a hand-rolled fetch here would
+  // blank the panel the moment the access token expires.
   const { data: summary, isLoading } = useQuery<VoiceMetricsSummary>({
     queryKey: ["/api/voice-metrics"],
-    queryFn: () => fetchWithAuth("/api/voice-metrics"),
     refetchInterval: 5000,
   });
 
   const { data: turnsData } = useQuery<{ turns: TurnMetric[] }>({
-    queryKey: ["/api/voice-metrics/turns"],
-    queryFn: () => fetchWithAuth("/api/voice-metrics/turns?limit=25"),
+    queryKey: ["/api/voice-metrics/turns?limit=25"],
     refetchInterval: 5000,
   });
 

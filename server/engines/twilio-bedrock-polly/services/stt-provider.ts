@@ -25,13 +25,24 @@ function isValidApiKey(key: string | undefined): key is string {
   return !dummyPatterns.some(p => upper.includes(p.toUpperCase()));
 }
 
+let loggedKeySource: string | null = null;
+
+function logKeySourceOnce(source: string): void {
+  // The source doesn't change between turns; logging it per-transcription
+  // floods call logs with identical lines.
+  if (loggedKeySource !== source) {
+    loggedKeySource = source;
+    console.log(`[BedrockPolly Bridge] Using OpenAI key from ${source}`);
+  }
+}
+
 export async function resolveOpenAIKey(): Promise<string | null> {
   if (isValidApiKey(process.env.OPENAI_API_KEY)) {
-    console.log('[BedrockPolly Bridge] Using OpenAI key from OPENAI_API_KEY env var');
+    logKeySourceOnce('OPENAI_API_KEY env var');
     return process.env.OPENAI_API_KEY;
   }
   if (isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) {
-    console.log('[BedrockPolly Bridge] Using OpenAI key from AI_INTEGRATIONS env var');
+    logKeySourceOnce('AI_INTEGRATIONS env var');
     return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   }
 

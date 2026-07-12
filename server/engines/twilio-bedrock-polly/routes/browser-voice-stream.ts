@@ -11,7 +11,7 @@ import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import type { AgentConfig, PollyVoiceId, BedrockModel, TtsProvider } from '../types';
 import { elevenLabsCredentials } from '@shared/schema';
 import { liveCallRegistry } from '../../../services/live-call-registry';
-import { getDeprockTTSRouter, buildBrowserTTSRouteContext } from '../services/tts-router';
+import { getBrowserTTSRouter, buildBrowserTTSRouteContext } from '../services/tts-router';
 
 interface BrowserVoiceSession {
   sessionId: string;
@@ -94,14 +94,14 @@ async function synthesizeSpeech(text: string, voiceId: string, agentConfig?: Age
   const MAX_CHARS = 3000;
   const synthesisText = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) : text;
 
-  // Shared voice-core router: same providers, circuit breakers, and health
-  // stats as production telephony calls, but requesting browser mp3 output.
+  // Voice-core router with test-call-scoped breakers/blocklists, so failing
+  // test calls can never degrade live telephony routing (or vice versa).
   const routeContext = buildBrowserTTSRouteContext(
     agentConfig ?? ({ voice: voiceId } as AgentConfig),
     voiceId,
     synthesisText
   );
-  const { result } = await getDeprockTTSRouter().synthesize(routeContext);
+  const { result } = await getBrowserTTSRouter().synthesize(routeContext);
   return result.audio;
 }
 

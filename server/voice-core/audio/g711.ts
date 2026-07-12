@@ -80,10 +80,13 @@ export function linearToMulaw(pcmVal: number): number {
  * buffer length.
  */
 export function pcmToMulaw(pcmBuffer: Buffer): Buffer {
-  const mulawBuffer = Buffer.alloc(pcmBuffer.length / 2);
-  for (let i = 0; i < pcmBuffer.length; i += 2) {
-    const sample = pcmBuffer.readInt16LE(i);
-    mulawBuffer[i / 2] = linearToMulaw(sample);
+  // Floor odd-length inputs (e.g. a truncated final chunk from a streaming
+  // provider) instead of reading past the end of the buffer.
+  const sampleCount = Math.floor(pcmBuffer.length / 2);
+  const mulawBuffer = Buffer.alloc(sampleCount);
+  for (let i = 0; i < sampleCount; i++) {
+    const sample = pcmBuffer.readInt16LE(i * 2);
+    mulawBuffer[i] = linearToMulaw(sample);
   }
   return mulawBuffer;
 }

@@ -34,6 +34,7 @@ import { recordTTSAttemptSpan } from '../../../observability/tracing';
 import type { AgentConfig, TtsProvider } from '../types';
 
 let router: ProviderRouter | null = null;
+let browserRouter: ProviderRouter | null = null;
 let pollyProvider: PollyTTSProvider | null = null;
 
 export function getDeprockPollyProvider(): PollyTTSProvider {
@@ -43,25 +44,43 @@ export function getDeprockPollyProvider(): PollyTTSProvider {
   return pollyProvider;
 }
 
+function buildRouter(pollyInstance: PollyTTSProvider, label: string): ProviderRouter {
+  const registry = new ProviderRegistry();
+  registry.registerTTS(pollyInstance);
+  registry.registerTTS(new ElevenLabsTTSProvider());
+  registry.registerTTS(new CartesiaTTSProvider());
+  return new ProviderRouter(registry, {
+    onAttempt: (attempt) => {
+      voiceMetrics.recordTTSAttempt(attempt);
+      recordTTSAttemptSpan(attempt);
+      if (!attempt.ok && !attempt.skipped) {
+        console.warn(
+          `[BedrockPolly ${label}] TTS attempt failed on ${attempt.providerId} (${attempt.latencyMs}ms): ${attempt.error}`
+        );
+      }
+    },
+  });
+}
+
 export function getDeprockTTSRouter(): ProviderRouter {
   if (!router) {
-    const registry = new ProviderRegistry();
-    registry.registerTTS(getDeprockPollyProvider());
-    registry.registerTTS(new ElevenLabsTTSProvider());
-    registry.registerTTS(new CartesiaTTSProvider());
-    router = new ProviderRouter(registry, {
-      onAttempt: (attempt) => {
-        voiceMetrics.recordTTSAttempt(attempt);
-        recordTTSAttemptSpan(attempt);
-        if (!attempt.ok && !attempt.skipped) {
-          console.warn(
-            `[BedrockPolly Bridge] TTS attempt failed on ${attempt.providerId} (${attempt.latencyMs}ms): ${attempt.error}`
-          );
-        }
-      },
-    });
+    router = buildRouter(getDeprockPollyProvider(), 'Bridge');
   }
   return router;
+}
+
+/**
+ * Separate router for in-browser test calls: its own circuit breakers,
+ * health stats, and Polly SSML/neural blocklists, so repeated failing test
+ * calls (e.g. a bad ElevenLabs key being tried out) can never trip a breaker
+ * or poison a blocklist that live telephony depends on — and vice versa.
+ * Attempts still feed the shared voiceMetrics/tracing for visibility.
+ */
+export function getBrowserTTSRouter(): ProviderRouter {
+  if (!browserRouter) {
+    browserRouter = buildRouter(new PollyTTSProvider({ ssmlify: humanizeToSSML }), 'BrowserTest');
+  }
+  return browserRouter;
 }
 
 const VENDOR_VOICE_UUID = /^[0-9a-f-]{36}$/i;
@@ -85,8 +104,11 @@ export function buildTTSRouteContext(
     finalFallback: 'aws_polly',
     language: agentConfig.language,
     buildRequest: (id: TTSProviderId): TTSRequest | null => {
+      // Legacy fallback contract: the chain is exactly [preferred, aws_polly].
+      // A premium provider is never offered as an alternate for an agent that
+      // prefers the other one (agents can carry stale voice ids for both).
       if (id === 'cartesia') {
-        if (!agentConfig.cartesiaVoiceId) return null;
+        if (preferred !== 'cartesia' || !agentConfig.cartesiaVoiceId) return null;
         return {
           text,
           voiceId: agentConfig.cartesiaVoiceId,
@@ -96,7 +118,7 @@ export function buildTTSRouteContext(
         };
       }
       if (id === 'elevenlabs') {
-        if (!agentConfig.elevenLabsVoiceId) return null;
+        if (preferred !== 'elevenlabs' || !agentConfig.elevenLabsVoiceId) return null;
         const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
         if (!apiKey) return null;
         return {
@@ -107,14 +129,15 @@ export function buildTTSRouteContext(
           options: { apiKey },
         };
       }
-      // aws_polly — preserve the legacy fallback-voice asymmetry:
-      // only the Cartesia path UUID-guards agentConfig.voice.
+      // aws_polly — the final fallback must always be synthesizable: when the
+      // agent's stored voice is a vendor UUID (ElevenLabs/Cartesia id), swap
+      // in the per-language Polly default. (The legacy code only guarded the
+      // cartesia path, which let an ElevenLabs outage hand Polly a UUID and
+      // fail every tier — fixed here, uniformly.)
       const pollyVoice =
-        preferred === 'cartesia'
-          ? (agentConfig.voice && !agentConfig.voice.match(VENDOR_VOICE_UUID)
-              ? agentConfig.voice
-              : defaultPollyVoiceForLanguage(agentConfig.language))
-          : agentConfig.voice;
+        agentConfig.voice && !agentConfig.voice.match(VENDOR_VOICE_UUID)
+          ? agentConfig.voice
+          : defaultPollyVoiceForLanguage(agentConfig.language);
       return {
         text,
         voiceId: pollyVoice,
@@ -130,8 +153,8 @@ export function buildTTSRouteContext(
  * instead of telephony PCM. Legacy rules preserved: ElevenLabs (agent key
  * or env key) when the agent prefers it, otherwise Polly with SSML-neural
  * then plain-neural (never the standard tier); Cartesia is not offered.
- * Shares the same router singleton, so browser test calls exercise the
- * same breakers and feed the same health stats as production calls.
+ * Use with getBrowserTTSRouter(), which keeps test-call breaker/blocklist
+ * state isolated from live telephony.
  */
 export function buildBrowserTTSRouteContext(
   agentConfig: AgentConfig,
@@ -173,27 +196,21 @@ export function buildBrowserTTSRouteContext(
 }
 
 /**
- * Per-call record of the most recent turn's TTS routing outcome, consumed
- * by the per-turn metrics recorder. Bounded to avoid leaking entries for
- * calls that never reach a [LATENCY] log (e.g. dropped mid-stream).
+ * Outcome of one routed synthesis: which provider actually spoke and whether
+ * that differed from the agent's preferred provider. Returned up the call
+ * graph (synthesizeAndSend -> streaming loop) so per-turn attribution is
+ * correct by construction.
  */
-const lastTTSOutcome: Map<string, { provider: TTSProviderId; fellBack: boolean }> = new Map();
-const MAX_OUTCOME_ENTRIES = 1000;
-
-export function noteTTSAttempts(callSid: string, preferred: TTSProviderId, attempts: TTSAttempt[]): void {
-  const success = attempts.find(a => a.ok);
-  if (!success) return;
-  const previous = lastTTSOutcome.get(callSid);
-  const fellBack = success.providerId !== preferred || previous?.fellBack === true;
-  if (!previous && lastTTSOutcome.size >= MAX_OUTCOME_ENTRIES) {
-    const oldest = lastTTSOutcome.keys().next().value;
-    if (oldest !== undefined) lastTTSOutcome.delete(oldest);
-  }
-  lastTTSOutcome.set(callSid, { provider: success.providerId, fellBack });
+export interface TTSSynthesisOutcome {
+  provider: TTSProviderId;
+  fellBack: boolean;
 }
 
-export function consumeTTSOutcome(callSid: string): { provider: TTSProviderId; fellBack: boolean } | undefined {
-  const outcome = lastTTSOutcome.get(callSid);
-  lastTTSOutcome.delete(callSid);
-  return outcome;
+export function outcomeFromAttempts(
+  preferred: TTSProviderId,
+  attempts: TTSAttempt[]
+): TTSSynthesisOutcome | undefined {
+  const success = attempts.find(a => a.ok);
+  if (!success) return undefined;
+  return { provider: success.providerId, fellBack: success.providerId !== preferred };
 }

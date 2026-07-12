@@ -101,6 +101,37 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     const ctx2 = buildTTSRouteContext(agent({ voice: 'Joanna' }), 'elevenlabs', 'hello');
     expect(ctx2.preferred).toBe('aws_polly');
   });
+
+  it('never offers the OTHER premium provider as an alternate (strict [preferred, polly] chain)', () => {
+    process.env.ELEVENLABS_API_KEY = 'env-key';
+    // Agent switched providers but kept stale voice ids for both vendors
+    const config = agent({
+      voice: 'Joanna',
+      elevenLabsVoiceId: 'v-eleven-1',
+      elevenLabsApiKey: 'agent-key',
+      cartesiaVoiceId: 'cart-voice-9',
+    });
+    const elCtx = buildTTSRouteContext(config, 'elevenlabs', 'hi');
+    expect(elCtx.preferred).toBe('elevenlabs');
+    expect(elCtx.buildRequest('cartesia')).toBeNull();
+
+    const cartCtx = buildTTSRouteContext(config, 'cartesia', 'hi');
+    expect(cartCtx.preferred).toBe('cartesia');
+    expect(cartCtx.buildRequest('elevenlabs')).toBeNull();
+  });
+
+  it('UUID-guards the Polly fallback voice on the elevenlabs path too (final fallback always synthesizable)', () => {
+    const config = agent({
+      voice: 'a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6', // vendor UUID stored as the agent voice
+      elevenLabsVoiceId: 'v-eleven-1',
+      elevenLabsApiKey: 'agent-key',
+      language: 'ar',
+    });
+    const ctx = buildTTSRouteContext(config, 'elevenlabs', 'مرحبا');
+    // Legacy passed the raw UUID to Polly, which fails every engine tier;
+    // the router's final fallback must always be a real Polly voice.
+    expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Hala' });
+  });
 });
 
 describe('buildBrowserTTSRouteContext — browser test-call shapes', () => {

@@ -50,7 +50,9 @@ describe('MetricsRecorder', () => {
     const tts = m.summary().tts;
     expect(tts.elevenlabs).toMatchObject({ attempts: 1, failures: 1 });
     expect(tts.aws_polly).toMatchObject({ attempts: 2, failures: 0, avgLatencyMs: 90 });
-    expect(tts.cartesia).toMatchObject({ attempts: 0, failures: 0 });
+    // A provider that was only ever skipped must not appear as a phantom
+    // zero-attempt entry in the dashboard.
+    expect(tts.cartesia).toBeUndefined();
   });
 
   it('summary handles the empty state', () => {

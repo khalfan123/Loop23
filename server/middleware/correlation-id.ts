@@ -43,20 +43,19 @@ export function generateCorrelationId(): string {
  * Backed by AsyncLocalStorage so concurrent requests each see their own ID
  * (a module-level variable would bleed IDs across interleaved async work).
  */
-const correlationStore = new AsyncLocalStorage<string>();
+const correlationStore = new AsyncLocalStorage<string | undefined>();
 
 export function getCurrentCorrelationId(): string | undefined {
   return correlationStore.getStore();
 }
 
 /**
- * Bind a correlation ID to the current async context. Prefer letting the
- * middleware do this; exposed for non-HTTP entrypoints (workers, sockets).
+ * Bind a correlation ID to the current async context (undefined clears it).
+ * Prefer letting the middleware do this; exposed for non-HTTP entrypoints
+ * (workers, sockets) that manage their own job boundaries.
  */
 export function setCurrentCorrelationId(id: string | undefined): void {
-  if (id !== undefined) {
-    correlationStore.enterWith(id);
-  }
+  correlationStore.enterWith(id);
 }
 
 /**

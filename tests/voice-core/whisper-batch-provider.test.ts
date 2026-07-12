@@ -61,6 +61,17 @@ describe('WhisperBatchSTTProvider', () => {
     expect(file.size).toBe(audio.length + 46); // WAV header + payload
   });
 
+  it('applies Arabic priming to region-qualified language codes (ar-SA)', async () => {
+    let captured: FormData | undefined;
+    const fetchMock = vi.fn(async (_url: any, init: any) => {
+      captured = init.body as FormData;
+      return whisperResponse({ text: 'مرحبا' });
+    });
+    await makeProvider(fetchMock as any).transcribe({ audio, language: 'ar-SA' });
+    expect(captured!.get('language')).toBe('ar');
+    expect(captured!.get('prompt') as string).toContain('فاتورة');
+  });
+
   it('rejects on high no_speech_prob but preserves the text for logging', async () => {
     const fetchMock = vi.fn(async () =>
       whisperResponse({ text: 'hallucinated', segments: [{ no_speech_prob: 0.9, avg_logprob: -0.2 }] })

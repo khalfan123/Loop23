@@ -56,8 +56,8 @@ import {
   getDeprockTTSRouter,
   getDeprockPollyProvider,
   buildTTSRouteContext,
-  noteTTSAttempts,
-  consumeTTSOutcome,
+  outcomeFromAttempts,
+  type TTSSynthesisOutcome,
 } from './tts-router';
 import { getDeprockSTTProvider } from './stt-provider';
 import { voiceMetrics } from '../../../voice-core';
@@ -1117,7 +1117,10 @@ export class BedrockPollyAudioBridge {
 
       return result.text;
     } finally {
-      if (callSid) {
+      // Only remove OUR controller: a newer request may have replaced the
+      // map entry after aborting us; deleting blindly would strip the newer
+      // request's ability to be cancelled by the next barge-in.
+      if (callSid && whisperAbortControllers.get(callSid) === abortController) {
         whisperAbortControllers.delete(callSid);
       }
     }
@@ -1234,6 +1237,8 @@ CONVERSATION STYLE:
       let firstTokenTime = 0;
       let firstTtsStartTime = 0;
       let firstTtsAudioTime = 0;
+      let turnTtsProvider: TTSSynthesisOutcome['provider'] | undefined;
+      let turnTtsFellBack = false;
       const collectedToolCalls: StructuredToolCall[] = [];
 
       bargeInFlags.set(callSid, false);
@@ -1253,9 +1258,13 @@ CONVERSATION STYLE:
           const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
           console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
         }
-        pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
+        pendingSynthesis = this.synthesizeAndSend(session, sentence).then((outcome) => {
           if (!firstTtsAudioTime) {
             firstTtsAudioTime = Date.now();
+          }
+          if (outcome) {
+            turnTtsProvider = outcome.provider;
+            turnTtsFellBack = turnTtsFellBack || outcome.fellBack;
           }
         });
       };
@@ -1489,8 +1498,17 @@ CONVERSATION STYLE:
         if (sentencesSent === 1) {
           firstTtsStartTime = Date.now();
         }
-        await this.synthesizeAndSend(session, sentenceBuffer.trim());
+        const outcome = await this.synthesizeAndSend(session, sentenceBuffer.trim());
         if (!firstTtsAudioTime) firstTtsAudioTime = Date.now();
+        if (outcome) {
+          turnTtsProvider = outcome.provider;
+          turnTtsFellBack = turnTtsFellBack || outcome.fellBack;
+        }
+      }
+
+      if (pendingSynthesis) {
+        await pendingSynthesis;
+        pendingSynthesis = null;
       }
 
       const elapsed = Date.now() - startTime;
@@ -1500,7 +1518,6 @@ CONVERSATION STYLE:
       console.log(`[BedrockPolly Bridge] Streaming complete for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments, ${elapsed}ms`);
       console.log(`[LATENCY] call=${callSid} stt=${sttMs || 0}ms llm_first=${llmFirstMs}ms tts_start=${ttsFirstMs}ms tts_audio=${ttsAudioMs}ms stream_total=${elapsed}ms`);
 
-      const ttsOutcome = consumeTTSOutcome(callSid);
       const turnMetric = {
         callSid,
         at: Date.now(),
@@ -1510,8 +1527,8 @@ CONVERSATION STYLE:
         ttsStartMs: ttsFirstMs,
         ttsAudioMs,
         streamTotalMs: elapsed,
-        ttsProvider: ttsOutcome?.provider,
-        ttsFellBack: ttsOutcome?.fellBack,
+        ttsProvider: turnTtsProvider,
+        ttsFellBack: turnTtsProvider ? turnTtsFellBack : undefined,
       };
       voiceMetrics.recordTurn(turnMetric);
       recordVoiceTurnSpan(turnMetric);
@@ -2090,35 +2107,35 @@ CONVERSATION STYLE:
   private static async synthesizeAndSend(
     session: BedrockPollyBridgeSession,
     text: string
-  ): Promise<void> {
+  ): Promise<TTSSynthesisOutcome | undefined> {
     const { callSid, agentConfig, twilioWs, streamSid, ttsProvider } = session;
 
     if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN || !streamSid) {
       console.warn(`[BedrockPolly Bridge] Cannot send audio — stream not ready for ${callSid}`);
-      return;
+      return undefined;
     }
 
     try {
       let trimmedText = text.trim();
       if (!trimmedText || trimmedText.length < 3) {
         console.log(`[BedrockPolly Bridge] Text too short (${trimmedText.length} chars), skipping synthesis for ${callSid}: "${trimmedText}"`);
-        return;
+        return undefined;
       }
 
       trimmedText = this.sanitizeForTTS(trimmedText);
       if (!trimmedText || trimmedText.length < 3) {
         console.log(`[BedrockPolly Bridge] Text too short after TTS sanitization, skipping for ${callSid}`);
-        return;
+        return undefined;
       }
 
       const MAX_CHARS = 3000;
-      const synthesisText = trimmedText.length > MAX_CHARS 
-        ? trimmedText.substring(0, MAX_CHARS) 
+      const synthesisText = trimmedText.length > MAX_CHARS
+        ? trimmedText.substring(0, MAX_CHARS)
         : trimmedText;
 
       const routeContext = buildTTSRouteContext(agentConfig, ttsProvider, synthesisText);
       const { result, attempts } = await getDeprockTTSRouter().synthesize(routeContext);
-      noteTTSAttempts(callSid, routeContext.preferred, attempts);
+      const outcome = outcomeFromAttempts(routeContext.preferred, attempts);
       const pcmBuffer: Buffer = result.audio;
 
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
@@ -2143,6 +2160,8 @@ CONVERSATION STYLE:
       if (session.onAudioCallback) {
         session.onAudioCallback(mulawBuffer.toString('base64'));
       }
+
+      return outcome;
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] TTS synthesis error for ${callSid}:`, error.message);
       callErrorLogger.logCallError({
@@ -2151,6 +2170,7 @@ CONVERSATION STYLE:
         message: `TTS synthesis error: ${error.message?.substring(0, 300)}`,
         metadata: { callSid },
       });
+      return undefined;
     }
   }
 

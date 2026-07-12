@@ -74,12 +74,12 @@ export class MetricsRecorder {
   }
 
   recordTTSAttempt(attempt: TTSAttempt): void {
+    if (attempt.skipped) return; // skipped candidates are not real attempts
     let agg = this.ttsAggregates.get(attempt.providerId);
     if (!agg) {
       agg = { attempts: 0, failures: 0, totalLatencyMs: 0 };
       this.ttsAggregates.set(attempt.providerId, agg);
     }
-    if (attempt.skipped) return; // skipped candidates are not real attempts
     agg.attempts++;
     if (!attempt.ok) agg.failures++;
     agg.totalLatencyMs += attempt.latencyMs;

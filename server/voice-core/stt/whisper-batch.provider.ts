@@ -61,7 +61,7 @@ export class WhisperBatchSTTProvider implements STTProvider {
       }
 
       let whisperPrompt = '';
-      if (request.language === 'ar') {
+      if (request.language?.split('-')[0].toLowerCase() === 'ar') {
         whisperPrompt = ARABIC_CALL_VOCABULARY;
       }
       if (request.promptContext && request.promptContext.length > 0) {

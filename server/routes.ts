@@ -83,6 +83,7 @@ import {
 import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenaiIncomingConnectionsRoutes } from "./engines/twilio-openai";
 // Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
 import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler, setupBrowserVoiceStreamHandler } from "./engines/twilio-bedrock-polly";
+import { deepgramAgentWebhookRoutes, setupDeepgramAgentStreamHandler } from "./engines/deepgram-voice-agent";
 // KYC Engine
 import { registerKycRoutes } from "./engines/kyc";
 import { checkAdmin } from "./middleware/admin-auth";
@@ -253,6 +254,10 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Initialize Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
   app.use('/api/bedrock-polly', bedrockPollyWebhookRoutes);
   console.log('✅ Twilio + Bedrock + Polly Engine initialized');
+
+  // Initialize Deepgram Voice Agent Engine (Flux listening + Aura-2 speaking)
+  app.use('/api/deepgram-agent', deepgramAgentWebhookRoutes);
+  console.log('✅ Deepgram Voice Agent Engine initialized');
 
   (async () => {
     try {
@@ -2392,6 +2397,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   
   // Setup Browser Voice WebSocket stream for Call Simulator real-time conversation
   setupBrowserVoiceStreamHandler(httpServer);
+
+  // Setup Deepgram Voice Agent WebSocket stream (Flux + Aura-2 bridged to Twilio)
+  setupDeepgramAgentStreamHandler(httpServer);
   
   // Setup Live Call Monitoring WebSocket for real-time supervisor dashboard
   liveMonitoringWs.setup(httpServer);

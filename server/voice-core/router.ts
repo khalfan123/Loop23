@@ -109,7 +109,7 @@ export class ProviderRouter {
         const latencyMs = (this.options.now ?? Date.now)() - startedAt;
         breaker.recordSuccess();
         this.statsFor(providerId).record(latencyMs, true);
-        this.pushAttempt(attempts, { providerId, ok: true, latencyMs });
+        this.pushAttempt(attempts, { providerId, ok: true, latencyMs, characters: result.characters });
         return { result: { ...result, latencyMs }, attempts };
       } catch (error: any) {
         const latencyMs = (this.options.now ?? Date.now)() - startedAt;

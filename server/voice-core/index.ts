@@ -26,6 +26,7 @@ export { ProviderRouter } from './router';
 export type { TTSRouteContext, TTSRouteResult, ProviderHealthSnapshot } from './router';
 export { MetricsRecorder, voiceMetrics } from './metrics';
 export type { TurnLatencyMetric, VoiceMetricsSummary } from './metrics';
+export { estimateTTSCostUsd, setTTSCostRates, TTS_COST_PER_1K_CHARS_USD } from './cost';
 
 export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, MULAW_DECODE_TABLE } from './audio/g711';
 export { createMulawWavHeader } from './audio/wav';

@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/MetricCard";
-import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign, Lightbulb, AlertTriangle } from "lucide-react";
+import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign, Lightbulb, AlertTriangle, MessageSquare, ShieldCheck, Smile } from "lucide-react";
 
 interface LatencyPercentiles {
   p50: number;
@@ -38,6 +38,15 @@ interface QualitySummary {
   healthScore: number;
 }
 
+interface ConversationSignalsSummary {
+  count: number;
+  sentiment: { positive: number; neutral: number; negative: number; positivePct: number; negativePct: number };
+  topIntents: { intent: string; count: number }[];
+  avgConfidence: number | null;
+  csat: { count: number; avg: number | null };
+  compliance: { flagged: number; flaggedRatePct: number };
+}
+
 interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<"sttMs" | "llmFirstMs" | "ttsStartMs" | "streamTotalMs", LatencyPercentiles>;
@@ -46,6 +55,7 @@ interface VoiceMetricsSummary {
   providers: ProviderHealth[];
   estimatedTtsCostUsd: number;
   quality: QualitySummary;
+  signals?: ConversationSignalsSummary;
   recommendations: string[];
   alerts: { severity: "critical" | "warning"; code: string; message: string }[];
 }
@@ -205,6 +215,54 @@ export function VoiceMetricsPanel() {
                 </li>
               ))}
             </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {summary?.signals && summary.signals.count > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-muted-foreground" />
+              Conversation Intelligence
+              <span className="text-xs font-normal text-muted-foreground">({summary.signals.count} calls)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-sm">
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1"><Smile className="w-3 h-3" />Positive sentiment</div>
+                <div className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{pct(summary.signals.sentiment.positivePct)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Negative sentiment</div>
+                <div className={`font-semibold tabular-nums ${summary.signals.sentiment.negativePct >= 40 ? "text-red-600 dark:text-red-400" : ""}`}>{pct(summary.signals.sentiment.negativePct)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1"><Activity className="w-3 h-3" />Avg confidence</div>
+                <div className="font-semibold tabular-nums">{summary.signals.avgConfidence == null ? "—" : summary.signals.avgConfidence.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">CSAT</div>
+                <div className="font-semibold tabular-nums">{summary.signals.csat.avg == null ? "—" : `${summary.signals.csat.avg.toFixed(1)}/5`}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1"><ShieldCheck className="w-3 h-3" />Compliance flagged</div>
+                <div className={`font-semibold tabular-nums ${summary.signals.compliance.flaggedRatePct >= 10 ? "text-red-600 dark:text-red-400" : ""}`}>{pct(summary.signals.compliance.flaggedRatePct)}</div>
+              </div>
+            </div>
+            {summary.signals.topIntents.length > 0 && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-1.5">Top intents</div>
+                <div className="flex flex-wrap gap-2">
+                  {summary.signals.topIntents.map((t) => (
+                    <Badge key={t.intent} variant="outline" className="gap-1">
+                      {t.intent}<span className="text-muted-foreground tabular-nums">{t.count}</span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

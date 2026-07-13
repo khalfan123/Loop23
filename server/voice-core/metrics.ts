@@ -72,6 +72,37 @@ export interface Alert {
   message: string;
 }
 
+export type Sentiment = 'positive' | 'neutral' | 'negative';
+
+/**
+ * A per-call (or per-turn) conversation-intelligence signal — the sentiment,
+ * intent, confidence, CSAT and compliance dimensions the Operations Center
+ * surfaces alongside the latency/cost metrics. Every field is optional so a
+ * caller can emit whatever it has (e.g. sentiment from live analysis, CSAT
+ * from a post-call survey) without a schema lockstep.
+ */
+export interface ConversationSignal {
+  callSid: string;
+  at?: number;
+  sentiment?: Sentiment;
+  intent?: string;
+  /** 0..1 confidence (STT / intent / answer). */
+  confidence?: number;
+  /** 1..5 customer satisfaction. */
+  csat?: number;
+  /** True when a compliance issue was detected on this call/turn. */
+  complianceIssue?: boolean;
+}
+
+export interface ConversationSignalsSummary {
+  count: number;
+  sentiment: { positive: number; neutral: number; negative: number; positivePct: number; negativePct: number };
+  topIntents: Array<{ intent: string; count: number }>;
+  avgConfidence: number | null;
+  csat: { count: number; avg: number | null };
+  compliance: { flagged: number; flaggedRatePct: number };
+}
+
 export interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<'sttMs' | 'llmFirstMs' | 'ttsStartMs' | 'streamTotalMs', LatencyPercentiles>;
@@ -87,6 +118,8 @@ export interface VoiceMetricsSummary {
   estimatedTtsCostUsd: number;
   /** Derived conversation-quality / system-health signals. */
   quality: QualitySummary;
+  /** Sentiment / intent / confidence / CSAT / compliance intelligence. */
+  signals: ConversationSignalsSummary;
   /** Actionable, plain-language recommendations derived from the signals. */
   recommendations: string[];
   /** Severity-tagged operational conditions needing attention now. */
@@ -168,6 +201,33 @@ export function deriveAlerts(
   return alerts;
 }
 
+/**
+ * Conversation-intelligence alerts (compliance, sentiment, confidence, CSAT)
+ * for the Operations Center. Compliance issues are surfaced as first-class
+ * alerts because they carry regulatory/brand risk. Pure — no side effects.
+ */
+export function deriveSignalAlerts(signals: ConversationSignalsSummary): Alert[] {
+  const alerts: Alert[] = [];
+  if (signals.count === 0) return alerts;
+
+  const complianceRate = signals.compliance.flaggedRatePct;
+  if (complianceRate >= 25) {
+    alerts.push({ severity: 'critical', code: 'compliance_issue', message: `Compliance issues flagged on ${Math.round(complianceRate)}% of calls.` });
+  } else if (complianceRate >= 10) {
+    alerts.push({ severity: 'warning', code: 'compliance_issue', message: `Compliance issues flagged on ${Math.round(complianceRate)}% of calls.` });
+  }
+  if (signals.sentiment.negativePct >= 40) {
+    alerts.push({ severity: 'warning', code: 'negative_sentiment', message: `${Math.round(signals.sentiment.negativePct)}% of calls ended in negative sentiment.` });
+  }
+  if (signals.avgConfidence !== null && signals.avgConfidence < 0.6) {
+    alerts.push({ severity: 'warning', code: 'low_confidence', message: `Average recognition/intent confidence is ${signals.avgConfidence.toFixed(2)}.` });
+  }
+  if (signals.csat.avg !== null && signals.csat.avg < 3) {
+    alerts.push({ severity: 'warning', code: 'low_csat', message: `Average CSAT is ${signals.csat.avg.toFixed(1)}/5.` });
+  }
+  return alerts;
+}
+
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
@@ -180,6 +240,16 @@ export class MetricsRecorder {
   private filled = false;
   private ttsAggregates: Map<TTSProviderId, TTSProviderAggregate> = new Map();
   private sttAggregates: Map<string, ProviderAggregate & { confidenceRejects: number }> = new Map();
+
+  // Conversation-intelligence aggregates (sentiment/intent/confidence/CSAT/compliance).
+  private signalCount = 0;
+  private sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
+  private intentCounts: Map<string, number> = new Map();
+  private confidenceSum = 0;
+  private confidenceN = 0;
+  private csatSum = 0;
+  private csatN = 0;
+  private complianceFlagged = 0;
 
   constructor(private capacity = 1000) {
     this.turns = new Array(capacity);
@@ -217,6 +287,24 @@ export class MetricsRecorder {
     if (attempt.rejected === 'confidence') agg.confidenceRejects++;
     else if (!attempt.ok) agg.failures++;
     agg.totalLatencyMs += attempt.latencyMs;
+  }
+
+  recordConversationSignal(signal: ConversationSignal): void {
+    this.signalCount++;
+    if (signal.sentiment) this.sentimentCounts[signal.sentiment]++;
+    if (signal.intent) {
+      const key = signal.intent.trim().toLowerCase();
+      if (key) this.intentCounts.set(key, (this.intentCounts.get(key) ?? 0) + 1);
+    }
+    if (typeof signal.confidence === 'number' && Number.isFinite(signal.confidence)) {
+      this.confidenceSum += signal.confidence;
+      this.confidenceN++;
+    }
+    if (typeof signal.csat === 'number' && Number.isFinite(signal.csat)) {
+      this.csatSum += signal.csat;
+      this.csatN++;
+    }
+    if (signal.complianceIssue) this.complianceFlagged++;
   }
 
   recentTurns(limit = 50): TurnLatencyMetric[] {
@@ -263,9 +351,41 @@ export class MetricsRecorder {
     }
 
     const quality = this.computeQuality(all, sttAttempts, sttConfidenceRejects);
+    const signals = this.computeSignals();
     const recommendations = deriveRecommendations(all.length, quality, tts);
-    const alerts = deriveAlerts(all.length, quality, tts);
-    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality, recommendations, alerts };
+    const alerts = [...deriveAlerts(all.length, quality, tts), ...deriveSignalAlerts(signals)];
+    return { turnCount: all.length, latency, tts, stt, estimatedTtsCostUsd, quality, signals, recommendations, alerts };
+  }
+
+  /** Aggregate the conversation-intelligence signals for the Ops Center. */
+  private computeSignals(): ConversationSignalsSummary {
+    const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 1000) / 10 : 0);
+    const s = this.sentimentCounts;
+    const sentimentTotal = s.positive + s.neutral + s.negative;
+    const topIntents = Array.from(this.intentCounts.entries())
+      .map(([intent, count]) => ({ intent, count }))
+      .sort((a, b) => b.count - a.count || a.intent.localeCompare(b.intent))
+      .slice(0, 5);
+    return {
+      count: this.signalCount,
+      sentiment: {
+        positive: s.positive,
+        neutral: s.neutral,
+        negative: s.negative,
+        positivePct: pct(s.positive, sentimentTotal),
+        negativePct: pct(s.negative, sentimentTotal),
+      },
+      topIntents,
+      avgConfidence: this.confidenceN ? Math.round((this.confidenceSum / this.confidenceN) * 1000) / 1000 : null,
+      csat: {
+        count: this.csatN,
+        avg: this.csatN ? Math.round((this.csatSum / this.csatN) * 100) / 100 : null,
+      },
+      compliance: {
+        flagged: this.complianceFlagged,
+        flaggedRatePct: pct(this.complianceFlagged, this.signalCount),
+      },
+    };
   }
 
   /** Derive conversation-quality signals from the recorded turns + STT stats. */

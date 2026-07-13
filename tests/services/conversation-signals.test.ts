@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSentiment, insightsToSignal } from '../../server/services/conversation-signals';
+import { normalizeSentiment, insightsToSignal, sentimentLevelToEmotion } from '../../server/services/conversation-signals';
 import { MetricsRecorder } from '../../server/voice-core/metrics';
+import { AdaptiveDialoguePolicy } from '../../server/services/agent-orchestration/affective-dialogue';
 
 describe('normalizeSentiment', () => {
   it('collapses the 5-level scale to the 3-level ops scale', () => {
@@ -37,6 +38,20 @@ describe('insightsToSignal', () => {
 
   it('tolerates null insights', () => {
     expect(insightsToSignal('CA4', null)).toEqual({ callSid: 'CA4' });
+  });
+
+  it('drives adaptive delivery: a critical caller yields an apologetic, human-offering directive', () => {
+    const emotion = sentimentLevelToEmotion('critical');
+    expect(emotion).toMatchObject({ sentiment: 'negative' });
+    expect(emotion.frustration).toBeGreaterThanOrEqual(0.6);
+    const directive = new AdaptiveDialoguePolicy().decide(emotion).styleDirective;
+    expect(directive).toMatch(/apologize/i);
+  });
+
+  it('maps neutral/positive sentiment to a calm, non-frustrated emotion', () => {
+    expect(sentimentLevelToEmotion('neutral')).toEqual({ sentiment: 'neutral', frustration: 0 });
+    expect(sentimentLevelToEmotion('positive')).toEqual({ sentiment: 'positive', frustration: 0 });
+    expect(sentimentLevelToEmotion(undefined)).toEqual({ sentiment: 'neutral', frustration: 0 });
   });
 
   it('flows end-to-end into the recorder summary', () => {

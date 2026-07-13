@@ -14,6 +14,7 @@
  */
 
 import type { ConversationSignal, Sentiment } from '../voice-core';
+import type { EmotionSignal } from './agent-orchestration/affective-dialogue';
 
 /** RealtimeSentimentService uses a 5-level scale; collapse to the 3-level ops scale. */
 export type SentimentLevel = 'positive' | 'neutral' | 'cautious' | 'negative' | 'critical' | string;
@@ -30,6 +31,27 @@ export function normalizeSentiment(level: SentimentLevel | undefined | null): Se
       return 'negative';
     default:
       return undefined;
+  }
+}
+
+/**
+ * Map a live 5-level sentiment reading to the affective policy's EmotionSignal
+ * (3-level sentiment + a frustration estimate), so RealtimeSentimentService can
+ * drive AdaptiveDialoguePolicy for live adaptive delivery.
+ */
+export function sentimentLevelToEmotion(level: SentimentLevel | undefined | null): EmotionSignal {
+  switch (level) {
+    case 'positive':
+      return { sentiment: 'positive', frustration: 0 };
+    case 'cautious':
+      return { sentiment: 'negative', frustration: 0.3 };
+    case 'negative':
+      return { sentiment: 'negative', frustration: 0.55 };
+    case 'critical':
+      return { sentiment: 'negative', frustration: 0.85 };
+    case 'neutral':
+    default:
+      return { sentiment: 'neutral', frustration: 0 };
   }
 }
 

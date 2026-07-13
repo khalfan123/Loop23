@@ -37,6 +37,8 @@ import type { LLMStreamEvent, StructuredToolCall, StructuredToolResult, ToolDefi
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
+import { sentimentLevelToEmotion } from '../../../services/conversation-signals';
+import { AdaptiveDialoguePolicy } from '../../../services/agent-orchestration/affective-dialogue';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
@@ -62,6 +64,9 @@ import {
 import { getDeprockSTTProvider } from './stt-provider';
 import { voiceMetrics } from '../../../voice-core';
 import { recordVoiceTurnSpan } from '../../../observability/tracing';
+
+/** Shared, stateless adaptive-dialogue policy (see VOICE_ADAPTIVE_DIALOGUE). */
+const ADAPTIVE_DIALOGUE_POLICY = new AdaptiveDialoguePolicy();
 
 /**
  * Silence detection timers keyed by callSid.
@@ -1190,7 +1195,19 @@ CONVERSATION STYLE:
       languageReminder = `\n\nREMINDER: Respond ONLY in fluent ${langName}. Do NOT use any English.`;
     }
 
-    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + toolBehaviorInstructions + languageReminder;
+    // Adaptive delivery: when enabled, tune tone/pace/empathy this turn from
+    // the caller's live sentiment. Flag-gated (default off) so the live prompt
+    // is byte-for-byte unchanged unless an operator opts in.
+    let adaptiveDirective = '';
+    if (/^(1|true|on|yes)$/i.test(process.env.VOICE_ADAPTIVE_DIALOGUE ?? '')) {
+      try {
+        const level = RealtimeSentimentService.getCurrentLevel(session.callSid);
+        const directive = ADAPTIVE_DIALOGUE_POLICY.decide(sentimentLevelToEmotion(level)).styleDirective;
+        if (directive) adaptiveDirective = `\n\nADAPTIVE DELIVERY (this caller, right now):\n${directive}`;
+      } catch { /* never let adaptive tuning break prompt assembly */ }
+    }
+
+    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + adaptiveDirective + toolBehaviorInstructions + languageReminder;
   }
 
   private static getActiveToolsForSession(session: BedrockPollyBridgeSession): Array<{ name: string; description: string; parameters: Record<string, unknown>; handler?: (params: Record<string, unknown>) => Promise<unknown> }> {

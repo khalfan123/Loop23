@@ -123,6 +123,35 @@ export class TenantGuard {
 }
 
 // ---------------------------------------------------------------------------
+// Membership → TenantContext resolution
+// ---------------------------------------------------------------------------
+
+/** One row of an organization's membership (the org-multitenancy join). */
+export interface MembershipRow {
+  userId: string;
+  orgId: string;
+  role: TenantRole;
+}
+
+/**
+ * Build the TenantContext for `userId` from an org's membership rows — the
+ * bridge between the auth layer and {@link TenantGuard}. The principal's role
+ * comes from their own membership row; the reachable owner set is every member
+ * of their org. A user with no membership is a solo tenant that owns only
+ * their own data.
+ */
+export function resolveTenantContext(userId: string, memberships: MembershipRow[]): TenantContext {
+  const mine = memberships.find(m => m.userId === userId);
+  if (!mine) {
+    return { userId, role: 'owner' }; // solo tenant — owns only their own scope
+  }
+  const orgMemberIds = Array.from(
+    new Set(memberships.filter(m => m.orgId === mine.orgId).map(m => m.userId))
+  );
+  return { userId, orgId: mine.orgId, role: mine.role, orgMemberIds };
+}
+
+// ---------------------------------------------------------------------------
 // GDPR data-subject requests (export / erasure)
 // ---------------------------------------------------------------------------
 

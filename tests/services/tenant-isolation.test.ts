@@ -4,7 +4,9 @@ import {
   TenantIsolationError,
   ForbiddenActionError,
   buildDataSubjectScope,
+  resolveTenantContext,
   type TenantContext,
+  type MembershipRow,
 } from '../../server/services/tenant-isolation';
 
 const solo = (userId = 'u1', role: TenantContext['role'] = 'owner'): TenantContext => ({ userId, role });
@@ -93,6 +95,31 @@ describe('TenantGuard — role capabilities', () => {
     // …but cannot delete (role), and cannot touch out-of-scope (isolation).
     expect(() => g.authorizeAction('delete', { ownerId: 'u2' })).toThrow(ForbiddenActionError);
     expect(() => g.authorizeAction('write', { ownerId: 'evil' })).toThrow(TenantIsolationError);
+  });
+});
+
+describe('resolveTenantContext', () => {
+  const rows: MembershipRow[] = [
+    { userId: 'u1', orgId: 'orgA', role: 'admin' },
+    { userId: 'u2', orgId: 'orgA', role: 'member' },
+    { userId: 'u3', orgId: 'orgB', role: 'owner' }, // different org
+  ];
+
+  it('treats a user with no membership as a solo owner', () => {
+    expect(resolveTenantContext('lone', [])).toEqual({ userId: 'lone', role: 'owner' });
+  });
+
+  it('builds an org-scoped context from membership rows', () => {
+    const ctx = resolveTenantContext('u1', rows);
+    expect(ctx.role).toBe('admin');
+    expect(ctx.orgId).toBe('orgA');
+    expect(ctx.orgMemberIds!.sort()).toEqual(['u1', 'u2']); // only orgA members
+  });
+
+  it('scopes a resolved context so it cannot reach another org', () => {
+    const guard = new TenantGuard(resolveTenantContext('u2', rows));
+    expect(guard.canAccess('u1')).toBe(true);  // same org
+    expect(guard.canAccess('u3')).toBe(false); // orgB
   });
 });
 

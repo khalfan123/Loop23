@@ -33,6 +33,17 @@ export { createMulawWavHeader, createPcm16WavHeader } from './audio/wav';
 export { applyAgc, computeAgcGain, rmsFraction } from './audio/agc';
 export { VoiceActivityDetector } from './audio/vad';
 export type { VadOptions, VadFrameResult } from './audio/vad';
+export { JitterBuffer } from './audio/jitter-buffer';
+export type { JitterPacket, JitterBufferOptions, JitterStats, JitterPop } from './audio/jitter-buffer';
+export {
+  createPlcState,
+  recordGoodFrame,
+  concealFrame,
+  concealFrameBuffer,
+  bufferToInt16,
+  int16ToBuffer,
+} from './audio/plc';
+export type { PlcState, PlcOptions } from './audio/plc';
 export { splitSentences } from './text/sentence-split';
 export { sanitizeForTTS } from './text/tts-sanitize';
 export {

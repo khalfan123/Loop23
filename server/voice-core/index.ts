@@ -23,10 +23,10 @@ export type { BreakerState, CircuitBreakerOptions } from './circuit-breaker';
 export { ProviderStats } from './health-stats';
 export type { ProviderStatsSnapshot } from './health-stats';
 export { ProviderRouter } from './router';
-export type { TTSRouteContext, TTSRouteResult, ProviderHealthSnapshot } from './router';
+export type { TTSRouteContext, TTSRouteResult, ProviderHealthSnapshot, SelectionWeights } from './router';
 export { MetricsRecorder, voiceMetrics } from './metrics';
 export type { TurnLatencyMetric, VoiceMetricsSummary } from './metrics';
-export { estimateTTSCostUsd, setTTSCostRates, TTS_COST_PER_1K_CHARS_USD } from './cost';
+export { estimateTTSCostUsd, setTTSCostRates, ttsCostPer1kChars, TTS_COST_PER_1K_CHARS_USD } from './cost';
 
 export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, mulawToPcm16, MULAW_DECODE_TABLE } from './audio/g711';
 export { createMulawWavHeader, createPcm16WavHeader } from './audio/wav';

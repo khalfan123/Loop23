@@ -90,8 +90,23 @@ export class ProviderRouter {
     if ((this.options.selectionStrategy ?? 'preferred') === 'health_aware') {
       // Score every usable provider by weighted latency/error/cost; the
       // preferred provider no longer gets automatic priority.
-      ranked = usable
-        .map(p => ({ id: p.id, score: this.score(p.id) }))
+      const ids = new Set(usable.map(p => p.id));
+      // Preserve the cross-strategy invariant that the agent's preferred
+      // provider is always *considered* when it can serve. A registry-level
+      // isConfigured() check can't see per-agent API keys, so an agent whose
+      // preferred provider is credentialed only at the agent level would
+      // otherwise be silently dropped to the final fallback under this
+      // strategy (a regression from 'preferred', which force-includes it). A
+      // tripped (open) breaker still excludes it — synthesize() would skip a
+      // tripped provider anyway — so genuinely degraded providers still yield.
+      if (
+        ctx.preferred !== ctx.finalFallback &&
+        this.breakerFor(ctx.preferred).state() !== 'open'
+      ) {
+        ids.add(ctx.preferred);
+      }
+      ranked = Array.from(ids)
+        .map(id => ({ id, score: this.score(id) }))
         .sort((a, b) => a.score - b.score)
         .map(x => x.id);
     } else {

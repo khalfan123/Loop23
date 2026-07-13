@@ -230,6 +230,41 @@ describe('ProviderRouter — health-aware selection', () => {
     expect(order.indexOf('cartesia')).toBeLessThan(order.indexOf('elevenlabs'));
   });
 
+  it('health_aware still considers a preferred provider that fails registry isConfigured() (per-agent key)', async () => {
+    // The registry-level isConfigured() can't see per-agent API keys, so a
+    // provider credentialed only at the agent level reports unconfigured.
+    // Under 'preferred' the router force-includes preferred; 'health_aware'
+    // must not silently drop it to the fallback.
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    const eleven = mockProvider('elevenlabs', { configured: false });
+    registry.registerTTS(eleven);
+    const router = new ProviderRouter(registry, { selectionStrategy: 'health_aware' });
+
+    const order = router.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(order).toEqual(['elevenlabs', 'aws_polly']);
+
+    // And it is actually attempted (buildRequest materializes it), not skipped.
+    const { result } = await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(result.providerId).toBe('elevenlabs');
+    expect(eleven.calls).toHaveLength(1);
+  });
+
+  it('health_aware does NOT resurrect a preferred provider whose breaker is open', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    registry.registerTTS(mockProvider('elevenlabs', { configured: false, fail: true }));
+    const router = new ProviderRouter(registry, {
+      selectionStrategy: 'health_aware',
+      breakerOptions: { consecutiveFailuresToOpen: 1 },
+    });
+    // First call trips the breaker (falls back to Polly).
+    await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    // Breaker open → preferred is excluded despite the per-agent-key rule.
+    const order = router.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(order).toEqual(['aws_polly']);
+  });
+
   it('health_aware excludes breaker-open providers but keeps the final fallback', () => {
     const registry = new ProviderRegistry();
     registry.registerTTS(mockProvider('aws_polly'));

@@ -123,4 +123,33 @@ describe('WhisperBatchSTTProvider', () => {
     expect(result.text).toBe('plain text transcript');
     expect(result.segmentCount).toBe(0);
   });
+
+  it('sends a native mulaw WAV (format 7, header 46 bytes) when AGC is off', async () => {
+    let file: File | undefined;
+    const fetchMock = vi.fn(async (_url: any, init: any) => {
+      file = (init.body as FormData).get('file') as File;
+      return whisperResponse({ text: 'ok' });
+    });
+    const provider = new WhisperBatchSTTProvider({ resolveApiKey: async () => 'k', fetchImpl: fetchMock as any });
+    await provider.transcribe({ audio });
+    // mulaw WAV: 46-byte header + one byte per mulaw sample
+    expect(file!.size).toBe(audio.length + 46);
+    const bytes = Buffer.from(await file!.arrayBuffer());
+    expect(bytes.readUInt16LE(20)).toBe(7); // format code 7 = mulaw
+  });
+
+  it('sends a normalized PCM WAV (format 1, 16-bit) when AGC is on', async () => {
+    let file: File | undefined;
+    const fetchMock = vi.fn(async (_url: any, init: any) => {
+      file = (init.body as FormData).get('file') as File;
+      return whisperResponse({ text: 'ok' });
+    });
+    const provider = new WhisperBatchSTTProvider({ resolveApiKey: async () => 'k', agc: true, fetchImpl: fetchMock as any });
+    await provider.transcribe({ audio });
+    // PCM WAV: 44-byte header + 2 bytes per decoded sample
+    expect(file!.size).toBe(audio.length * 2 + 44);
+    const bytes = Buffer.from(await file!.arrayBuffer());
+    expect(bytes.readUInt16LE(20)).toBe(1); // format code 1 = PCM
+    expect(bytes.readUInt16LE(34)).toBe(16); // 16-bit
+  });
 });

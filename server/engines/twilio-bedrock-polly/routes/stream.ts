@@ -10,6 +10,8 @@ import { eq, sql } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import { CallInsightsService } from '../../../services/call-insights.service';
+import { insightsToSignal } from '../../../services/conversation-signals';
+import { voiceMetrics } from '../../../voice-core';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import type { TwilioMediaStreamEvent, AgentConfig, PollyVoiceId, BedrockModel, TtsProvider } from '../types';
 
@@ -472,6 +474,14 @@ async function initializeSession(
           );
 
           if (insights) {
+            // Feed the finalized sentiment/intent into the Ops Center's
+            // conversation-signals view (live dashboard surface).
+            try {
+              voiceMetrics.recordConversationSignal(insightsToSignal(callId, insights));
+            } catch (sigErr: any) {
+              logger.warn(`Failed to record conversation signal for ${callId}: ${sigErr.message}`, undefined, 'BedrockPolly Stream');
+            }
+
             let aiSummary = insights.aiSummary || '';
 
             if (metaDataSchema && metaDataSchema.length > 0) {

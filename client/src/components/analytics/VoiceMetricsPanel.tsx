@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/MetricCard";
-import { Mic, Cpu, Volume2, Timer, Loader2, Activity } from "lucide-react";
+import { Mic, Cpu, Volume2, Timer, Loader2, Activity, Gauge, DollarSign, Lightbulb, AlertTriangle, MessageSquare, ShieldCheck, Smile } from "lucide-react";
 
 interface LatencyPercentiles {
   p50: number;
@@ -31,12 +31,33 @@ interface ProviderHealth {
   lastError?: string;
 }
 
+interface QualitySummary {
+  turnsUnderTargetPct: number;
+  ttsFallbackRatePct: number;
+  sttConfidenceRejectRatePct: number;
+  healthScore: number;
+}
+
+interface ConversationSignalsSummary {
+  count: number;
+  sentiment: { positive: number; neutral: number; negative: number; positivePct: number; negativePct: number };
+  topIntents: { intent: string; count: number }[];
+  avgConfidence: number | null;
+  csat: { count: number; avg: number | null };
+  compliance: { flagged: number; flaggedRatePct: number };
+}
+
 interface VoiceMetricsSummary {
   turnCount: number;
   latency: Record<"sttMs" | "llmFirstMs" | "ttsStartMs" | "streamTotalMs", LatencyPercentiles>;
-  tts: Record<string, { attempts: number; failures: number; avgLatencyMs: number }>;
+  tts: Record<string, { attempts: number; failures: number; avgLatencyMs: number; characters: number; estimatedCostUsd: number }>;
   stt: Record<string, { attempts: number; failures: number; confidenceRejects: number; avgLatencyMs: number }>;
   providers: ProviderHealth[];
+  estimatedTtsCostUsd: number;
+  quality: QualitySummary;
+  signals?: ConversationSignalsSummary;
+  recommendations: string[];
+  alerts: { severity: "critical" | "warning"; code: string; message: string }[];
 }
 
 interface TurnMetric {
@@ -65,6 +86,22 @@ const BREAKER_LABELS: Record<ProviderHealth["breaker"], string> = {
 function ms(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return `${Math.round(value)}ms`;
+}
+
+function pct(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return `${Math.round(value)}%`;
+}
+
+function usd(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "$0.00";
+  return value < 1 ? `$${value.toFixed(3)}` : `$${value.toFixed(2)}`;
+}
+
+function healthTone(score: number): string {
+  if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (score >= 50) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
 }
 
 export function VoiceMetricsPanel() {
@@ -100,6 +137,135 @@ export function VoiceMetricsPanel() {
           Per-turn latency and provider routing health, live from the voice engine ({summary?.turnCount ?? 0} turns since restart)
         </p>
       </div>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-x-10 gap-y-4 py-5">
+          <div className="flex items-center gap-3">
+            <Gauge className="w-5 h-5 text-muted-foreground" />
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">System Health</div>
+              <div className={`text-3xl font-bold tabular-nums ${healthTone(summary?.quality?.healthScore ?? 100)}`}>
+                {summary?.quality?.healthScore ?? 100}<span className="text-base text-muted-foreground font-medium">/100</span>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">Turns under 700ms</div>
+              <div className="font-semibold tabular-nums">{pct(summary?.quality?.turnsUnderTargetPct)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">TTS fallback rate</div>
+              <div className="font-semibold tabular-nums">{pct(summary?.quality?.ttsFallbackRatePct)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">STT low-confidence</div>
+              <div className="font-semibold tabular-nums">{pct(summary?.quality?.sttConfidenceRejectRatePct)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="w-3 h-3" />Est. TTS spend</div>
+              <div className="font-semibold tabular-nums">{usd(summary?.estimatedTtsCostUsd)}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {summary?.alerts && summary.alerts.length > 0 && (
+        <Card className="border-red-300/50 dark:border-red-700/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+              Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5 text-sm">
+              {summary.alerts.map((a, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={a.severity === "critical"
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"}
+                  >
+                    {a.severity}
+                  </Badge>
+                  <span>{a.message}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {summary?.recommendations && summary.recommendations.length > 0 && (
+        <Card className="border-amber-300/50 dark:border-amber-700/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5 text-sm">
+              {summary.recommendations.map((r, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-amber-500 mt-0.5">•</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {summary?.signals && summary.signals.count > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-muted-foreground" />
+              Conversation Intelligence
+              <span className="text-xs font-normal text-muted-foreground">({summary.signals.count} calls)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-sm">
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1"><Smile className="w-3 h-3" />Positive sentiment</div>
+                <div className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{pct(summary.signals.sentiment.positivePct)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Negative sentiment</div>
+                <div className={`font-semibold tabular-nums ${summary.signals.sentiment.negativePct >= 40 ? "text-red-600 dark:text-red-400" : ""}`}>{pct(summary.signals.sentiment.negativePct)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1"><Activity className="w-3 h-3" />Avg confidence</div>
+                <div className="font-semibold tabular-nums">{summary.signals.avgConfidence == null ? "—" : summary.signals.avgConfidence.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">CSAT</div>
+                <div className="font-semibold tabular-nums">{summary.signals.csat.avg == null ? "—" : `${summary.signals.csat.avg.toFixed(1)}/5`}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1"><ShieldCheck className="w-3 h-3" />Compliance flagged</div>
+                <div className={`font-semibold tabular-nums ${summary.signals.compliance.flaggedRatePct >= 10 ? "text-red-600 dark:text-red-400" : ""}`}>{pct(summary.signals.compliance.flaggedRatePct)}</div>
+              </div>
+            </div>
+            {summary.signals.topIntents.length > 0 && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-1.5">Top intents</div>
+                <div className="flex flex-wrap gap-2">
+                  {summary.signals.topIntents.map((t) => (
+                    <Badge key={t.intent} variant="outline" className="gap-1">
+                      {t.intent}<span className="text-muted-foreground tabular-nums">{t.count}</span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
@@ -143,19 +309,22 @@ export function VoiceMetricsPanel() {
           <CardContent>
             {summary?.providers?.length ? (
               <div className="space-y-2">
-                {summary.providers.map((p) => (
-                  <div key={p.providerId} className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={BREAKER_STYLES[p.breaker]}>
-                        {BREAKER_LABELS[p.breaker]}
-                      </Badge>
-                      <span className="font-medium">{p.providerId}</span>
+                {summary.providers.map((p) => {
+                  const cost = summary.tts?.[p.providerId]?.estimatedCostUsd;
+                  return (
+                    <div key={p.providerId} className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={BREAKER_STYLES[p.breaker]}>
+                          {BREAKER_LABELS[p.breaker]}
+                        </Badge>
+                        <span className="font-medium">{p.providerId}</span>
+                      </div>
+                      <div className="text-muted-foreground text-xs text-right tabular-nums">
+                        <span>{p.attempts} calls · {p.failures} failed · {ms(p.ewmaLatencyMs)}{cost ? ` · ${usd(cost)}` : ""}</span>
+                      </div>
                     </div>
-                    <div className="text-muted-foreground text-xs text-right">
-                      <span>{p.attempts} calls · {p.failures} failed · {ms(p.ewmaLatencyMs)}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No provider activity yet.</p>

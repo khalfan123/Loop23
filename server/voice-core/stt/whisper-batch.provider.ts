@@ -13,7 +13,9 @@
  * ============================================================
  */
 
-import { createMulawWavHeader } from '../audio/wav';
+import { createMulawWavHeader, createPcm16WavHeader } from '../audio/wav';
+import { mulawToPcm16 } from '../audio/g711';
+import { applyAgc } from '../audio/agc';
 import type { STTProvider, STTRequest, STTResult } from '../types';
 
 const ARABIC_CALL_VOCABULARY =
@@ -22,6 +24,12 @@ const ARABIC_CALL_VOCABULARY =
 export interface WhisperBatchOptions {
   /** Resolve the OpenAI API key (env/DB/pool — caller's concern). */
   resolveApiKey: () => Promise<string | null>;
+  /**
+   * Apply Automatic Gain Control to the mulaw input before transcription:
+   * decode to PCM16, normalize the level, send as a PCM WAV. Off by default;
+   * only affects transcription accuracy, never the audio the caller hears.
+   */
+  agc?: boolean;
   /** Injectable for tests. */
   fetchImpl?: typeof fetch;
 }
@@ -48,8 +56,15 @@ export class WhisperBatchSTTProvider implements STTProvider {
     }
 
     try {
-      const wavHeader = createMulawWavHeader(request.audio.length);
-      const wavBuffer = Buffer.concat([wavHeader, request.audio]);
+      let wavBuffer: Buffer;
+      if (this.options.agc) {
+        // Decode mulaw → PCM16, normalize the level, wrap as a PCM WAV.
+        const normalized = applyAgc(mulawToPcm16(request.audio));
+        wavBuffer = Buffer.concat([createPcm16WavHeader(normalized.length), normalized]);
+      } else {
+        // Native mulaw WAV — no transcoding.
+        wavBuffer = Buffer.concat([createMulawWavHeader(request.audio.length), request.audio]);
+      }
 
       const formData = new FormData();
       formData.append('file', new Blob([wavBuffer], { type: 'audio/wav' }), 'audio.wav');

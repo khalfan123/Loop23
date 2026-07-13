@@ -74,6 +74,110 @@ describe('MetricsRecorder', () => {
     expect(s.turnCount).toBe(0);
     expect(s.latency.streamTotalMs).toEqual({ p50: 0, p95: 0, avg: 0 });
     expect(s.stt).toEqual({});
+    expect(s.quality.healthScore).toBe(100); // neutral with no data
+  });
+
+  it('derives conversation-quality signals from turns and STT stats', () => {
+    const m = new MetricsRecorder(20);
+    // 3 fast turns (<700ms), 1 slow; one of the fast turns fell back
+    m.recordTurn(turn({ streamTotalMs: 500 }));
+    m.recordTurn(turn({ streamTotalMs: 600, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 650 }));
+    m.recordTurn(turn({ streamTotalMs: 1200 }));
+    // STT: 4 attempts, 1 confidence reject
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: true, latencyMs: 400 });
+    m.recordSTTAttempt({ providerId: 'whisper-batch', ok: false, latencyMs: 500, rejected: 'confidence' });
+
+    const q = m.summary().quality;
+    expect(q.turnsUnderTargetPct).toBe(75);   // 3 of 4 under 700ms
+    expect(q.ttsFallbackRatePct).toBe(25);    // 1 of 4
+    expect(q.sttConfidenceRejectRatePct).toBe(25); // 1 of 4
+    // 75 - 25*0.5 - 25*0.5 = 50
+    expect(q.healthScore).toBe(50);
+  });
+
+  it('clamps the health score to 0..100', () => {
+    const m = new MetricsRecorder(10);
+    // All slow + all fell back → score would go negative, clamp to 0
+    m.recordTurn(turn({ streamTotalMs: 2000, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 2500, ttsFellBack: true }));
+    const q = m.summary().quality;
+    expect(q.turnsUnderTargetPct).toBe(0);
+    expect(q.healthScore).toBe(0);
+  });
+
+  it('recommends streaming STT when turns run over the latency target', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 1800 }));
+    m.recordTurn(turn({ streamTotalMs: 2200 }));
+    const recs = m.summary().recommendations;
+    expect(recs.some(r => /streaming STT|Deepgram Flux/i.test(r))).toBe(true);
+  });
+
+  it('recommends checking the provider when TTS fallback is high', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 400, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 400, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 400, ttsFellBack: false }));
+    const recs = m.summary().recommendations;
+    expect(recs.some(r => /fell back/i.test(r))).toBe(true);
+  });
+
+  it('flags a provider failing most of its synthesis attempts', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 400 }));
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'elevenlabs', ok: true, latencyMs: 50 });
+    const recs = m.summary().recommendations;
+    expect(recs.some(r => /elevenlabs/i.test(r) && /failing/i.test(r))).toBe(true);
+  });
+
+  it('returns no recommendations for a healthy, empty, or on-target system', () => {
+    const empty = new MetricsRecorder(10);
+    expect(empty.summary().recommendations).toEqual([]);
+    const healthy = new MetricsRecorder(10);
+    healthy.recordTurn(turn({ streamTotalMs: 500 }));
+    healthy.recordTurn(turn({ streamTotalMs: 550 }));
+    expect(healthy.summary().recommendations).toEqual([]);
+  });
+
+  it('raises a critical alert when system health collapses', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 2000, ttsFellBack: true }));
+    m.recordTurn(turn({ streamTotalMs: 2500, ttsFellBack: true }));
+    const alerts = m.summary().alerts;
+    expect(alerts.some(a => a.severity === 'critical' && a.code === 'health_critical')).toBe(true);
+  });
+
+  it('flags a provider failing half its attempts as critical', () => {
+    const m = new MetricsRecorder(10);
+    m.recordTurn(turn({ streamTotalMs: 400 }));
+    m.recordTTSAttempt({ providerId: 'cartesia', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'cartesia', ok: false, latencyMs: 50, error: 'x' });
+    m.recordTTSAttempt({ providerId: 'cartesia', ok: true, latencyMs: 50 });
+    const alerts = m.summary().alerts;
+    expect(alerts.some(a => a.severity === 'critical' && a.code === 'provider_failing')).toBe(true);
+  });
+
+  it('raises a latency warning without going critical when the health score holds at 40', () => {
+    const m = new MetricsRecorder(10);
+    // 4 of 10 turns under target → turnsUnderTargetPct = 40, healthScore = 40 (not < 40)
+    for (let i = 0; i < 4; i++) m.recordTurn(turn({ streamTotalMs: 500 }));
+    for (let i = 0; i < 6; i++) m.recordTurn(turn({ streamTotalMs: 1500 }));
+    const alerts = m.summary().alerts;
+    expect(alerts.some(a => a.code === 'latency_over_target' && a.severity === 'warning')).toBe(true);
+    expect(alerts.some(a => a.severity === 'critical')).toBe(false);
+  });
+
+  it('has no alerts for an empty or healthy system', () => {
+    expect(new MetricsRecorder(10).summary().alerts).toEqual([]);
+    const healthy = new MetricsRecorder(10);
+    healthy.recordTurn(turn({ streamTotalMs: 500 }));
+    healthy.recordTurn(turn({ streamTotalMs: 520 }));
+    expect(healthy.summary().alerts).toEqual([]);
   });
 
   it('aggregates STT attempts, separating confidence rejects from failures', () => {

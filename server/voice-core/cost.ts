@@ -34,3 +34,13 @@ export function estimateTTSCostUsd(providerId: TTSProviderId, characters: number
   if (!characters || characters < 0) return 0;
   return (characters / 1000) * rate;
 }
+
+/**
+ * The effective USD-per-1k-chars rate for a provider (0 if unknown),
+ * honoring any {@link setTTSCostRates} overrides. Wired into the router's
+ * cost-aware selection so provider ordering uses the same live rate table
+ * the ops metrics report on — no second source of truth.
+ */
+export function ttsCostPer1kChars(providerId: TTSProviderId): number {
+  return rates[providerId] ?? 0;
+}

@@ -73,7 +73,10 @@ let sttProvider: WhisperBatchSTTProvider | null = null;
 
 export function getDeprockSTTProvider(): WhisperBatchSTTProvider {
   if (!sttProvider) {
-    sttProvider = new WhisperBatchSTTProvider({ resolveApiKey: resolveOpenAIKey });
+    // AGC on the STT input is opt-in via env (default off → no behavior change).
+    const agc = process.env.VOICE_AGC_ENABLED === 'true';
+    if (agc) console.log('[BedrockPolly Bridge] STT input AGC enabled');
+    sttProvider = new WhisperBatchSTTProvider({ resolveApiKey: resolveOpenAIKey, agc });
   }
   return sttProvider;
 }

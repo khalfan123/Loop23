@@ -44,8 +44,10 @@ import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
 import {
   mulawEnergy,
+  mulawToPcm16,
   pcmToMulaw as corePcmToMulaw,
 } from '../../../voice-core/audio/g711';
+import { NoiseSuppressor } from '../../../voice-core/audio/noise-suppression';
 import { splitSentences as coreSplitSentences } from '../../../voice-core/text/sentence-split';
 import { sanitizeForTTS as coreSanitizeForTTS } from '../../../voice-core/text/tts-sanitize';
 import {
@@ -79,6 +81,18 @@ const silenceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
  * Each entry accumulates raw mulaw chunks until silence is detected.
  */
 const audioBuffers: Map<string, Buffer[]> = new Map();
+
+/**
+ * Per-call noise suppressors (see VOICE_NOISE_SUPPRESSION). Kept per call so
+ * the ambient-noise floor carries across turns rather than resetting each
+ * utterance. Created lazily and cleared on disconnect.
+ */
+const noiseSuppressors: Map<string, NoiseSuppressor> = new Map();
+
+/** Whether inbound neural/DSP noise suppression is enabled (default off). */
+function isNoiseSuppressionEnabled(): boolean {
+  return /^(1|true|on|yes)$/i.test(process.env.VOICE_NOISE_SUPPRESSION ?? '');
+}
 
 /**
  * Tracks the timestamp of the first audio chunk in the current buffer,
@@ -745,7 +759,25 @@ export class BedrockPollyAudioBridge {
       const buf = audioBuffers.get(callSid) || [];
       audioBuffers.set(callSid, []);
 
-      const audioBuffer = Buffer.concat(buf);
+      let audioBuffer = Buffer.concat(buf);
+
+      // Inbound noise suppression (flag-gated, default off): μ-law → PCM16,
+      // suppress steady ambient noise, back to μ-law, so the downstream energy
+      // gates and STT see a cleaner signal. The per-call suppressor's noise
+      // floor persists across turns. Never let it break the turn.
+      if (isNoiseSuppressionEnabled() && audioBuffer.length > 0) {
+        try {
+          let ns = noiseSuppressors.get(callSid);
+          if (!ns) {
+            ns = new NoiseSuppressor();
+            noiseSuppressors.set(callSid, ns);
+          }
+          audioBuffer = corePcmToMulaw(ns.processBuffer(mulawToPcm16(audioBuffer)));
+        } catch (nsErr: any) {
+          console.warn(`[BedrockPolly Bridge] Noise suppression failed for ${callSid}: ${nsErr.message}`);
+        }
+      }
+
       const bufferEnergy = this.calculateMulawEnergy(audioBuffer);
       const speechThresh = this.getSpeechThreshold(callSid);
       console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b, avgEnergy=${Math.round(bufferEnergy)}, threshold=${Math.round(speechThresh)}`);
@@ -2761,6 +2793,7 @@ CONVERSATION STYLE:
       calibrationStartTime.delete(callSid);
       pendingMarks.delete(callSid);
       peakEnergy.delete(callSid);
+      noiseSuppressors.delete(callSid);
       whisperAbortControllers.get(callSid)?.abort();
       whisperAbortControllers.delete(callSid);
 

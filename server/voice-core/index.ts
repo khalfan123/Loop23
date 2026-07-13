@@ -41,6 +41,10 @@ export { createMulawWavHeader, createPcm16WavHeader } from './audio/wav';
 export { applyAgc, computeAgcGain, rmsFraction } from './audio/agc';
 export { VoiceActivityDetector } from './audio/vad';
 export type { VadOptions, VadFrameResult } from './audio/vad';
+export { NoiseSuppressor } from './audio/noise-suppression';
+export type { NoiseSuppressorOptions } from './audio/noise-suppression';
+export { EchoCanceller } from './audio/aec';
+export type { EchoCancellerOptions } from './audio/aec';
 export { JitterBuffer } from './audio/jitter-buffer';
 export type { JitterPacket, JitterBufferOptions, JitterStats, JitterPop } from './audio/jitter-buffer';
 export {

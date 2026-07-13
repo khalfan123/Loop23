@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WizardStepper } from "@/components/ui/wizard-stepper";
 import {
   Check,
   ChevronDown,
@@ -340,37 +341,14 @@ export function SipTrunkingWizard({ onClose }: SipTrunkingWizardProps) {
         </p>
       </div>
 
-      <div className="flex items-center gap-2 mb-8" data-testid="sip-wizard-progress">
-        {STEPS.map((step, index) => {
-          const StepIcon = step.icon;
-          const isActive = index === currentStep;
-          const isCompleted = index < currentStep;
-          return (
-            <div key={step.id} className="flex items-center gap-2 flex-1">
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all flex-1 ${
-                isActive ? "bg-primary/10 border border-primary/20" :
-                isCompleted ? "bg-green-500/10 border border-green-500/20" :
-                "bg-muted/50 border border-transparent"
-              }`}>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  isCompleted ? "bg-green-500 text-white" :
-                  isActive ? "bg-primary text-primary-foreground" :
-                  "bg-muted-foreground/20 text-muted-foreground"
-                }`}>
-                  {isCompleted ? <Check className="h-4 w-4" /> : <StepIcon className="h-3.5 w-3.5" />}
-                </div>
-                <span className={`text-xs font-medium hidden sm:block ${
-                  isActive ? "text-primary" :
-                  isCompleted ? "text-green-600 dark:text-green-400" :
-                  "text-muted-foreground"
-                }`}>{step.label}</span>
-              </div>
-              {index < STEPS.length - 1 && (
-                <ChevronRight className={`h-4 w-4 flex-shrink-0 ${isCompleted ? "text-green-500" : "text-muted-foreground/30"}`} />
-              )}
-            </div>
-          );
-        })}
+      <div className="mb-8" data-testid="sip-wizard-progress">
+        {/* Shared premium stepper for cross-wizard consistency (see components/ui/wizard-stepper). */}
+        <WizardStepper
+          steps={STEPS.map((s) => ({ id: String(s.id), title: s.label }))}
+          currentIndex={currentStep}
+          completed={STEPS.slice(0, currentStep).map((s) => String(s.id))}
+          onStepClick={(index) => { if (index < currentStep) setCurrentStep(index); }}
+        />
       </div>
 
       <Card className="p-6">

@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { WizardStepper } from "@/components/ui/wizard-stepper";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1133,32 +1133,25 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     }}>
       <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                <Wand2 className="h-5 w-5 text-primary" />
-                Create AI Agent
-              </DialogTitle>
-              <DialogDescription>
-                Step {currentStepIndex + 1} of {steps.length}: {steps[currentStepIndex].title}
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              {steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`h-2 w-2 rounded-full transition-colors ${
-                    index < currentStepIndex
-                      ? "bg-emerald-500"
-                      : index === currentStepIndex
-                      ? "bg-primary"
-                      : "bg-muted"
-                  }`}
-                />
-              ))}
-            </div>
+          <div>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-5 w-5 text-primary" />
+              Create AI Agent
+            </DialogTitle>
+            <DialogDescription>
+              Step {currentStepIndex + 1} of {steps.length}: {steps[currentStepIndex].title}
+            </DialogDescription>
           </div>
-          <Progress value={progress} className="h-1 mt-4" />
+          {/* Shared premium stepper (see components/ui/wizard-stepper): consistent
+              progress + completed/current states, click-to-jump on reached steps. */}
+          <WizardStepper
+            steps={steps}
+            currentIndex={currentStepIndex}
+            completed={steps.slice(0, currentStepIndex).map((s) => s.id)}
+            progress={progress / 100}
+            onStepClick={(index) => setCurrentStep(steps[index].id)}
+            className="mt-4"
+          />
         </DialogHeader>
 
         <ScrollArea className="flex-1 max-h-[55vh]">

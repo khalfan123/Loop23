@@ -49,7 +49,12 @@ export type AuditAction =
   | "phone.release"
   | "security.rate_limit_exceeded"
   | "security.invalid_token"
-  | "security.unauthorized_access";
+  | "security.unauthorized_access"
+  | "gdpr.data_export"
+  | "gdpr.data_erasure"
+  | "compliance.permission_change"
+  | "compliance.residency_violation"
+  | "compliance.tenant_access_denied";
 
 export interface AuditLogEntry {
   action: AuditAction;
@@ -110,6 +115,11 @@ function getSeverityForAction(action: AuditAction): "info" | "warning" | "error"
     "security.rate_limit_exceeded": "warning",
     "security.invalid_token": "warning",
     "security.unauthorized_access": "error",
+    "gdpr.data_export": "info",
+    "gdpr.data_erasure": "warning",
+    "compliance.permission_change": "warning",
+    "compliance.residency_violation": "error",
+    "compliance.tenant_access_denied": "error",
     "user.login_failed": "warning",
     "admin.user_delete": "warning",
     "admin.api_key_delete": "warning",

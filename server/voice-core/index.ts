@@ -23,12 +23,39 @@ export type { BreakerState, CircuitBreakerOptions } from './circuit-breaker';
 export { ProviderStats } from './health-stats';
 export type { ProviderStatsSnapshot } from './health-stats';
 export { ProviderRouter } from './router';
-export type { TTSRouteContext, TTSRouteResult, ProviderHealthSnapshot } from './router';
-export { MetricsRecorder, voiceMetrics } from './metrics';
-export type { TurnLatencyMetric, VoiceMetricsSummary } from './metrics';
+export type { TTSRouteContext, TTSRouteResult, ProviderHealthSnapshot, SelectionWeights } from './router';
+export { MetricsRecorder, voiceMetrics, deriveSignalAlerts } from './metrics';
+export type {
+  TurnLatencyMetric,
+  VoiceMetricsSummary,
+  ConversationSignal,
+  ConversationSignalsSummary,
+  Sentiment,
+  Alert,
+  AlertSeverity,
+} from './metrics';
+export { estimateTTSCostUsd, setTTSCostRates, ttsCostPer1kChars, TTS_COST_PER_1K_CHARS_USD } from './cost';
 
-export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, MULAW_DECODE_TABLE } from './audio/g711';
-export { createMulawWavHeader } from './audio/wav';
+export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, mulawToPcm16, MULAW_DECODE_TABLE } from './audio/g711';
+export { createMulawWavHeader, createPcm16WavHeader } from './audio/wav';
+export { applyAgc, computeAgcGain, rmsFraction } from './audio/agc';
+export { VoiceActivityDetector } from './audio/vad';
+export type { VadOptions, VadFrameResult } from './audio/vad';
+export { NoiseSuppressor } from './audio/noise-suppression';
+export type { NoiseSuppressorOptions } from './audio/noise-suppression';
+export { EchoCanceller } from './audio/aec';
+export type { EchoCancellerOptions } from './audio/aec';
+export { JitterBuffer } from './audio/jitter-buffer';
+export type { JitterPacket, JitterBufferOptions, JitterStats, JitterPop } from './audio/jitter-buffer';
+export {
+  createPlcState,
+  recordGoodFrame,
+  concealFrame,
+  concealFrameBuffer,
+  bufferToInt16,
+  int16ToBuffer,
+} from './audio/plc';
+export type { PlcState, PlcOptions } from './audio/plc';
 export { splitSentences } from './text/sentence-split';
 export { sanitizeForTTS } from './text/tts-sanitize';
 export {

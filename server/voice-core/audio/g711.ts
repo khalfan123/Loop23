@@ -23,6 +23,18 @@ export const MULAW_DECODE_TABLE: Int16Array = (() => {
 })();
 
 /**
+ * Decode a raw mu-law buffer into PCM16LE mono (one 8-bit byte → one
+ * 16-bit sample). Uses the same decode table as the energy calculation.
+ */
+export function mulawToPcm16(mulaw: Buffer): Buffer {
+  const out = Buffer.alloc(mulaw.length * 2);
+  for (let i = 0; i < mulaw.length; i++) {
+    out.writeInt16LE(MULAW_DECODE_TABLE[mulaw[i]], i * 2);
+  }
+  return out;
+}
+
+/**
  * RMS energy of a raw mulaw buffer, computed over the decoded
  * linear samples. Returns 0 for an empty buffer.
  */

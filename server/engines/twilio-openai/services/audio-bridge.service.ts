@@ -171,6 +171,7 @@ export class TwilioOpenAIAudioBridge {
       onEndCallback: null,
       endCallbackFired: false,
       firstMessageSent: false,
+      greetingPlaybackActive: false,
       twilioStreamReady: false,
       lastUserSpeechTime: Date.now(),
       isResponseActive: false,
@@ -829,6 +830,11 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     console.log(`[TwilioOpenAI Bridge] Sending first message for ${callSid}: "${text.substring(0, 50)}..."`);
 
+    // Protect the opening greeting from acoustic-echo barge-in: IVR ringback
+    // (and handset ear→mic coupling) can trigger speech_started → clear/cancel
+    // which leaves the caller in silence after Connect.
+    session.greetingPlaybackActive = true;
+
     // Use response.create with instructions to speak the exact greeting
     // This is the official way to have the agent say a specific first message
     // After speaking this greeting, the agent MUST wait for user input before responding again
@@ -933,6 +939,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         case 'response.output_audio.done':
         case 'response.audio.done':
           console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
+          if (session.greetingPlaybackActive) {
+            session.greetingPlaybackActive = false;
+          }
           if (session.suppressResponseOutputUntilDone) {
             const doneResponseId = message.response_id || message.response?.id || null;
             if (!session.suppressedResponseId || !doneResponseId || session.suppressedResponseId === doneResponseId) {
@@ -1032,6 +1041,17 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         case 'input_audio_buffer.speech_started':
           session.lastUserSpeechTime = Date.now();
           console.log(`[TwilioOpenAI Bridge] User started speaking (barge-in detected)`);
+          // During IVR warm-up ringback / opening greeting, acoustic echo from the
+          // handset often falsely triggers barge-in which CLEARS the greeting audio
+          // → caller hears silence after IVR. Ignore cancels until greeting finishes.
+          if (session.ringbackIntervalId || session.greetingPlaybackActive) {
+            console.log(
+              `[TwilioOpenAI Bridge] Ignoring barge-in during ${session.ringbackIntervalId ? 'ringback' : 'greeting'} for ${callSid}`
+            );
+            // Still stop ringback once real VAD fires, but do NOT clear/cancel audio.
+            this.stopRingback(session);
+            break;
+          }
           this.stopRingback(session);
           if (session.isResponseActive) {
             this.handleBargeIn(session);
@@ -1067,6 +1087,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.done':
           {
+            if (session.greetingPlaybackActive) {
+              session.greetingPlaybackActive = false;
+            }
             const doneResponseId = message.response?.id || null;
             const isSuppressedResponse = session.suppressResponseOutputUntilDone
               && (!session.suppressedResponseId || !doneResponseId || session.suppressedResponseId === doneResponseId);

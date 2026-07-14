@@ -212,6 +212,8 @@ export interface AudioBridgeSession {
   onEndCallback: ((sessionData: { transcript: string; duration: number; openaiSessionId: string }) => void) | null;
   endCallbackFired: boolean;
   firstMessageSent: boolean;
+  /** True while the opening greeting response is in flight; blocks echo barge-in clears. */
+  greetingPlaybackActive?: boolean;
   twilioStreamReady: boolean;
   lastUserSpeechTime: number;
   isResponseActive: boolean;

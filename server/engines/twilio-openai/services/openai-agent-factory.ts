@@ -69,9 +69,61 @@ export class OpenAIAgentFactory {
   }
 
   /**
-   * Validate and normalize voice selection
+   * Map Polly / ElevenLabs alias IDs → OpenAI Realtime voices.
+   * Deprock department agents store `el_*` (ElevenLabs aliases) in `openai_voice`;
+   * sending those to GA Realtime rejects session.update and produces total silence.
+   */
+  private static readonly ALIAS_TO_OPENAI_VOICE: Record<string, OpenAIVoice> = {
+    el_rachel: 'coral',
+    el_domi: 'coral',
+    el_bella: 'shimmer',
+    el_nicole: 'shimmer',
+    el_elli: 'shimmer',
+    el_antoni: 'echo',
+    el_josh: 'ash',
+    el_arnold: 'ash',
+    el_adam: 'echo',
+    el_sam: 'echo',
+    el_marie: 'shimmer',
+    el_pierre: 'echo',
+    el_giulia: 'coral',
+    el_marco: 'ash',
+    el_xiaoli: 'sage',
+    el_wei: 'ash',
+    el_priya: 'coral',
+    el_raj: 'echo',
+    el_fatima: 'shimmer',
+    el_omar: 'ash',
+    // Polly names sometimes written into openai_voice
+    Joanna: 'alloy',
+    Matthew: 'echo',
+    Salli: 'shimmer',
+    Kendra: 'coral',
+    Kimberly: 'sage',
+    Joey: 'ash',
+    Justin: 'verse',
+    Ivy: 'alloy',
+    Ruth: 'shimmer',
+    Stephen: 'echo',
+    Zeina: 'alloy',
+    Hala: 'shimmer',
+    Zayd: 'ash',
+    // Retired / non-Realtime TTS voices
+    fable: 'verse',
+    onyx: 'ash',
+    nova: 'coral',
+  };
+
+  /**
+   * Validate and normalize voice selection for OpenAI Realtime.
    */
   static validateVoice(voice: string): OpenAIVoice {
+    if (!voice) return 'alloy';
+    const aliased = this.ALIAS_TO_OPENAI_VOICE[voice];
+    if (aliased) {
+      console.warn(`[Agent Factory] Mapping voice alias "${voice}" → "${aliased}" for OpenAI Realtime`);
+      return aliased;
+    }
     const validVoice = OPENAI_VOICES.find(v => v.id === voice);
     if (!validVoice) {
       console.warn(`[Agent Factory] Invalid voice "${voice}", falling back to "alloy"`);

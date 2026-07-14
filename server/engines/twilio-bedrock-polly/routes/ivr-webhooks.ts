@@ -982,6 +982,9 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
     let openaiModel: string;
 
     const credential = await OpenAIPoolService.reserveSlot();
+    // Department agents often store ElevenLabs aliases (el_fatima, el_rachel, …) in
+    // openai_voice. GA Realtime rejects those → silent agent after IVR. Map now.
+    const { OpenAIAgentFactory } = await import('../../twilio-openai/services/openai-agent-factory');
     if (!credential) {
       // IMPORTANT: We still route to OpenAI Realtime, using env-key fallback in the stream handler.
       // Pool capacity is an optimization, not a hard requirement for inbound calls.
@@ -991,13 +994,17 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
         'DeprockIVR'
       );
       openaiCredentialId = null;
-      agentVoice = (agent.openaiVoice as any) || TWILIO_OPENAI_CONFIG.defaultVoice;
+      agentVoice = OpenAIAgentFactory.validateVoice(
+        (agent.openaiVoice as string) || TWILIO_OPENAI_CONFIG.defaultVoice
+      );
       openaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
       callMetadata.engine = 'openai-realtime';
       callMetadata.openaiRealtimeEnvFallback = true;
     } else {
       openaiCredentialId = credential.id;
-      agentVoice = (agent.openaiVoice as any) || TWILIO_OPENAI_CONFIG.defaultVoice;
+      agentVoice = OpenAIAgentFactory.validateVoice(
+        (agent.openaiVoice as string) || TWILIO_OPENAI_CONFIG.defaultVoice
+      );
       openaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
       callMetadata.engine = 'openai-realtime';
       logger.info(
@@ -1218,6 +1225,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
     let fbEngineLabel = useOpenAIRealtime ? 'openai-realtime' : 'bedrock-polly';
 
     const credential = await OpenAIPoolService.reserveSlot();
+    const { OpenAIAgentFactory } = await import('../../twilio-openai/services/openai-agent-factory');
     if (!credential) {
       logger.warn(`[Deprock IVR] No OpenAI capacity for fallback, using Bedrock+Polly for call ${callSid}`, undefined, 'DeprockIVR');
       fbAgentVoice = safePollyVoiceId(agent.awsPollyVoiceId || BEDROCK_POLLY_CONFIG.defaultVoice);
@@ -1225,7 +1233,9 @@ router.post('/fallback', async (req: Request, res: Response) => {
       fbEngineLabel = 'bedrock-polly';
     } else {
       fbOpenaiCredentialId = credential.id;
-      fbAgentVoice = (agent.openaiVoice as any) || TWILIO_OPENAI_CONFIG.defaultVoice;
+      fbAgentVoice = OpenAIAgentFactory.validateVoice(
+        (agent.openaiVoice as string) || TWILIO_OPENAI_CONFIG.defaultVoice
+      );
       fbOpenaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
       fbEngineLabel = 'openai-realtime';
       logger.info(`[Deprock IVR] OpenAI Realtime slot reserved for fallback (credential: ${credential.id})`, undefined, 'DeprockIVR');

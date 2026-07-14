@@ -459,7 +459,17 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       if (systemPrompt || voiceId || voiceTone) {
         const agentUpdate: Record<string, any> = {};
         if (systemPrompt) agentUpdate.systemPrompt = systemPrompt;
-        if (voiceId) agentUpdate.openaiVoice = voiceId;
+        if (voiceId) {
+          // Canvas may pass ElevenLabs aliases (el_*). Deprock IVR routes to
+          // OpenAI Realtime — store a Realtime-safe voice so session.update doesn't fail.
+          const { OpenAIAgentFactory } = await import('../engines/twilio-openai/services/openai-agent-factory');
+          agentUpdate.openaiVoice = OpenAIAgentFactory.validateVoice(voiceId);
+          if (isElevenLabsVoiceId(voiceId)) {
+            agentUpdate.voiceProvider = 'elevenlabs';
+            const realId = getElevenLabsVoiceId(voiceId);
+            if (realId) agentUpdate.elevenLabsVoiceId = realId;
+          }
+        }
         if (voiceTone) agentUpdate.voiceTone = voiceTone;
 
         await db

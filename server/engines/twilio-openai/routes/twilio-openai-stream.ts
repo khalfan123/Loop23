@@ -327,9 +327,14 @@ async function initializeSession(
         ? `LANGUAGE LOCK (IVR): The caller selected "${flowMetaLanguage}" (${flowLangName}) in the IVR. You MUST respond ONLY in ${flowLangName} for the entire call. Do NOT switch to Arabic or any other language automatically. Only switch if the caller explicitly asks you to.\n\n${flowBaseSystemPrompt}`
         : flowBaseSystemPrompt;
 
-      // Build agent config with hydrated flow tools
+      // Build agent config with hydrated flow tools.
+      // ALWAYS validate voice — Deprock agents often store ElevenLabs aliases
+      // (el_fatima, el_rachel, …) in openai_voice; GA Realtime rejects those
+      // and the caller hears total silence after IVR.
       agentConfig = {
-        voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
+        voice: OpenAIAgentFactory.validateVoice(
+          (callRecord.openaiVoice as string) || TWILIO_OPENAI_CONFIG.defaultVoice
+        ),
         model: (callRecord.openaiModel as OpenAIRealtimeModel) || TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
         systemPrompt: flowSystemPrompt,
         firstMessage: (metadata?.firstMessage as string) || undefined,

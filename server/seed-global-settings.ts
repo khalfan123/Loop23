@@ -383,6 +383,11 @@ const GLOBAL_SETTINGS_SEED_DATA = [
     value: 10,
     description: "Number of concurrent calls per campaign batch",
   },
+  {
+    key: "elevenlabs_audio_isolation_on_recordings",
+    value: false,
+    description: "When true, run ElevenLabs Audio Isolation on call recordings after they are saved (extra cost/latency)",
+  },
 
   // ============================================
   // SEED VERSIONING

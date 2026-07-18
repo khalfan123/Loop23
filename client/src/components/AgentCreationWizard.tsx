@@ -255,6 +255,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
+    voiceStyle: 0,
+    voiceSpeakerBoost: true,
     telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
@@ -365,6 +367,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
       voiceStability: 0.55,
       voiceSimilarityBoost: 0.85,
       voiceSpeed: 1.0,
+      voiceStyle: 0,
+      voiceSpeakerBoost: true,
       telephonyProvider: "twilio",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
@@ -395,6 +399,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         voiceStability: formData.voiceStability,
         voiceSimilarityBoost: formData.voiceSimilarityBoost,
         voiceSpeed: formData.voiceSpeed,
+        voiceStyle: formData.voiceStyle ?? 0,
+        voiceSpeakerBoost: formData.voiceSpeakerBoost ?? true,
         temperature: formData.temperature,
         telephonyProvider: formData.telephonyProvider,
         openaiVoice: isOpenAIVoice ? formData.openaiVoice : undefined,
@@ -704,6 +710,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                           stability: formData.voiceStability,
                           similarity_boost: formData.voiceSimilarityBoost,
                           speed: formData.voiceSpeed,
+                          style: formData.voiceStyle ?? 0,
+                          use_speaker_boost: formData.voiceSpeakerBoost ?? true,
                         }}
                         onSettingsChange={(settings) => {
                           setFormData(prev => ({
@@ -711,6 +719,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                             voiceStability: settings.stability,
                             voiceSimilarityBoost: settings.similarity_boost,
                             voiceSpeed: settings.speed ?? prev.voiceSpeed,
+                            voiceStyle: settings.style ?? 0,
+                            voiceSpeakerBoost: settings.use_speaker_boost ?? true,
                           }));
                         }}
                         compact
@@ -1029,6 +1039,18 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                       stability: formData.voiceStability,
                       similarity_boost: formData.voiceSimilarityBoost,
                       speed: formData.voiceSpeed,
+                      style: formData.voiceStyle ?? 0,
+                      use_speaker_boost: formData.voiceSpeakerBoost ?? true,
+                    }}
+                    onSettingsChange={(settings) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        voiceStability: settings.stability,
+                        voiceSimilarityBoost: settings.similarity_boost,
+                        voiceSpeed: settings.speed ?? prev.voiceSpeed,
+                        voiceStyle: settings.style ?? 0,
+                        voiceSpeakerBoost: settings.use_speaker_boost ?? true,
+                      }));
                     }}
                     previewText={formData.firstMessage || "Hello! This is a preview of how I'll sound when answering calls."}
                   />

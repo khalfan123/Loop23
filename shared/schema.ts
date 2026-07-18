@@ -235,6 +235,12 @@ export const agents = pgTable("agents", {
   voiceStability: doublePrecision("voice_stability").default(0.55),
   voiceSimilarityBoost: doublePrecision("voice_similarity_boost").default(0.85),
   voiceSpeed: doublePrecision("voice_speed").default(1.0),
+  /** ElevenLabs style exaggeration (0–1). Higher = more characterful, more latency. */
+  voiceStyle: doublePrecision("voice_style").default(0),
+  /** ElevenLabs use_speaker_boost — clarity / similarity post-processing. */
+  voiceSpeakerBoost: boolean("voice_speaker_boost").default(true),
+  /** Optional ElevenLabs model override (e.g. eleven_flash_v2_5, eleven_multilingual_v2). */
+  elevenLabsModelId: text("eleven_labs_model_id"),
   
   // Flow Agent Fields (used when type='flow')
   flowId: varchar("flow_id"), // Reference to flows table for Flow Agents

@@ -84,6 +84,12 @@ export class BedrockAgentFactory {
     ttsProvider?: 'aws_polly' | 'elevenlabs' | 'cartesia';
     elevenLabsVoiceId?: string;
     elevenLabsApiKey?: string;
+    elevenLabsModelId?: string;
+    voiceStability?: number;
+    voiceSimilarityBoost?: number;
+    voiceSpeed?: number;
+    voiceStyle?: number;
+    voiceSpeakerBoost?: boolean;
     agentName?: string;
     behaviorConfig?: Record<string, any>;
     waitingMessages?: string[];
@@ -136,6 +142,12 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
       ttsProvider: params.ttsProvider,
       elevenLabsVoiceId: params.elevenLabsVoiceId,
       elevenLabsApiKey: params.elevenLabsApiKey,
+      elevenLabsModelId: params.elevenLabsModelId,
+      voiceStability: params.voiceStability,
+      voiceSimilarityBoost: params.voiceSimilarityBoost,
+      voiceSpeed: params.voiceSpeed,
+      voiceStyle: params.voiceStyle,
+      voiceSpeakerBoost: params.voiceSpeakerBoost,
       agentName: params.agentName,
       language,
       behaviorConfig: params.behaviorConfig,

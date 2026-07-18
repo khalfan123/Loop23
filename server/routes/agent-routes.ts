@@ -127,6 +127,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceStability,
         voiceSimilarityBoost,
         voiceSpeed,
+        voiceStyle,
+        voiceSpeakerBoost,
+        elevenLabsModelId,
         telephonyProvider,
         openaiVoice,
         voiceProvider,
@@ -481,6 +484,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceStability: (type === 'incoming' || type === 'flow') ? (voiceStability ?? 0.55) : null,
         voiceSimilarityBoost: (type === 'incoming' || type === 'flow') ? (voiceSimilarityBoost ?? 0.85) : null,
         voiceSpeed: (type === 'incoming' || type === 'flow') ? (voiceSpeed ?? 1.0) : null,
+        voiceStyle: (type === 'incoming' || type === 'flow') ? (voiceStyle ?? 0) : null,
+        voiceSpeakerBoost: (type === 'incoming' || type === 'flow') ? (voiceSpeakerBoost ?? true) : null,
+        elevenLabsModelId: (type === 'incoming' || type === 'flow') ? (elevenLabsModelId || null) : null,
         // Voice provider configuration
         voiceProvider: voiceProvider || 'elevenlabs',
         awsPollyVoiceId: voiceProvider === 'aws_polly' ? req.body.awsPollyVoiceId : null,
@@ -814,7 +820,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         maxDurationSeconds: newMaxDuration,
         voiceStability,
         voiceSimilarityBoost,
-        voiceSpeed
+        voiceSpeed,
+        voiceStyle,
+        voiceSpeakerBoost,
+        elevenLabsModelId,
       } = req.body;
 
       if (llmModel && llmModel !== agent.llmModel) {
@@ -928,6 +937,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                 voiceStability,
                 voiceSimilarityBoost,
                 voiceSpeed,
+                voiceStyle,
+                voiceSpeakerBoost,
+                elevenLabsModelId,
                 databaseAgentId: agent.id,
               }
             );

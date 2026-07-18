@@ -700,6 +700,26 @@ router.post('/voice/status', async (req: Request, res: Response) => {
       .set(updates)
       .where(eq(twilioOpenaiCalls.id, callRecord.id));
 
+    if (updates.recordingUrl) {
+      try {
+        const { maybeIsolateCallRecording } = await import(
+          '../../../services/elevenlabs-recording-isolation'
+        );
+        maybeIsolateCallRecording({
+          callId: callRecord.id,
+          recordingUrl: updates.recordingUrl,
+          userId: callRecord.userId,
+          table: 'twilio',
+        });
+      } catch (isoErr: any) {
+        logger.error(
+          `Audio isolation hook failed for ${callRecord.id}: ${isoErr?.message}`,
+          isoErr,
+          'BedrockPolly'
+        );
+      }
+    }
+
     res.sendStatus(200);
 
   } catch (error: any) {
@@ -742,6 +762,26 @@ router.post('/voice/recording', async (req: Request, res: Response) => {
       .where(eq(twilioOpenaiCalls.id, callRecord.id));
 
     logger.info(`Recording saved for call ${callRecord.id}: ${recordingUrlWithFormat}`, undefined, 'BedrockPolly');
+
+    if (recordingUrlWithFormat) {
+      try {
+        const { maybeIsolateCallRecording } = await import(
+          '../../../services/elevenlabs-recording-isolation'
+        );
+        maybeIsolateCallRecording({
+          callId: callRecord.id,
+          recordingUrl: recordingUrlWithFormat,
+          userId: callRecord.userId,
+          table: 'twilio',
+        });
+      } catch (isoErr: any) {
+        logger.error(
+          `Audio isolation hook failed for ${callRecord.id}: ${isoErr?.message}`,
+          isoErr,
+          'BedrockPolly'
+        );
+      }
+    }
 
     res.sendStatus(200);
 

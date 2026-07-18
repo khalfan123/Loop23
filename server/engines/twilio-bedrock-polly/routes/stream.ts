@@ -275,6 +275,12 @@ async function initializeSession(
         ttsProvider: (metadata?.ttsProvider as TtsProvider) || 'aws_polly',
         elevenLabsVoiceId: (metadata?.elevenLabsVoiceId as string) || undefined,
         elevenLabsApiKey: (metadata?.elevenLabsApiKey as string) || undefined,
+        elevenLabsModelId: (metadata?.elevenLabsModelId as string) || undefined,
+        voiceStability: typeof metadata?.voiceStability === 'number' ? metadata.voiceStability : undefined,
+        voiceSimilarityBoost: typeof metadata?.voiceSimilarityBoost === 'number' ? metadata.voiceSimilarityBoost : undefined,
+        voiceSpeed: typeof metadata?.voiceSpeed === 'number' ? metadata.voiceSpeed : undefined,
+        voiceStyle: typeof metadata?.voiceStyle === 'number' ? metadata.voiceStyle : undefined,
+        voiceSpeakerBoost: typeof metadata?.voiceSpeakerBoost === 'boolean' ? metadata.voiceSpeakerBoost : undefined,
         cartesiaVoiceId: (metadata?.ttsProvider === 'cartesia' ? ((metadata?.cartesiaVoiceId as string) || (callRecord.openaiVoice as string) || undefined) : undefined),
       });
       agentConfig = {
@@ -388,6 +394,12 @@ async function initializeSession(
         agentConfig.ttsProvider = metadata.ttsProvider as TtsProvider;
         agentConfig.elevenLabsVoiceId = (metadata.elevenLabsVoiceId as string) || undefined;
         agentConfig.elevenLabsApiKey = (metadata.elevenLabsApiKey as string) || undefined;
+        agentConfig.elevenLabsModelId = (metadata.elevenLabsModelId as string) || undefined;
+        if (typeof metadata.voiceStability === 'number') agentConfig.voiceStability = metadata.voiceStability;
+        if (typeof metadata.voiceSimilarityBoost === 'number') agentConfig.voiceSimilarityBoost = metadata.voiceSimilarityBoost;
+        if (typeof metadata.voiceSpeed === 'number') agentConfig.voiceSpeed = metadata.voiceSpeed;
+        if (typeof metadata.voiceStyle === 'number') agentConfig.voiceStyle = metadata.voiceStyle;
+        if (typeof metadata.voiceSpeakerBoost === 'boolean') agentConfig.voiceSpeakerBoost = metadata.voiceSpeakerBoost;
         if (metadata.ttsProvider === 'cartesia') {
           agentConfig.cartesiaVoiceId = (metadata.cartesiaVoiceId as string) || agentConfig.voice || undefined;
         }

@@ -581,6 +581,20 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         });
       }
 
+      // Prefer post-call ElevenLabs Audio Isolation cache when present.
+      try {
+        const { readIsolatedRecording } = await import('../services/elevenlabs-recording-isolation');
+        const isolated = await readIsolatedRecording(callWithDetails.id);
+        if (isolated?.length) {
+          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Content-Disposition', `inline; filename="call-recording-${callWithDetails.id}-isolated.mp3"`);
+          res.setHeader('Cache-Control', 'no-cache');
+          return res.send(isolated);
+        }
+      } catch {
+        // Non-fatal — fall through to Twilio/ElevenLabs sources.
+      }
+
       // Handle Twilio+OpenAI calls - fetch recording directly from Twilio using twilioSid
       if (callWithDetails.engine === 'twilio-openai') {
         console.log(`🎙️ [Recording] Fetching Twilio+OpenAI recording for call ${callWithDetails.id}`);

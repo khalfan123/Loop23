@@ -192,7 +192,16 @@ export function buildTTSRouteContext(
           voiceId: agentConfig.elevenLabsVoiceId,
           language: agentConfig.language,
           sampleRateHz: 8000,
-          options: { apiKey },
+          options: {
+            apiKey,
+            modelId: agentConfig.elevenLabsModelId || 'eleven_flash_v2_5',
+            stability: agentConfig.voiceStability ?? 0.55,
+            similarityBoost: agentConfig.voiceSimilarityBoost ?? 0.85,
+            speed: agentConfig.voiceSpeed ?? 1.0,
+            style: agentConfig.voiceStyle ?? 0,
+            useSpeakerBoost: agentConfig.voiceSpeakerBoost ?? true,
+            optimizeStreamingLatency: 2,
+          },
         };
       }
       // aws_polly — the final fallback must always be synthesizable: when the
@@ -246,7 +255,16 @@ export function buildBrowserTTSRouteContext(
           language: agentConfig.language,
           sampleRateHz: 22050,
           format: 'mp3',
-          options: { apiKey },
+          options: {
+            apiKey,
+            // Browser preview prefers quality over latency unless agent overrides.
+            modelId: agentConfig.elevenLabsModelId || 'eleven_multilingual_v2',
+            stability: agentConfig.voiceStability ?? 0.55,
+            similarityBoost: agentConfig.voiceSimilarityBoost ?? 0.85,
+            speed: agentConfig.voiceSpeed ?? 1.0,
+            style: agentConfig.voiceStyle ?? 0,
+            useSpeakerBoost: agentConfig.voiceSpeakerBoost ?? true,
+          },
         };
       }
       return {

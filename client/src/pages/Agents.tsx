@@ -114,6 +114,9 @@ interface Agent {
   voiceStability: number | null;
   voiceSimilarityBoost: number | null;
   voiceSpeed: number | null;
+  voiceStyle: number | null;
+  voiceSpeakerBoost: boolean | null;
+  elevenLabsModelId: string | null;
   transferEnabled: boolean | null;
   transferPhoneNumber: string | null;
   detectLanguageEnabled: boolean | null;
@@ -295,6 +298,9 @@ export default function Agents() {
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
+    voiceStyle: 0,
+    voiceSpeakerBoost: true,
+    elevenLabsModelId: "" as string,
     telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
@@ -650,6 +656,9 @@ export default function Agents() {
       voiceStability: 0.55,
       voiceSimilarityBoost: 0.85,
       voiceSpeed: 1.0,
+      voiceStyle: 0,
+      voiceSpeakerBoost: true,
+      elevenLabsModelId: "",
       telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
@@ -762,6 +771,9 @@ export default function Agents() {
       voiceStability: agent.voiceStability ?? 0.55,
       voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
       voiceSpeed: agent.voiceSpeed ?? 1.0,
+      voiceStyle: agent.voiceStyle ?? 0,
+      voiceSpeakerBoost: agent.voiceSpeakerBoost ?? true,
+      elevenLabsModelId: agent.elevenLabsModelId || "",
       telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: agent.openaiVoice || "alloy",
       sipPhoneNumberId: (agent as any).sipPhoneNumberId || "",
@@ -1939,6 +1951,8 @@ export default function Agents() {
                           stability: formData.voiceStability ?? 0.5,
                           similarity_boost: formData.voiceSimilarityBoost ?? 0.75,
                           speed: formData.voiceSpeed ?? 1.0,
+                          style: formData.voiceStyle ?? 0,
+                          use_speaker_boost: formData.voiceSpeakerBoost ?? true,
                         }}
                         onSettingsChange={(settings) => {
                           setFormData({
@@ -1946,6 +1960,8 @@ export default function Agents() {
                             voiceStability: settings.stability,
                             voiceSimilarityBoost: settings.similarity_boost,
                             voiceSpeed: settings.speed,
+                            voiceStyle: settings.style ?? 0,
+                            voiceSpeakerBoost: settings.use_speaker_boost ?? true,
                           });
                         }}
                         compact
@@ -2380,6 +2396,8 @@ export default function Agents() {
                         stability: formData.voiceStability ?? 0.5,
                         similarity_boost: formData.voiceSimilarityBoost ?? 0.75,
                         speed: formData.voiceSpeed ?? 1.0,
+                        style: formData.voiceStyle ?? 0,
+                        use_speaker_boost: formData.voiceSpeakerBoost ?? true,
                       }}
                       onSettingsChange={(settings) => {
                         setFormData({
@@ -2387,6 +2405,8 @@ export default function Agents() {
                           voiceStability: settings.stability,
                           voiceSimilarityBoost: settings.similarity_boost,
                           voiceSpeed: settings.speed,
+                          voiceStyle: settings.style ?? 0,
+                          voiceSpeakerBoost: settings.use_speaker_boost ?? true,
                         });
                       }}
                       compact

@@ -762,13 +762,23 @@ export class BedrockPollyAudioBridge {
       for (const phrase of phrases) {
         if (entry.mulawByPhrase.has(phrase)) continue;
         try {
-          const { audio: pcm8k } = await backchannelElevenLabs.synthesize({
+          const result = await backchannelElevenLabs.synthesize({
             text: phrase,
             voiceId: session.agentConfig.elevenLabsVoiceId!,
             sampleRateHz: 8000,
-            options: { apiKey },
+            options: {
+              apiKey,
+              modelId: session.agentConfig.elevenLabsModelId || 'eleven_flash_v2_5',
+              stability: session.agentConfig.voiceStability ?? 0.55,
+              similarityBoost: session.agentConfig.voiceSimilarityBoost ?? 0.85,
+              speed: session.agentConfig.voiceSpeed ?? 1.0,
+              style: session.agentConfig.voiceStyle ?? 0,
+              useSpeakerBoost: session.agentConfig.voiceSpeakerBoost ?? true,
+              optimizeStreamingLatency: 2,
+            },
           });
-          const mulaw = this.pcmToMulaw(pcm8k);
+          const mulaw =
+            result.encoding === 'mulaw' ? result.audio : this.pcmToMulaw(result.audio);
           entry.mulawByPhrase.set(phrase, mulaw);
         } catch {
           // Best-effort; skip failures.
@@ -2467,9 +2477,9 @@ CONVERSATION STYLE:
       const { result, attempts } = await getDeprockTTSRouter().synthesize(routeContext);
       const outcome = outcomeFromAttempts(routeContext.preferred, attempts);
       usedProvider = outcome?.provider ?? routeContext.preferred;
-      const pcmBuffer: Buffer = result.audio;
-
-      const mulawBuffer = this.pcmToMulaw(pcmBuffer);
+      // ElevenLabs may return native ulaw_8000; Polly returns pcm16le @ 8kHz.
+      const mulawBuffer =
+        result.encoding === 'mulaw' ? result.audio : this.pcmToMulaw(result.audio);
       this.sendMulawToTwilio(session, mulawBuffer);
 
       const markName = `tts_segment_${++markCounter}_${Date.now()}`;

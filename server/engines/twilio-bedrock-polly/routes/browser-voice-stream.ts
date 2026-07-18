@@ -255,6 +255,12 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       ttsProvider: agentTtsProvider,
       elevenLabsVoiceId: agent.elevenLabsVoiceId || undefined,
       elevenLabsApiKey: elApiKey,
+      elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+      voiceStability: agent.voiceStability ?? 0.55,
+      voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
+      voiceSpeed: agent.voiceSpeed ?? 1.0,
+      voiceStyle: (agent as any).voiceStyle ?? 0,
+      voiceSpeakerBoost: (agent as any).voiceSpeakerBoost ?? true,
     });
 
     let knowledgeBaseIds = agent.knowledgeBaseIds as string[] | null;

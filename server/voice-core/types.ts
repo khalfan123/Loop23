@@ -25,19 +25,33 @@ export interface TTSRequest {
   options?: {
     /** ElevenLabs per-agent API key. */
     apiKey?: string;
-    /** Cartesia speech rate multiplier. */
+    /** ElevenLabs model id (e.g. eleven_flash_v2_5, eleven_multilingual_v2). */
+    modelId?: string;
+    /** ElevenLabs voice_settings.stability (0–1). */
+    stability?: number;
+    /** ElevenLabs voice_settings.similarity_boost (0–1). */
+    similarityBoost?: number;
+    /** ElevenLabs / Cartesia speech rate multiplier. */
     speed?: number;
+    /** ElevenLabs voice_settings.style (0–1). */
+    style?: number;
+    /** ElevenLabs voice_settings.use_speaker_boost. */
+    useSpeakerBoost?: boolean;
+    /** ElevenLabs optimize_streaming_latency (0–4). Phone path uses 2. */
+    optimizeStreamingLatency?: number;
     /** Polly: stop degradation after the neural tier (browser test calls). */
     pollyNeuralOnly?: boolean;
   };
 }
 
 export interface TTSResult {
-  /** Audio payload in the requested format (PCM16LE mono or mp3). */
+  /** Audio payload in the requested format (PCM16LE mono, μ-law, or mp3). */
   audio: Buffer;
   providerId: TTSProviderId;
   latencyMs: number;
   characters: number;
+  /** Encoding of `audio`. Defaults to pcm16le for telephony providers. */
+  encoding?: 'pcm16le' | 'mulaw' | 'mp3';
 }
 
 export interface TTSProvider {

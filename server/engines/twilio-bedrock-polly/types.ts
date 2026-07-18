@@ -197,6 +197,14 @@ export interface AgentConfig {
   ttsProvider?: TtsProvider;
   elevenLabsVoiceId?: string;
   elevenLabsApiKey?: string;
+  /** Optional ElevenLabs model override; phone defaults to eleven_flash_v2_5. */
+  elevenLabsModelId?: string;
+  /** ElevenLabs voice_settings — applied on live phone TTS. */
+  voiceStability?: number;
+  voiceSimilarityBoost?: number;
+  voiceSpeed?: number;
+  voiceStyle?: number;
+  voiceSpeakerBoost?: boolean;
   cartesiaVoiceId?: string;
   agentName?: string;
   language?: string;

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --soft: #f7f8fa;
+    --ink: #0f1115;
+    --ink-soft: #4c515e;
+    --muted: #8a8f9c;
+    --line: #ededf1;
+    --line-2: #e2e4ea;
+    --blue: #2f6bff;
+    --blue-ink: #1f4fd6;
+    --blue-soft: #eff4ff;
+    --f: "Manrope", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--f); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; text-wrap: pretty; }
+  a { color: var(--blue); text-decoration: none; }
+  ::selection { background: rgba(47,107,255,0.14); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #e0e2e8; border-radius: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  h1, h2, h3 { font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+  .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: var(--blue); }
+  .navlink { color: var(--ink-soft); font-size: 14.5px; font-weight: 500; white-space: nowrap; transition: color .18s; }
+  .navlink:hover { color: var(--ink); }
+  .btn-b { font-family: var(--f); font-weight: 600; font-size: 14.5px; white-space: nowrap; cursor: pointer; border: 0; color: #fff; background: var(--blue); padding: 12px 22px; border-radius: 10px; transition: background .18s; }
+  .btn-b:hover { background: var(--blue-ink); }
+  .btn-o { font-family: var(--f); font-weight: 600; font-size: 14.5px; cursor: pointer; background: #fff; color: var(--ink); padding: 12px 22px; border-radius: 10px; border: 1px solid var(--line-2); transition: border-color .18s; }
+  .btn-o:hover { border-color: var(--muted); }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; transition: border-color .2s, box-shadow .2s; }
+  .card:hover { border-color: var(--line-2); box-shadow: 0 10px 30px rgba(15,17,21,0.05); }
+  .rev { opacity: 0; transform: translateY(16px); animation: rev .8s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes rev { to { opacity: 1; transform: none; } }
+  @keyframes bar { 0%,100% { transform: scaleY(.32); } 50% { transform: scaleY(1); } }
+  .wbar { transform-origin: center bottom; animation: bar 1.05s ease-in-out 4; }
+  @media (prefers-reduced-motion: reduce) { .rev { animation: none; opacity: 1; transform: none; } .wbar { animation: none; } }
+</style>
+</helmet>
+
+<div data-l9root style="background: var(--bg); color: var(--ink); overflow-x: hidden;">
+
+  <!-- ===================== NAV ===================== -->
+  <nav style="position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 34px; height: 72px; padding: 0 clamp(20px,5vw,64px); background: rgba(255,255,255,0.82); backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--line);">
+    <div style="font-size: 25px; font-weight: 800; letter-spacing: -0.04em; margin-right: 10px;">Loop<span style="color: var(--blue);">9</span></div>
+    <div style="display: flex; align-items: center; gap: 30px; margin-right: auto;">
+      <a href="#platform" class="navlink">Platform</a>
+      <a href="#numbers" class="navlink">Numbers</a>
+      <a href="#developers" class="navlink">Developers</a>
+      <a href="#pricing" class="navlink">Pricing</a>
+      <a href="#customers" class="navlink">Customers</a>
+    </div>
+    <span class="navlink" style="cursor: pointer; white-space: nowrap;">Sign in</span>
+    <button type="button" class="btn-b">Request a demo</button>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <header style="max-width: 1180px; margin: 0 auto; padding: clamp(72px,10vw,150px) clamp(20px,5vw,64px) clamp(56px,7vw,96px); text-align: center;">
+    <div class="rev eyebrow" style="letter-spacing: 0.14em; text-transform: uppercase; font-size: 12.5px;">Enterprise Voice AI · Contact Center</div>
+    <h1 class="rev" style="font-size: clamp(44px,6.6vw,86px); line-height: 1.02; margin: 24px auto 0; max-width: 15ch; animation-delay: .06s;">Enterprise voice AI that speaks <span style="color: var(--blue);">human</span>.</h1>
+    <p class="rev" style="font-size: 18px; line-height: 1.6; color: var(--ink-soft); max-width: 58ch; margin: 26px auto 0; animation-delay: .12s;">Loop9 automates inbound and outbound calls at scale — resolving customer requests, qualifying pipeline and cutting cost per contact, with the security and reliability enterprise operations demand.</p>
+    <div class="rev" style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; animation-delay: .18s;">
+      <button type="button" class="btn-b" style="padding: 14px 28px; font-size: 15px;">Request a demo</button>
+      <button type="button" class="btn-o" style="padding: 14px 28px; font-size: 15px; display: inline-flex; align-items: center; gap: 9px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="#2f6bff"><polygon points="6 4 20 12 6 20 6 4"/></svg>Hear a sample call</button>
+    </div>
+    <div class="rev" data-l9="trust" style="display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-top: 28px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); animation-delay: .24s;">
+      <span>SOC 2 Type II</span><span style="color: var(--line-2);">·</span><span>HIPAA</span><span style="color: var(--line-2);">·</span><span>99.99% uptime</span>
+    </div>
+
+    <!-- product card -->
+    <div class="rev" data-l9="herocard" style="max-width: 640px; margin: clamp(52px,6vw,80px) auto 0; text-align: left; animation-delay: .22s;">
+      <div class="card" style="padding: 22px; box-shadow: 0 20px 50px rgba(15,17,21,0.07);">
+        <div style="display: flex; align-items: center; gap: 13px; padding-bottom: 18px; border-bottom: 1px solid var(--line);">
+          <div style="width: 42px; height: 42px; border-radius: 11px; background: var(--blue-soft); color: var(--blue); display: grid; place-items: center; font-weight: 700; font-size: 14px;">MR</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 14.5px;">Inbound · Marcus Reyes</div>
+            <div style="font-size: 12.5px; color: var(--muted);">Tier-1 resolution · <span style="color: var(--blue);">Loop9 Agent</span></div>
+          </div>
+          <span style="display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: #0a9d63; background: #e9f9f1; padding: 5px 11px; border-radius: 30px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0a9d63;"></span>Live</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 5px; height: 60px; padding: 16px 0 8px;">
+          <div class="wbar" style="width: 4px; height: 40%; border-radius: 4px; background: var(--blue);"></div>
+          <div class="wbar" style="width: 4px; height: 72%; border-radius: 4px; background: var(--blue); animation-delay: .08s; opacity: .8;"></div>
+          <div class="wbar" style="width: 4px; height: 96%; border-radius: 4px; background: var(--blue); animation-delay: .16s;"></div>
+          <div class="wbar" style="width: 4px; height: 54%; border-radius: 4px; background: var(--blue); animation-delay: .24s; opacity: .6;"></div>
+          <div class="wbar" style="width: 4px; height: 82%; border-radius: 4px; background: var(--blue); animation-delay: .32s;"></div>
+          <div class="wbar" style="width: 4px; height: 44%; border-radius: 4px; background: var(--blue); animation-delay: .4s; opacity: .7;"></div>
+          <div class="wbar" style="width: 4px; height: 90%; border-radius: 4px; background: var(--blue); animation-delay: .48s;"></div>
+          <div class="wbar" style="width: 4px; height: 60%; border-radius: 4px; background: var(--blue); animation-delay: .56s; opacity: .6;"></div>
+          <div class="wbar" style="width: 4px; height: 94%; border-radius: 4px; background: var(--blue); animation-delay: .64s;"></div>
+          <div class="wbar" style="width: 4px; height: 50%; border-radius: 4px; background: var(--blue); animation-delay: .72s; opacity: .7;"></div>
+          <div class="wbar" style="width: 4px; height: 78%; border-radius: 4px; background: var(--blue); animation-delay: .8s; opacity: .85;"></div>
+          <div class="wbar" style="width: 4px; height: 38%; border-radius: 4px; background: var(--blue); animation-delay: .88s; opacity: .6;"></div>
+          <div class="wbar" style="width: 4px; height: 66%; border-radius: 4px; background: var(--blue); animation-delay: .96s;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 12px;">
+          <div style="display: flex; gap: 11px;">
+            <span style="flex-shrink: 0; font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); background: var(--soft); padding: 5px 8px; border-radius: 7px; height: fit-content;">CALLER</span>
+            <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft);">I need to reschedule my install for next week.</p>
+          </div>
+          <div style="display: flex; gap: 11px;">
+            <span style="flex-shrink: 0; font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; color: #fff; background: var(--blue); padding: 5px 8px; border-radius: 7px; height: fit-content;">LOOP9</span>
+            <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink);">Of course. I have Tuesday at 9, or Thursday at 2 — which works better?</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== LOGO ROW ===================== -->
+  <section style="border-top: 1px solid var(--line);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 32px clamp(20px,5vw,64px); display: flex; align-items: center; justify-content: center; gap: clamp(28px,5vw,64px); flex-wrap: wrap;">
+      <span style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap;">Trusted by operations teams at</span>
+      <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #b6bac4;">Northwind</span>
+      <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #b6bac4;">Cedarhaus</span>
+      <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #b6bac4;">Meridian</span>
+      <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #b6bac4;">Voltyx</span>
+      <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #b6bac4;">Halcyon</span>
+    </div>
+  </section>
+
+  <!-- ===================== STATS ===================== -->
+  <section style="border-top: 1px solid var(--line);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(56px,7vw,96px) clamp(20px,5vw,64px); display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px;">
+      <div><div style="font-size: clamp(40px,4.2vw,60px); font-weight: 800; letter-spacing: -0.04em; line-height: 1;">18M+</div><div style="font-size: 13.5px; color: var(--muted); margin-top: 10px;">Calls automated to date</div></div>
+      <div><div style="font-size: clamp(40px,4.2vw,60px); font-weight: 800; letter-spacing: -0.04em; line-height: 1;">62<span style="color: var(--blue);">%</span></div><div style="font-size: 13.5px; color: var(--muted); margin-top: 10px;">Tier-1 resolution rate</div></div>
+      <div><div style="font-size: clamp(40px,4.2vw,60px); font-weight: 800; letter-spacing: -0.04em; line-height: 1;">55<span style="color: var(--blue);">%</span></div><div style="font-size: 13.5px; color: var(--muted); margin-top: 10px;">Lower cost per contact</div></div>
+      <div><div style="font-size: clamp(40px,4.2vw,60px); font-weight: 800; letter-spacing: -0.04em; line-height: 1;">40+</div><div style="font-size: 13.5px; color: var(--muted); margin-top: 10px;">Languages supported</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== PLATFORM ===================== -->
+  <section id="platform" style="border-top: 1px solid var(--line);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(64px,8vw,120px) clamp(20px,5vw,64px);">
+      <div style="text-align: center; max-width: 680px; margin: 0 auto 56px;">
+        <span class="eyebrow">The Platform</span>
+        <h2 style="font-size: clamp(30px,4.2vw,50px); line-height: 1.05; margin: 16px 0 16px;">A complete contact center platform</h2>
+        <p style="font-size: 16.5px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Production-grade voice automation for regulated industries and high call volume — with the controls, integrations and observability enterprise teams require.</p>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;">
+        <div class="card" style="padding: 30px;">
+          <div style="width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); display: grid; place-items: center; margin-bottom: 20px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.9" stroke-linecap="round"><line x1="4" y1="9" x2="4" y2="15"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="14" y1="7" x2="14" y2="17"/><line x1="19" y1="10" x2="19" y2="14"/></svg></div>
+          <h3 style="font-size: 20px; margin: 0 0 8px;">Human-grade voice</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Sub-second, natural conversation that handles interruptions, accents and noise — resolving intent in a single call.</p>
+        </div>
+        <div class="card" style="padding: 30px;">
+          <div style="width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); display: grid; place-items: center; margin-bottom: 20px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+          <h3 style="font-size: 20px; margin: 0 0 8px;">Grounded in your knowledge</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Connect your knowledge base and systems of record. Accurate answers, with human escalation when confidence is low.</p>
+        </div>
+        <div class="card" style="padding: 30px;">
+          <div style="width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); display: grid; place-items: center; margin-bottom: 20px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+          <h3 style="font-size: 20px; margin: 0 0 8px;">Executes end to end</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Books calendars, transfers, updates CRM and triggers workflows mid-call — closing the loop without an agent.</p>
+        </div>
+        <div class="card" style="padding: 30px;">
+          <div style="width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); display: grid; place-items: center; margin-bottom: 20px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <h3 style="font-size: 20px; margin: 0 0 8px;">Global by default</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Serve customers in 40+ languages from a single deployment, matching the caller automatically.</p>
+        </div>
+        <div class="card" style="padding: 30px;">
+          <div style="width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); display: grid; place-items: center; margin-bottom: 20px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="4" y2="12"/><line x1="10" y1="19" x2="10" y2="5"/><line x1="16" y1="19" x2="16" y2="9"/><line x1="20" y1="19" x2="4" y2="19"/></svg></div>
+          <h3 style="font-size: 20px; margin: 0 0 8px;">Analytics &amp; QA at scale</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Transcripts, sentiment and outcomes on every call — 100% QA coverage and compliance-ready reporting.</p>
+        </div>
+        <div class="card" style="padding: 30px;">
+          <div style="width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); display: grid; place-items: center; margin-bottom: 20px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <h3 style="font-size: 20px; margin: 0 0 8px;">Enterprise-grade security</h3>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0;">SOC 2 Type II, HIPAA and ISO 27001, with SSO, audit logs and a signed DPA out of the box.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CONSOLE ===================== -->
+  <section id="solutions" style="border-top: 1px solid var(--line); background: var(--soft);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(64px,8vw,120px) clamp(20px,5vw,64px); display: grid; grid-template-columns: 0.9fr 1.1fr; gap: clamp(32px,5vw,72px); align-items: center;">
+      <div>
+        <span class="eyebrow">The Console</span>
+        <h2 style="font-size: clamp(30px,4.2vw,50px); line-height: 1.05; margin: 16px 0 16px;">Full visibility across every queue</h2>
+        <p style="font-size: 16px; line-height: 1.65; color: var(--ink-soft); max-width: 42ch; margin: 0 0 28px;">A live operations view of active calls, transcripts, queue health and sentiment. Supervisors monitor, coach and intervene in real time — with the audit trail compliance teams need.</p>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+          <div style="display: flex; align-items: center; gap: 12px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span style="font-size: 15px; color: var(--ink);">Live supervisor monitor, whisper &amp; barge-in</span></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span style="font-size: 15px; color: var(--ink);">Real-time sentiment &amp; SLA breach alerts</span></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span style="font-size: 15px; color: var(--ink);">Searchable recordings, transcripts &amp; audit logs</span></div>
+        </div>
+      </div>
+      <figure style="margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); background: #fff;">
+        <div style="position: relative; width: 100%; aspect-ratio: 16 / 10;">
+          <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="l9-console" shape="rect" placeholder="Drop your dashboard screenshot" hint-size="100%,100%"></x-import>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section id="how" style="border-top: 1px solid var(--line);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(64px,8vw,120px) clamp(20px,5vw,64px);">
+      <div style="text-align: center; max-width: 620px; margin: 0 auto 56px;">
+        <span class="eyebrow">How it works</span>
+        <h2 style="font-size: clamp(30px,4.2vw,50px); line-height: 1.05; margin: 16px 0 0;">From pilot to production in weeks</h2>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px;">
+        <div>
+          <div style="font-size: 15px; font-weight: 700; color: var(--blue);">01</div>
+          <div style="height: 1px; background: var(--line-2); margin: 14px 0 18px;"></div>
+          <h3 style="font-size: 21px; margin: 0 0 8px;">Integrate your stack</h3>
+          <p style="font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Route numbers through your existing telephony and connect CRM, helpdesk and calendars via native integrations.</p>
+        </div>
+        <div>
+          <div style="font-size: 15px; font-weight: 700; color: var(--blue);">02</div>
+          <div style="height: 1px; background: var(--line-2); margin: 14px 0 18px;"></div>
+          <h3 style="font-size: 21px; margin: 0 0 8px;">Configure &amp; govern</h3>
+          <p style="font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Ground the agent in your knowledge, define workflows and set escalation and compliance guardrails.</p>
+        </div>
+        <div>
+          <div style="font-size: 15px; font-weight: 700; color: var(--blue);">03</div>
+          <div style="height: 1px; background: var(--line-2); margin: 14px 0 18px;"></div>
+          <h3 style="font-size: 21px; margin: 0 0 8px;">Scale &amp; optimize</h3>
+          <p style="font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Launch across queues and regions, then continuously improve with analytics and QA insights.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== INSTANT ACTIVATION ===================== -->
+  <section id="numbers" style="border-top: 1px solid var(--line);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(64px,8vw,120px) clamp(20px,5vw,64px);">
+      <div style="text-align: center; max-width: 640px; margin: 0 auto 20px;">
+        <span class="eyebrow">Instant activation</span>
+        <h2 style="font-size: clamp(30px,4.2vw,50px); line-height: 1.05; margin: 16px 0 16px;">Get a toll-free number, live in minutes</h2>
+        <p style="font-size: 16.5px; line-height: 1.6; color: var(--ink-soft); margin: 0;">Provision a local or toll-free number in 24 countries and point it at your Loop9 agent instantly — no carrier paperwork, no wait.</p>
+      </div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; margin: 0 auto 44px; padding: 7px 14px; border: 1px solid var(--line-2); border-radius: 30px; font-size: 13px; font-weight: 600; color: #0a9d63; background: #e9f9f1;">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #0a9d63;"></span>Numbers activate instantly
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px;">
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇺🇸</span><span style="flex: 1; font-size: 14px; font-weight: 600;">United States</span><span style="font-size: 13px; color: var(--muted);">+1</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇬🇧</span><span style="flex: 1; font-size: 14px; font-weight: 600;">United Kingdom</span><span style="font-size: 13px; color: var(--muted);">+44</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇦🇪</span><span style="flex: 1; font-size: 14px; font-weight: 600;">United Arab Emirates</span><span style="font-size: 13px; color: var(--muted);">+971</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇨🇦</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Canada</span><span style="font-size: 13px; color: var(--muted);">+1</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇦🇺</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Australia</span><span style="font-size: 13px; color: var(--muted);">+61</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇩🇪</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Germany</span><span style="font-size: 13px; color: var(--muted);">+49</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇫🇷</span><span style="flex: 1; font-size: 14px; font-weight: 600;">France</span><span style="font-size: 13px; color: var(--muted);">+33</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇮🇪</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Ireland</span><span style="font-size: 13px; color: var(--muted);">+353</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇧🇷</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Brazil</span><span style="font-size: 13px; color: var(--muted);">+55</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇲🇽</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Mexico</span><span style="font-size: 13px; color: var(--muted);">+52</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇯🇵</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Japan</span><span style="font-size: 13px; color: var(--muted);">+81</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇭🇰</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Hong Kong</span><span style="font-size: 13px; color: var(--muted);">+852</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇦🇷</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Argentina</span><span style="font-size: 13px; color: var(--muted);">+54</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇦🇹</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Austria</span><span style="font-size: 13px; color: var(--muted);">+43</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇧🇪</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Belgium</span><span style="font-size: 13px; color: var(--muted);">+32</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇨🇱</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Chile</span><span style="font-size: 13px; color: var(--muted);">+56</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇨🇿</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Czech Republic</span><span style="font-size: 13px; color: var(--muted);">+420</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇫🇮</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Finland</span><span style="font-size: 13px; color: var(--muted);">+358</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇮🇱</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Israel</span><span style="font-size: 13px; color: var(--muted);">+972</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇳🇿</span><span style="flex: 1; font-size: 14px; font-weight: 600;">New Zealand</span><span style="font-size: 13px; color: var(--muted);">+64</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇵🇭</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Philippines</span><span style="font-size: 13px; color: var(--muted);">+63</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇵🇷</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Puerto Rico</span><span style="font-size: 13px; color: var(--muted);">+1</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇿🇦</span><span style="flex: 1; font-size: 14px; font-weight: 600;">South Africa</span><span style="font-size: 13px; color: var(--muted);">+27</span></div>
+        <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 15px 16px;"><span style="font-size: 22px; line-height: 1;">🇨🇭</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Switzerland</span><span style="font-size: 13px; color: var(--muted);">+41</span></div>
+      </div>
+      <p style="text-align: center; font-size: 14px; color: var(--muted); margin: 28px 0 0;">More countries added every month. <a href="#" style="font-weight: 600;">See full coverage →</a></p>
+    </div>
+  </section>
+
+  <!-- ===================== DEVELOPERS ===================== -->
+  <section id="developers" style="border-top: 1px solid var(--line); background: var(--soft);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(64px,8vw,120px) clamp(20px,5vw,64px); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px,5vw,64px); align-items: center;">
+      <div>
+        <span class="eyebrow">For developers</span>
+        <h2 style="font-size: clamp(30px,4.2vw,50px); line-height: 1.05; margin: 16px 0 16px;">Ship a voice agent in a few lines</h2>
+        <p style="font-size: 16px; line-height: 1.65; color: var(--ink-soft); max-width: 42ch; margin: 0 0 28px;">A clean REST + WebSocket API, webhooks for every call event, and SDKs for the stacks you already use. Bring your own LLM, voices and telephony.</p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button type="button" class="btn-b">Read the docs</button>
+          <button type="button" class="btn-o">API reference</button>
+        </div>
+      </div>
+      <div style="background: #fff; border: 1px solid var(--line-2); border-radius: 14px; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid var(--line);">
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: #e2e4ea;"></span>
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: #e2e4ea;"></span>
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: #e2e4ea;"></span>
+          <span style="margin-left: 8px; font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--muted);">create_agent.ts</span>
+        </div>
+        <pre style="margin: 0; padding: 22px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; line-height: 1.8; color: #3a3f4c; overflow-x: auto;"><span style="color: #2f6bff;">import</span> { Loop9 } <span style="color: #2f6bff;">from</span> <span style="color: #0a9d63;">"@loop9/sdk"</span>;
+
+<span style="color: #2f6bff;">const</span> loop9 = <span style="color: #2f6bff;">new</span> <span style="color: #b4530a;">Loop9</span>(process.env.<span style="color: #3a3f4c;">L9_KEY</span>);
+
+<span style="color: #2f6bff;">const</span> agent = <span style="color: #2f6bff;">await</span> loop9.agents.<span style="color: #b4530a;">create</span>({
+  voice: <span style="color: #0a9d63;">"ava-natural"</span>,
+  knowledge: [<span style="color: #0a9d63;">"https://acme.com/help"</span>],
+  actions: [<span style="color: #0a9d63;">"book_meeting"</span>, <span style="color: #0a9d63;">"transfer"</span>],
+  handoff: <span style="color: #0a9d63;">"when_unsure"</span>,
+});
+
+loop9.numbers.<span style="color: #b4530a;">attach</span>(<span style="color: #0a9d63;">"+1 555 0199"</span>, agent.id);
+<span style="color: #9aa0ad;">// your line is now answered by AI</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TESTIMONIAL ===================== -->
+  <section id="customers" style="border-top: 1px solid var(--line);">
+    <div style="max-width: 900px; margin: 0 auto; padding: clamp(72px,9vw,130px) clamp(20px,5vw,64px); text-align: center;">
+      <blockquote style="font-size: clamp(26px,3.6vw,42px); font-weight: 700; letter-spacing: -0.025em; line-height: 1.24; margin: 0; max-width: 24ch; margin-left: auto; margin-right: auto;">"Loop9 automated 60% of our inbound volume in the first quarter, cut cost per contact by half, and improved CSAT."</blockquote>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 13px; margin-top: 32px;">
+        <div style="width: 46px; height: 46px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); display: grid; place-items: center; font-weight: 700; font-size: 16px;">DR</div>
+        <div style="text-align: left;"><div style="font-weight: 700; font-size: 15px;">Dana Rowe</div><div style="font-size: 12.5px; color: var(--muted);">SVP Customer Ops, Cedarhaus</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRICING ===================== -->
+  <section id="pricing" style="border-top: 1px solid var(--line); background: var(--soft);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(64px,8vw,120px) clamp(20px,5vw,64px);">
+      <div style="text-align: center; max-width: 600px; margin: 0 auto 56px;">
+        <span class="eyebrow">Pricing</span>
+        <h2 style="font-size: clamp(30px,4.2vw,50px); line-height: 1.05; margin: 16px 0 0;">Pay for calls, not seats</h2>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch;">
+        <div style="background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 32px; display: flex; flex-direction: column;">
+          <h3 style="font-size: 21px; margin: 0 0 4px;">Starter</h3>
+          <p style="font-size: 13px; color: var(--muted); margin: 0 0 22px;">For a single busy line</p>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 24px;"><span style="font-size: 46px; font-weight: 800; letter-spacing: -0.04em;">$99</span><span style="font-size: 13px; color: var(--muted);">/mo</span></div>
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 28px;">
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>1 phone line</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>500 minutes included</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Calendar &amp; SMS follow-up</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Transcripts &amp; recordings</span>
+          </div>
+          <button type="button" class="btn-o" style="margin-top: auto; width: 100%;">Start free</button>
+        </div>
+
+        <div style="background: #fff; border: 2px solid var(--blue); border-radius: 16px; padding: 32px; display: flex; flex-direction: column; position: relative;">
+          <span style="position: absolute; top: -12px; left: 32px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #fff; background: var(--blue); padding: 4px 12px; border-radius: 30px;">Most popular</span>
+          <h3 style="font-size: 21px; margin: 0 0 4px;">Growth</h3>
+          <p style="font-size: 13px; color: var(--muted); margin: 0 0 22px;">For teams on the phone</p>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 24px;"><span style="font-size: 46px; font-weight: 800; letter-spacing: -0.04em; color: var(--blue);">$349</span><span style="font-size: 13px; color: var(--muted);">/mo</span></div>
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 28px;">
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Up to 5 lines</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>3,000 minutes included</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Warm transfer &amp; routing</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>CRM &amp; webhook integrations</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sentiment &amp; outcome scoring</span>
+          </div>
+          <button type="button" class="btn-b" style="margin-top: auto; width: 100%;">Start free</button>
+        </div>
+
+        <div style="background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 32px; display: flex; flex-direction: column;">
+          <h3 style="font-size: 21px; margin: 0 0 4px;">Enterprise</h3>
+          <p style="font-size: 13px; color: var(--muted); margin: 0 0 22px;">For volume &amp; SLAs</p>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 24px;"><span style="font-size: 46px; font-weight: 800; letter-spacing: -0.04em;">Custom</span></div>
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 28px;">
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Unlimited lines</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Volume pricing</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dedicated numbers &amp; voices</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>SSO, audit logs, DPA</span>
+            <span style="display: flex; gap: 10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority support &amp; SLA</span>
+          </div>
+          <button type="button" class="btn-o" style="margin-top: auto; width: 100%;">Talk to sales</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section style="border-top: 1px solid var(--line);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(72px,9vw,140px) clamp(20px,5vw,64px); text-align: center;">
+      <h2 style="font-size: clamp(32px,4.6vw,60px); line-height: 1.03; margin: 0 auto; max-width: 18ch;">Transform your contact center economics.</h2>
+      <p style="font-size: 17px; line-height: 1.6; color: var(--ink-soft); margin: 22px auto 34px; max-width: 48ch;">See how Loop9 automates volume, lowers cost per contact and elevates CX — with a tailored ROI assessment for your operation.</p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <button type="button" class="btn-b" style="padding: 15px 30px; font-size: 15px;">Request a demo</button>
+        <button type="button" class="btn-o" style="padding: 15px 30px; font-size: 15px;">Talk to sales</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer style="border-top: 1px solid var(--line); background: var(--soft);">
+    <div style="max-width: 1180px; margin: 0 auto; padding: clamp(48px,5vw,64px) clamp(20px,5vw,64px);">
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 32px;">
+        <div>
+          <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 14px;">Loop<span style="color: var(--blue);">9</span></div>
+          <p style="font-size: 13.5px; color: var(--muted); margin: 0; max-width: 32ch; line-height: 1.6;">Enterprise voice AI for the modern contact center — automating conversations at scale, securely.</p>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px;">Product</div>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13.5px;"><a href="#platform" class="navlink">Platform</a><a href="#pricing" class="navlink">Pricing</a><a href="#solutions" class="navlink">Solutions</a><a href="#developers" class="navlink">Developers</a></div>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px;">Company</div>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13.5px;"><a href="#" class="navlink">About</a><a href="#" class="navlink">Careers</a><a href="#" class="navlink">Blog</a><a href="#customers" class="navlink">Customers</a></div>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px;">Resources</div>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13.5px;"><a href="#" class="navlink">Docs</a><a href="#" class="navlink">API reference</a><a href="#" class="navlink">Status</a><a href="#" class="navlink">Changelog</a></div>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px;">Legal</div>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13.5px;"><a href="#" class="navlink">Privacy</a><a href="#" class="navlink">Terms</a><a href="#" class="navlink">Security</a><a href="#" class="navlink">DPA</a></div>
+        </div>
+      </div>
+      <div style="height: 1px; background: var(--line); margin: 34px 0 18px;"></div>
+      <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted);">
+        <span>© 2026 Loop9, Inc.</span>
+        <span>SOC 2 Type II · GDPR · HIPAA · ISO 27001</span>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#2f6bff&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#2f6bff&quot;, &quot;#0a9d63&quot;, &quot;#7c3aed&quot;, &quot;#e0562d&quot;, &quot;#111827&quot;], &quot;section&quot;: &quot;Theme&quot; },
+  &quot;showHeroCard&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Hero&quot; },
+  &quot;showTrustBadges&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Hero&quot; },
+  &quot;animateWaveform&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Hero&quot; }
+}">
+class Component extends DCLogic {
+  componentDidMount() { this.apply(); }
+  componentDidUpdate() { this.apply(); }
+  apply() {
+    const root = document.querySelector('[data-l9root]');
+    if (!root) return;
+    const accent = this.props.accent || '#2f6bff';
+    root.style.setProperty('--blue', accent);
+    root.style.setProperty('--blue-ink', 'color-mix(in srgb, ' + accent + ' 78%, #000)');
+    root.style.setProperty('--blue-soft', 'color-mix(in srgb, ' + accent + ' 9%, #fff)');
+    const trust = root.querySelector('[data-l9="trust"]');
+    if (trust) trust.style.display = (this.props.showTrustBadges === false) ? 'none' : 'flex';
+    const card = root.querySelector('[data-l9="herocard"]');
+    if (card) card.style.display = (this.props.showHeroCard === false) ? 'none' : 'block';
+    root.querySelectorAll('.wbar').forEach(b => {
+      if (this.props.animateWaveform === false) { b.style.animation = 'none'; }
+      else { b.style.animationIterationCount = 'infinite'; b.style.animationPlayState = 'running'; }
+    });
+  }
+}
+</script>
+</body>
+</html>

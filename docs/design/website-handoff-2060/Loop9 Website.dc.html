@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="modernist.css">
+<style>
+  html { scroll-behavior: smooth; }
+  body { margin: 0; text-wrap: pretty; }
+  a { text-decoration: none; }
+  .l9-link:hover { color: var(--color-accent); }
+  .l9-featrow + .l9-featrow { border-top: 2px solid var(--color-divider); }
+  .l9-usecard:hover { background: var(--color-neutral-200); }
+  .l9-pricecol.feat { outline: 2px solid var(--color-accent); }
+</style>
+</helmet>
+
+<div style="background: var(--color-bg); color: var(--color-text); font-family: var(--font-body);">
+
+  <!-- ============ NAV ============ -->
+  <nav style="position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 28px; padding: 16px clamp(20px,5vw,72px); border-bottom: 2px solid var(--color-divider); background: color-mix(in srgb, var(--color-bg) 88%, transparent); backdrop-filter: blur(8px);">
+    <div style="display: flex; align-items: center; gap: 10px; margin-right: auto;">
+      <div style="width: 26px; height: 26px; background: var(--color-accent); display: grid; place-items: center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-bg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 21 11.5z"/></svg>
+      </div>
+      <span style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; letter-spacing: -0.02em;">Loop9</span>
+    </div>
+    <a href="#product" class="l9-link" style="color: inherit; font-size: 14px;">Product</a>
+    <a href="#how" class="l9-link" style="color: inherit; font-size: 14px;">How it works</a>
+    <a href="#usecases" class="l9-link" style="color: inherit; font-size: 14px;">Use cases</a>
+    <a href="#pricing" class="l9-link" style="color: inherit; font-size: 14px;">Pricing</a>
+    <a href="#" class="l9-link" style="color: inherit; font-size: 14px;">Docs</a>
+    <button type="button" class="btn btn-secondary">Sign in</button>
+    <button type="button" class="btn btn-primary">Get started</button>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,8vw,112px) clamp(20px,5vw,72px) clamp(40px,6vw,80px);">
+    <span style="display: block; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 20px;">AI voice agents for the phone line</span>
+    <h1 style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(44px,6.4vw,88px); line-height: 1.02; letter-spacing: -0.03em; margin: 0 0 0 -0.04em; max-width: 16ch;">Answer every call. Even the 3 a.m. ones.</h1>
+    <p style="font-size: 18px; line-height: 1.55; max-width: 56ch; margin: 28px 0 0;">Loop9 puts a human-sounding AI agent on your phone line that picks up in one ring, qualifies the caller, books the meeting, and routes what matters to your team — day, night, and every holiday you'd rather take off.</p>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px;">
+      <button type="button" class="btn btn-primary" style="font-size: 14px; padding: 12px 20px;">Start free trial</button>
+      <button type="button" class="btn btn-secondary" style="font-size: 14px; padding: 12px 20px;">Hear a live demo →</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 20px; margin-top: 24px; font-size: 13px; color: var(--color-neutral-700);">
+      <span>No credit card</span><span style="width: 4px; height: 4px; background: var(--color-accent);"></span><span>5-minute setup</span><span style="width: 4px; height: 4px; background: var(--color-accent);"></span><span>Keep your number</span>
+    </div>
+  </section>
+
+  <!-- ============ TRUST BAR ============ -->
+  <section style="border-top: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 22px clamp(20px,5vw,72px); display: flex; align-items: center; gap: 40px; flex-wrap: wrap;">
+      <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600);">Trusted by teams at</span>
+      <div style="display: flex; align-items: center; gap: 40px; flex-wrap: wrap; flex: 1;">
+        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; opacity: 0.55;">Northwind</span>
+        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; opacity: 0.55;">Cedarhaus</span>
+        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; opacity: 0.55;">Meridian</span>
+        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; opacity: 0.55;">Volt&nbsp;&amp;&nbsp;Co</span>
+        <span style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; opacity: 0.55;">Basecamp9</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,6vw,88px) clamp(20px,5vw,72px);">
+    <div style="display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 32px 24px;">
+      <div>
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(34px,3.4vw,52px); line-height: 1; color: var(--color-accent); margin: 0 0 12px -0.04em;">1&nbsp;ring</p>
+        <p style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-700); margin: 0; max-width: 22ch;">Average time to answer, around the clock</p>
+      </div>
+      <div>
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(34px,3.4vw,52px); line-height: 1; color: var(--color-accent); margin: 0 0 12px -0.04em;">62%</p>
+        <p style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-700); margin: 0; max-width: 22ch;">Of calls fully resolved without a human</p>
+      </div>
+      <div>
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(34px,3.4vw,52px); line-height: 1; color: var(--color-accent); margin: 0 0 12px -0.04em;">3.4×</p>
+        <p style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-700); margin: 0; max-width: 22ch;">More qualified meetings booked</p>
+      </div>
+      <div>
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(34px,3.4vw,52px); line-height: 1; color: var(--color-accent); margin: 0 0 12px -0.04em;">$0</p>
+        <p style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-700); margin: 0; max-width: 22ch;">In missed-call revenue after switching</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="product" style="border-top: 2px solid var(--color-divider);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,6vw,88px) clamp(20px,5vw,72px) clamp(40px,5vw,72px);">
+      <span style="display: block; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 28px;">What Loop9 does</span>
+
+      <div class="l9-featrow" style="display: grid; grid-template-columns: 64px minmax(0,420px) minmax(0,1fr); gap: 24px clamp(24px,4vw,72px); align-items: baseline; padding: 28px 0;">
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; margin: 0; color: var(--color-accent);">01</p>
+        <h3 style="font-family: var(--font-heading); font-weight: 800; font-size: 24px; letter-spacing: -0.01em; margin: 0;">Sounds like a person, not a phone tree</h3>
+        <p style="font-size: 15.5px; line-height: 1.6; color: var(--color-neutral-800); margin: 0; max-width: 52ch;">Natural, low-latency voice that handles interruptions, accents and tangents. Callers talk the way they'd talk to a receptionist — no "press 1 for billing," no dead air.</p>
+      </div>
+
+      <div class="l9-featrow" style="display: grid; grid-template-columns: 64px minmax(0,420px) minmax(0,1fr); gap: 24px clamp(24px,4vw,72px); align-items: baseline; padding: 28px 0;">
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; margin: 0; color: var(--color-accent);">02</p>
+        <h3 style="font-family: var(--font-heading); font-weight: 800; font-size: 24px; letter-spacing: -0.01em; margin: 0;">Knows your business cold</h3>
+        <p style="font-size: 15.5px; line-height: 1.6; color: var(--color-neutral-800); margin: 0; max-width: 52ch;">Point it at your website, docs and past calls. Loop9 answers pricing, hours and policy questions accurately, and says "let me get someone" the moment it shouldn't guess.</p>
+      </div>
+
+      <div class="l9-featrow" style="display: grid; grid-template-columns: 64px minmax(0,420px) minmax(0,1fr); gap: 24px clamp(24px,4vw,72px); align-items: baseline; padding: 28px 0;">
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; margin: 0; color: var(--color-accent);">03</p>
+        <h3 style="font-family: var(--font-heading); font-weight: 800; font-size: 24px; letter-spacing: -0.01em; margin: 0;">Books, routes and follows up</h3>
+        <p style="font-size: 15.5px; line-height: 1.6; color: var(--color-neutral-800); margin: 0; max-width: 52ch;">It checks your calendar, books the slot, warm-transfers to the right rep, and texts the caller a confirmation before they've hung up — then logs the whole thing to your CRM.</p>
+      </div>
+
+      <div class="l9-featrow" style="display: grid; grid-template-columns: 64px minmax(0,420px) minmax(0,1fr); gap: 24px clamp(24px,4vw,72px); align-items: baseline; padding: 28px 0;">
+        <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; margin: 0; color: var(--color-accent);">04</p>
+        <h3 style="font-family: var(--font-heading); font-weight: 800; font-size: 24px; letter-spacing: -0.01em; margin: 0;">Every call, transcribed and scored</h3>
+        <p style="font-size: 15.5px; line-height: 1.6; color: var(--color-neutral-800); margin: 0; max-width: 52ch;">Full transcripts, sentiment, outcomes and recordings in one dashboard. See what callers actually ask for, and where a human still needs to step in.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRODUCT SPLIT (image) ============ -->
+  <section style="border-top: 2px solid var(--color-divider);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(40px,5vw,72px) clamp(20px,5vw,72px); display: grid; grid-template-columns: minmax(0,5fr) minmax(0,7fr); gap: 32px clamp(24px,5vw,96px); align-items: center;">
+      <div>
+        <span style="display: block; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 16px;">The console</span>
+        <h2 style="font-family: var(--font-heading); font-weight: 800; font-size: 32px; letter-spacing: -0.015em; margin: 0 0 16px;">Watch the whole line, live</h2>
+        <p style="font-size: 15.5px; line-height: 1.6; color: var(--color-neutral-800); margin: 0; max-width: 46ch;">Active calls, live transcripts, queue health and sentiment — all on one screen. Jump into any conversation, hand off to a teammate, or let Loop9 carry it to the end.</p>
+      </div>
+      <figure class="grayscale" style="margin: 0; border: 2px solid var(--color-divider);">
+        <div style="position: relative; width: 100%; aspect-ratio: 951 / 665;">
+          <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="l9-console" shape="rect" placeholder="Drop a dashboard screenshot" hint-size="100%,100%"></x-import>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section id="how" style="border-top: 2px solid var(--color-divider); background: var(--color-surface);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,6vw,88px) clamp(20px,5vw,72px);">
+      <span style="display: block; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 8px;">How it works</span>
+      <h2 style="font-family: var(--font-heading); font-weight: 800; font-size: 32px; letter-spacing: -0.015em; margin: 0 0 40px; max-width: 20ch;">Live on your line in an afternoon</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--color-divider); border: 2px solid var(--color-divider);">
+        <div style="background: var(--color-surface); padding: 28px 26px;">
+          <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; color: var(--color-accent); margin: 0 0 16px;">STEP 01</p>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; margin: 0 0 10px;">Connect your number</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Forward calls or port your number. Keep the line your customers already know.</p>
+        </div>
+        <div style="background: var(--color-surface); padding: 28px 26px;">
+          <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; color: var(--color-accent); margin: 0 0 16px;">STEP 02</p>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; margin: 0 0 10px;">Train the agent</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Drop in your site and docs, pick a voice, set the rules for when to transfer to a human.</p>
+        </div>
+        <div style="background: var(--color-surface); padding: 28px 26px;">
+          <p style="font-family: var(--font-heading); font-weight: 800; font-size: 15px; color: var(--color-accent); margin: 0 0 16px;">STEP 03</p>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; margin: 0 0 10px;">Go live &amp; watch</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Loop9 starts answering. Track every call, tune the answers, and scale to more lines.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ USE CASES ============ -->
+  <section id="usecases" style="border-top: 2px solid var(--color-divider);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,6vw,88px) clamp(20px,5vw,72px);">
+      <span style="display: block; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 8px;">Built for</span>
+      <h2 style="font-family: var(--font-heading); font-weight: 800; font-size: 32px; letter-spacing: -0.015em; margin: 0 0 32px; max-width: 22ch;">Any team that lives on the phone</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+        <div class="l9-usecard" style="border: 2px solid var(--color-divider); padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <span class="tag tag-accent" style="align-self: flex-start;">Inbound sales</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; margin: 6px 0 0;">Never drop a hot lead</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Qualify, book and route buyers the instant they call — no voicemail, no next-day callback.</p>
+        </div>
+        <div class="l9-usecard" style="border: 2px solid var(--color-divider); padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <span class="tag tag-accent" style="align-self: flex-start;">Support</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; margin: 6px 0 0;">Deflect the routine</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Handle hours, status and how-to calls automatically; escalate the tricky ones with full context.</p>
+        </div>
+        <div class="l9-usecard" style="border: 2px solid var(--color-divider); padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <span class="tag tag-accent" style="align-self: flex-start;">Clinics</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; margin: 6px 0 0;">Booking &amp; reminders</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Schedule, reschedule and confirm appointments — and cut no-shows with automatic follow-ups.</p>
+        </div>
+        <div class="l9-usecard" style="border: 2px solid var(--color-divider); padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <span class="tag tag-accent" style="align-self: flex-start;">Home services</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; margin: 6px 0 0;">Dispatch from the field</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Book jobs and capture addresses while your crew's hands are full. Every call answered on-site.</p>
+        </div>
+        <div class="l9-usecard" style="border: 2px solid var(--color-divider); padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <span class="tag tag-accent" style="align-self: flex-start;">Real estate</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; margin: 6px 0 0;">Answer every listing call</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Field inquiries, screen buyers and book showings around the clock, across every property.</p>
+        </div>
+        <div class="l9-usecard" style="border: 2px solid var(--color-divider); padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <span class="tag tag-accent" style="align-self: flex-start;">After hours</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 19px; margin: 6px 0 0;">Own the night shift</h4>
+          <p style="font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); margin: 0;">Cover nights, weekends and holidays with the same agent — triage urgent calls, catch the rest.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ QUOTE ============ -->
+  <section style="border-top: 2px solid var(--color-divider);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,6vw,80px) clamp(20px,5vw,72px);">
+      <blockquote style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(24px,2.6vw,34px); line-height: 1.3; letter-spacing: -0.015em; max-width: 34ch; margin: 0;">"We stopped losing calls the day we turned it on. Loop9 books more meetings overnight than we used to book all week."</blockquote>
+      <figcaption style="font-size: 15.5px; color: var(--color-neutral-700); margin-top: 20px;">— Dana Rowe, VP Sales, Cedarhaus</figcaption>
+    </div>
+  </section>
+
+  <!-- ============ PRICING ============ -->
+  <section id="pricing" style="border-top: 2px solid var(--color-divider); background: var(--color-surface);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(48px,6vw,88px) clamp(20px,5vw,72px);">
+      <span style="display: block; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); margin-bottom: 8px;">Pricing</span>
+      <h2 style="font-family: var(--font-heading); font-weight: 800; font-size: 32px; letter-spacing: -0.015em; margin: 0 0 32px; max-width: 20ch;">Pay for calls, not seats</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch;">
+
+        <div style="border: 2px solid var(--color-divider); background: var(--color-bg); padding: 28px; display: flex; flex-direction: column;">
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; margin: 0 0 6px;">Starter</h4>
+          <p style="font-size: 14px; color: var(--color-neutral-700); margin: 0 0 18px;">For a single busy line.</p>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 20px;"><span style="font-family: var(--font-heading); font-weight: 800; font-size: 40px; letter-spacing: -0.02em;">$99</span><span style="font-size: 14px; color: var(--color-neutral-700);">/mo</span></div>
+          <div style="height: 2px; background: var(--color-divider); margin-bottom: 18px;"></div>
+          <ul style="list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+            <li>1 phone line</li>
+            <li>500 minutes included</li>
+            <li>Calendar &amp; SMS follow-up</li>
+            <li>Transcripts &amp; recordings</li>
+          </ul>
+          <button type="button" class="btn btn-secondary btn-block" style="margin-top: auto;">Start free</button>
+        </div>
+
+        <div class="l9-pricecol feat" style="border: 2px solid var(--color-accent); background: var(--color-bg); padding: 28px; display: flex; flex-direction: column; position: relative;">
+          <span class="tag tag-accent" style="position: absolute; top: -12px; left: 28px;">Most popular</span>
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; margin: 0 0 6px;">Growth</h4>
+          <p style="font-size: 14px; color: var(--color-neutral-700); margin: 0 0 18px;">For teams that live on the phone.</p>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 20px;"><span style="font-family: var(--font-heading); font-weight: 800; font-size: 40px; letter-spacing: -0.02em;">$349</span><span style="font-size: 14px; color: var(--color-neutral-700);">/mo</span></div>
+          <div style="height: 2px; background: var(--color-divider); margin-bottom: 18px;"></div>
+          <ul style="list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+            <li>Up to 5 lines</li>
+            <li>3,000 minutes included</li>
+            <li>Warm transfer &amp; routing</li>
+            <li>CRM &amp; webhook integrations</li>
+            <li>Sentiment &amp; outcome scoring</li>
+          </ul>
+          <button type="button" class="btn btn-primary btn-block" style="margin-top: auto;">Start free</button>
+        </div>
+
+        <div style="border: 2px solid var(--color-divider); background: var(--color-bg); padding: 28px; display: flex; flex-direction: column;">
+          <h4 style="font-family: var(--font-heading); font-weight: 800; font-size: 20px; margin: 0 0 6px;">Enterprise</h4>
+          <p style="font-size: 14px; color: var(--color-neutral-700); margin: 0 0 18px;">For high call volume &amp; SLAs.</p>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 20px;"><span style="font-family: var(--font-heading); font-weight: 800; font-size: 40px; letter-spacing: -0.02em;">Custom</span></div>
+          <div style="height: 2px; background: var(--color-divider); margin-bottom: 18px;"></div>
+          <ul style="list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+            <li>Unlimited lines</li>
+            <li>Volume pricing</li>
+            <li>Dedicated numbers &amp; voices</li>
+            <li>SSO, audit logs, DPA</li>
+            <li>Priority support &amp; SLA</li>
+          </ul>
+          <button type="button" class="btn btn-secondary btn-block" style="margin-top: auto;">Talk to sales</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POSTER CTA ============ -->
+  <section style="background: var(--color-accent); color: var(--color-bg);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(56px,7vw,104px) clamp(20px,5vw,72px);">
+      <h2 style="font-family: var(--font-heading); font-weight: 800; font-size: clamp(34px,4.2vw,56px); line-height: 1.04; letter-spacing: -0.02em; margin: 0 0 0 -0.04em; max-width: 18ch;">Your next missed call could be your best customer.</h2>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px;">
+        <button type="button" class="btn" style="background: var(--color-bg); color: var(--color-accent); font-size: 14px; padding: 12px 22px;">Start free trial</button>
+        <button type="button" class="btn btn-ghost" style="color: var(--color-bg); border: 1px solid var(--color-bg); font-size: 14px; padding: 12px 22px;">Book a demo</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer style="border-top: 2px solid var(--color-divider);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: clamp(40px,5vw,64px) clamp(20px,5vw,72px);">
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+            <div style="width: 22px; height: 22px; background: var(--color-accent); display: grid; place-items: center;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-bg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 21 11.5z"/></svg>
+            </div>
+            <span style="font-family: var(--font-heading); font-weight: 800; font-size: 18px;">Loop9</span>
+          </div>
+          <p style="font-size: 13px; color: var(--color-neutral-700); margin: 0; max-width: 34ch;">AI voice agents that answer every call, book every meeting, and never sleep.</p>
+        </div>
+        <div>
+          <h6 style="margin: 0 0 12px;">Product</h6>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <a href="#product" class="l9-link" style="color: var(--color-neutral-800);">Features</a>
+            <a href="#pricing" class="l9-link" style="color: var(--color-neutral-800);">Pricing</a>
+            <a href="#usecases" class="l9-link" style="color: var(--color-neutral-800);">Use cases</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Integrations</a>
+          </div>
+        </div>
+        <div>
+          <h6 style="margin: 0 0 12px;">Company</h6>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">About</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Careers</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Blog</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Contact</a>
+          </div>
+        </div>
+        <div>
+          <h6 style="margin: 0 0 12px;">Legal</h6>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Privacy</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Terms</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">Security</a>
+            <a href="#" class="l9-link" style="color: var(--color-neutral-800);">DPA</a>
+          </div>
+        </div>
+      </div>
+      <div style="height: 2px; background: var(--color-divider); margin: 32px 0 18px;"></div>
+      <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--color-neutral-600);">
+        <span>© 2026 Loop9, Inc.</span>
+        <span>Made for the phone line.</span>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+</body>
+</html>

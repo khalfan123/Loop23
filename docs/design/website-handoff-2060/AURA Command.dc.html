@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body { background: #ffffff; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { color: #1d4ed8; }
+  ::selection { background: rgba(37,99,235,0.15); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #e2e5ea; border-radius: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 9px; cursor: pointer; font-size: 14px; color: #475569; }
+  .nav-item:hover { background: #f4f6f9; color: #0f172a; }
+  .nav-item.on { background: #eef4ff; color: #2563eb; font-weight: 600; }
+  .nav-item .ic { color: #94a3b8; display: flex; }
+  .nav-item.on .ic { color: #2563eb; }
+  .grp { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #94a3b8; padding: 16px 12px 6px; }
+  .sub-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 9px; cursor: pointer; font-size: 13.5px; color: #475569; }
+  .sub-item:hover { background: #f4f6f9; }
+  .sub-item.on { background: #eef4ff; color: #2563eb; font-weight: 600; }
+  .card { background: #ffffff; border: 1px solid #eceef2; border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+</style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 100%; height: 100vh; min-height: 720px; background: #ffffff;">
+
+  <!-- ============ TOP BAR ============ -->
+  <div style="display: flex; align-items: center; height: 64px; border-bottom: 1px solid #eef0f3; flex-shrink: 0;">
+    <!-- brand -->
+    <div style="width: 236px; display: flex; align-items: center; gap: 11px; padding: 0 20px; flex-shrink: 0;">
+      <div style="width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(150deg, #6366f1, #3b82f6); display: grid; place-items: center; box-shadow: 0 3px 8px rgba(59,130,246,0.28);">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 21 11.5z"/></svg>
+      </div>
+      <div>
+        <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;">Loop9</div>
+        <div style="font-size: 11.5px; color: #94a3b8; margin-top: 3px;">AI call center</div>
+      </div>
+    </div>
+    <!-- phone selector -->
+    <div style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid #e6e9ee; border-radius: 10px; margin-left: 8px; cursor: pointer;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.36 1.94.7 2.86a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.22-1.27a2 2 0 0 1 2.11-.45c.92.34 1.88.57 2.86.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span style="font-size: 14px; font-weight: 600;">1</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <!-- search -->
+    <div style="flex: 1; display: flex; justify-content: center; padding: 0 24px;">
+      <div style="width: 100%; max-width: 560px; display: flex; align-items: center; gap: 10px; padding: 9px 15px; background: #f5f6f8; border: 1px solid #edeff2; border-radius: 11px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span style="flex: 1; font-size: 14px; color: #9aa3b0;">Search...</span>
+        <span style="font-size: 12px; color: #b6bdc7; border: 1px solid #e2e5ea; border-radius: 6px; padding: 1px 6px;">⌘K</span>
+      </div>
+    </div>
+    <!-- right controls -->
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 20px;">
+      <div style="width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; cursor: pointer;" style-hover="background: #f4f6f9;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4" y1="12" x2="1.5" y2="12"/><line x1="22.5" y1="12" x2="20" y2="12"/><line x1="5.6" y1="5.6" x2="4" y2="4"/><line x1="20" y1="20" x2="18.4" y2="18.4"/><line x1="18.4" y1="5.6" x2="20" y2="4"/><line x1="4" y1="20" x2="5.6" y2="18.4"/></svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; padding: 4px 6px 4px 4px; border: 1px solid #e6e9ee; border-radius: 20px; cursor: pointer;">
+        <div style="width: 30px; height: 30px; border-radius: 50%; background: #e7ecf5; color: #475569; display: grid; place-items: center; font-weight: 600; font-size: 13px;">L</div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BODY : 3 COLUMNS ============ -->
+  <div style="display: grid; grid-template-columns: 236px 208px 1fr; flex: 1; min-height: 0;">
+
+    <!-- ===== MENU 1 : LEFT NAV ===== -->
+    <aside style="border-right: 1px solid #eef0f3; padding: 16px 12px; display: flex; flex-direction: column; overflow-y: auto;">
+      <div class="nav-item on">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="4" y2="12"/><line x1="10" y1="19" x2="10" y2="5"/><line x1="16" y1="19" x2="16" y2="9"/><line x1="20" y1="19" x2="4" y2="19"/></svg></span>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 16.2a6 6 0 0 0 0-8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 19.1a10 10 0 0 0 0-14.2"/></svg></span>
+        <span>Live</span>
+      </div>
+
+      <div class="grp">SETUP</div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.36 1.94.7 2.86a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.22-1.27a2 2 0 0 1 2.11-.45c.92.34 1.88.57 2.86.7A2 2 0 0 1 22 16.92z"/></svg></span>
+        <span>Phone Numbers</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+        <span>Knowledge Base</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="14"/><polyline points="7 10 12 15 17 10"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
+        <span>Inbound</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 4 14 11 14 10 22 20 10 13 10 13 2"/></svg></span>
+        <span>Automation</span>
+      </div>
+
+      <div class="grp">MANAGE</div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="15" cy="7" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="17" r="2.4"/></svg></span>
+        <span>Operations</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></span>
+        <span>Voices</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
+        <span>Billing</span>
+      </div>
+      <div class="nav-item">
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span>Settings</span>
+      </div>
+
+      <div style="flex: 1;"></div>
+
+      <div style="border: 1px solid #eef0f3; border-radius: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
+        <span style="font-size: 12.5px; color: #64748b;">Credits</span>
+        <span style="flex: 1; text-align: right; font-size: 14px; font-weight: 700;">9,941</span>
+        <span style="font-size: 11px; font-weight: 600; color: #2563eb; background: #eef4ff; padding: 2px 7px; border-radius: 6px;">Pro</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 4px 2px;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: #e7ecf5; color: #475569; display: grid; place-items: center; font-weight: 600; font-size: 12px;">L</div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 13px; font-weight: 600;">Loop9 Admin</div>
+          <div style="font-size: 11.5px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">khalfan@myb24.com</div>
+        </div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </aside>
+
+    <!-- ===== MENU 2 : SUBMENU ===== -->
+    <nav style="border-right: 1px solid #eef0f3; padding: 20px 12px; overflow-y: auto;">
+      <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.02em; padding: 0 4px 16px;">Dashboard</div>
+
+      <div class="grp" style="padding-top: 0;">VIEWS</div>
+      <div class="sub-item on">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="4" y2="12"/><line x1="10" y1="19" x2="10" y2="5"/><line x1="16" y1="19" x2="16" y2="9"/></svg>
+        <span>Analytics</span>
+      </div>
+      <div class="sub-item">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>
+        <span>Call History</span>
+      </div>
+      <div class="sub-item">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 16.2a6 6 0 0 0 0-8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 19.1a10 10 0 0 0 0-14.2"/></svg>
+        <span>Live</span>
+      </div>
+
+      <div class="grp">METRICS</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 11px; font-size: 13.5px;">
+        <span style="color: #475569;">Success Rate</span>
+        <span style="font-weight: 700; color: #16a34a;">100%</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 11px; font-size: 13.5px;">
+        <span style="color: #475569;">Avg Duration</span>
+        <span style="font-weight: 700;">0:46</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 11px; font-size: 13.5px;">
+        <span style="color: #475569;">Call Trend</span>
+        <span style="font-weight: 700; color: #16a34a;">0%</span>
+      </div>
+    </nav>
+
+    <!-- ===== MAIN : ANALYTICS ===== -->
+    <main style="overflow-y: auto; padding: 26px 30px 34px; background: #fbfcfd;">
+
+      <!-- title row -->
+      <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 22px;">
+        <div style="width: 52px; height: 52px; border-radius: 14px; background: #f1f4f9; display: grid; place-items: center; flex-shrink: 0;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="4" y2="12"/><line x1="10" y1="19" x2="10" y2="5"/><line x1="16" y1="19" x2="16" y2="9"/><line x1="20" y1="19" x2="4" y2="19"/></svg>
+        </div>
+        <div style="flex: 1;">
+          <h1 style="margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.02em;">Analytics</h1>
+          <div style="font-size: 14.5px; color: #94a3b8; margin-top: 3px;">Comprehensive insights and performance metrics</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid #e6e9ee; border-radius: 11px; background: #fff; cursor: pointer;">
+          <span style="font-size: 14px; font-weight: 500;">Last 7 Days</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 11px; background: #2563eb; color: #fff; cursor: pointer; box-shadow: 0 3px 8px rgba(37,99,235,0.28);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span style="font-size: 14px; font-weight: 600;">Export Report</span>
+        </div>
+      </div>
+
+      <!-- tabs -->
+      <div style="display: inline-flex; gap: 4px; padding: 4px; background: #f1f4f8; border-radius: 12px; margin-bottom: 26px;">
+        <span style="font-size: 14px; font-weight: 600; color: #0f172a; background: #fff; padding: 8px 18px; border-radius: 9px; box-shadow: 0 1px 2px rgba(15,23,42,0.08);">Overview</span>
+        <span style="font-size: 14px; color: #64748b; padding: 8px 18px; border-radius: 9px; cursor: pointer;">Campaigns</span>
+        <span style="font-size: 14px; color: #64748b; padding: 8px 18px; border-radius: 9px; cursor: pointer;">Reports</span>
+        <span style="font-size: 14px; color: #64748b; padding: 8px 18px; border-radius: 9px; cursor: pointer;">Calls</span>
+      </div>
+
+      <!-- KEY METRICS -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <span style="font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; color: #64748b;">KEY METRICS</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 18px;">
+        <!-- Total Calls -->
+        <div class="card" style="padding: 20px 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span style="font-size: 14px; color: #64748b;">Total Calls</span>
+            <span style="width: 34px; height: 34px; border-radius: 10px; background: #eef4ff; display: grid; place-items: center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.36 1.94.7 2.86a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.22-1.27a2 2 0 0 1 2.11-.45c.92.34 1.88.57 2.86.7A2 2 0 0 1 22 16.92z"/></svg></span>
+          </div>
+          <div style="font-size: 38px; font-weight: 700; letter-spacing: -0.03em; margin: 14px 0 12px;">13</div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #94a3b8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 15 11 8 15 12 20 7"/></svg><span style="color: #16a34a; font-weight: 600;">0%</span> vs previous period</div>
+        </div>
+        <!-- Success Rate -->
+        <div class="card" style="padding: 20px 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span style="font-size: 14px; color: #64748b;">Success Rate</span>
+            <span style="width: 34px; height: 34px; border-radius: 10px; background: #eafaf1; display: grid; place-items: center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 15 11 8 15 12 20 7"/><polyline points="16 7 20 7 20 11"/></svg></span>
+          </div>
+          <div style="font-size: 38px; font-weight: 700; letter-spacing: -0.03em; margin: 14px 0 12px;">100%</div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #94a3b8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 15 11 8 15 12 20 7"/></svg><span style="color: #16a34a; font-weight: 600;">0%</span> vs previous period</div>
+        </div>
+        <!-- Qualified Leads -->
+        <div class="card" style="padding: 20px 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span style="font-size: 14px; color: #64748b;">Qualified Leads</span>
+            <span style="width: 34px; height: 34px; border-radius: 10px; background: #f2eefe; display: grid; place-items: center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          </div>
+          <div style="font-size: 38px; font-weight: 700; letter-spacing: -0.03em; margin: 14px 0 12px;">2</div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #94a3b8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 15 11 8 15 12 20 7"/></svg><span style="color: #16a34a; font-weight: 600;">0%</span> vs previous period</div>
+        </div>
+        <!-- Avg Duration -->
+        <div class="card" style="padding: 20px 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span style="font-size: 14px; color: #64748b;">Avg Duration</span>
+            <span style="width: 34px; height: 34px; border-radius: 10px; background: #eef4ff; display: grid; place-items: center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 12px; margin: 14px 0 12px;">
+            <span style="font-size: 38px; font-weight: 700; letter-spacing: -0.03em;">0:46</span>
+            <svg width="70" height="30" viewBox="0 0 70 30" fill="none" style="flex-shrink: 0;"><polyline points="2,22 18,22 30,22 42,10 54,20 68,6" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div style="font-size: 12.5px; color: #94a3b8;">minutes per call</div>
+        </div>
+      </div>
+
+      <!-- ring gauges row -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 30px;">
+        <div class="card" style="padding: 22px; display: flex; flex-direction: column; align-items: center;">
+          <svg width="112" height="112" viewBox="0 0 112 112">
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#eef1f5" stroke-width="9"/>
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#22c55e" stroke-width="9" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="0" transform="rotate(-90 56 56)"/>
+            <text x="56" y="63" text-anchor="middle" font-size="26" font-weight="700" fill="#0f172a">100</text>
+          </svg>
+          <div style="font-size: 14px; font-weight: 600; margin-top: 12px;">Success Rate</div>
+          <div style="font-size: 12.5px; color: #94a3b8; margin-top: 2px;">%</div>
+        </div>
+        <div class="card" style="padding: 22px; display: flex; flex-direction: column; align-items: center;">
+          <svg width="112" height="112" viewBox="0 0 112 112">
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#eef1f5" stroke-width="9"/>
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#f59e0b" stroke-width="9" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="245" transform="rotate(-90 56 56)"/>
+            <text x="56" y="63" text-anchor="middle" font-size="26" font-weight="700" fill="#0f172a">2</text>
+          </svg>
+          <div style="font-size: 14px; font-weight: 600; margin-top: 12px;">Qualified Rate</div>
+          <div style="font-size: 12.5px; color: #94a3b8; margin-top: 2px;">/ 13</div>
+        </div>
+        <div class="card" style="padding: 22px; display: flex; flex-direction: column; align-items: center;">
+          <svg width="112" height="112" viewBox="0 0 112 112">
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#eef1f5" stroke-width="9"/>
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#22c55e" stroke-width="9" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="0" transform="rotate(-90 56 56)"/>
+            <text x="56" y="63" text-anchor="middle" font-size="26" font-weight="700" fill="#0f172a">13</text>
+          </svg>
+          <div style="font-size: 14px; font-weight: 600; margin-top: 12px;">Incoming %</div>
+          <div style="font-size: 12.5px; color: #94a3b8; margin-top: 2px;">/ 13</div>
+        </div>
+        <div class="card" style="padding: 22px; display: flex; flex-direction: column; align-items: center;">
+          <svg width="112" height="112" viewBox="0 0 112 112">
+            <circle cx="56" cy="56" r="46" fill="none" stroke="#eef1f5" stroke-width="9"/>
+            <circle cx="56" cy="10" r="3.4" fill="#ef4444"/>
+            <text x="56" y="63" text-anchor="middle" font-size="26" font-weight="700" fill="#0f172a">0</text>
+          </svg>
+          <div style="font-size: 14px; font-weight: 600; margin-top: 12px;">Campaign %</div>
+          <div style="font-size: 12.5px; color: #94a3b8; margin-top: 2px;">/ 13</div>
+        </div>
+      </div>
+
+      <!-- TRENDS & ACTIVITY -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <span style="font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; color: #64748b;">TRENDS &amp; ACTIVITY</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+        <!-- Daily Call Volume -->
+        <div class="card" style="padding: 22px 24px;">
+          <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px;">Daily Call Volume</div>
+          <div style="display: flex; gap: 12px; height: 210px;">
+            <div style="display: flex; flex-direction: column; justify-content: space-between; font-size: 11px; color: #b6bdc7; padding: 4px 0 22px; text-align: right;">
+              <span>12</span><span>9</span><span>6</span><span>3</span>
+            </div>
+            <div style="flex: 1; display: flex; align-items: flex-end; gap: 10px; border-left: 1px solid #eef1f5; border-bottom: 1px solid #eef1f5; padding: 0 4px 0 12px;">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 3%; background: #dbe4f0; border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #b6bdc7;">Mon</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 3%; background: #dbe4f0; border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #b6bdc7;">Tue</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 3%; background: #dbe4f0; border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #b6bdc7;">Wed</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 3%; background: #dbe4f0; border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #b6bdc7;">Thu</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 3%; background: #dbe4f0; border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #b6bdc7;">Fri</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 92%; background: linear-gradient(180deg, #3b82f6, #60a5fa); border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #6b7280; font-weight: 600;">Sat</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 100%; max-width: 30px; height: 3%; background: #dbe4f0; border-radius: 5px 5px 0 0;"></div><span style="font-size: 11px; color: #b6bdc7;">Sun</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Call Activity Heatmap -->
+        <div class="card" style="padding: 22px 24px;">
+          <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px;">Call Activity Heatmap</div>
+          <div style="display: grid; grid-template-columns: 30px 1fr; gap: 8px;">
+            <div></div>
+            <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #b6bdc7; padding: 0 2px;">
+              <span>00:00</span><span>03:00</span><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span><span>21:00</span>
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: space-around; font-size: 11px; color: #94a3b8; text-align: right; padding-right: 2px;">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+            <div ref="{{ heatRef }}" style="display: grid; grid-template-rows: repeat(7, 1fr); gap: 3px;"></div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 11px; color: #94a3b8;">
+            <span>Less</span>
+            <span style="width: 13px; height: 13px; border-radius: 3px; background: #f1f4f8;"></span>
+            <span style="width: 13px; height: 13px; border-radius: 3px; background: #cfe0f5;"></span>
+            <span style="width: 13px; height: 13px; border-radius: 3px; background: #94bdf0;"></span>
+            <span style="width: 13px; height: 13px; border-radius: 3px; background: #3b82f6;"></span>
+            <span>More</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.heatRef = React.createRef();
+  }
+  componentDidMount() {
+    // Build the heatmap grid once (7 rows × 24 cells). Static — no animation loop.
+    const el = this.heatRef.current;
+    if (!el) return;
+    // one lone busy cell (Sat afternoon) to match the sample's near-empty week
+    const busy = { row: 5, col: 15 };
+    for (let r = 0; r < 7; r++) {
+      const row = document.createElement('div');
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = 'repeat(24, 1fr)';
+      row.style.gap = '3px';
+      for (let c = 0; c < 24; c++) {
+        const cell = document.createElement('div');
+        cell.style.aspectRatio = '1';
+        cell.style.borderRadius = '3px';
+        cell.style.background = (r === busy.row && c === busy.col) ? '#3b82f6' : '#f1f4f8';
+        row.appendChild(cell);
+      }
+      el.appendChild(row);
+    }
+  }
+  renderVals() {
+    return { heatRef: this.heatRef };
+  }
+}
+</script>
+</body>
+</html>

@@ -17,6 +17,8 @@ const TYPES = {
   '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
 };
@@ -29,25 +31,50 @@ function safeJoin(base, reqPath) {
   return full;
 }
 
+function resolveFile(urlPath) {
+  let filePath = safeJoin(root, urlPath === '/' ? '/index.html' : urlPath);
+  if (!filePath) return null;
+
+  if (fs.existsSync(filePath)) {
+    const st = fs.statSync(filePath);
+    if (st.isDirectory()) {
+      const indexFile = path.join(filePath, 'index.html');
+      if (fs.existsSync(indexFile)) return indexFile;
+    } else {
+      return filePath;
+    }
+  }
+
+  // Clean URLs: /features/build → /features/build/index.html or /features/build.html
+  if (!path.extname(filePath)) {
+    const asIndex = path.join(filePath, 'index.html');
+    if (fs.existsSync(asIndex)) return asIndex;
+    const asHtml = `${filePath}.html`;
+    if (fs.existsSync(asHtml)) return asHtml;
+  }
+
+  return null;
+}
+
 const server = http.createServer((req, res) => {
-  let filePath = safeJoin(root, req.url === '/' ? '/index.html' : req.url);
+  const urlPath = (req.url || '/').split('?')[0];
+  const filePath = resolveFile(urlPath);
+
   if (!filePath) {
-    res.writeHead(400);
-    res.end('Bad request');
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not found');
     return;
   }
-  fs.stat(filePath, (err, st) => {
-    if (!err && st.isDirectory()) filePath = path.join(filePath, 'index.html');
-    fs.readFile(filePath, (readErr, data) => {
-      if (readErr) {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Not found');
-        return;
-      }
-      const ext = path.extname(filePath).toLowerCase();
-      res.writeHead(200, { 'Content-Type': TYPES[ext] || 'application/octet-stream' });
-      res.end(data);
-    });
+
+  fs.readFile(filePath, (readErr, data) => {
+    if (readErr) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
+      return;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    res.writeHead(200, { 'Content-Type': TYPES[ext] || 'application/octet-stream' });
+    res.end(data);
   });
 });
 

@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Loop9 — AI voice agents for growing businesses. Answer every call, book appointments, transfer to your team, and improve with post-call QA.">
+<link rel="canonical" href="https://mainsite-production-2385.up.railway.app/">
+<meta property="og:title" content="Loop9 — AI voice agents for growing businesses">
+<meta property="og:description" content="Answer every call, book appointments, transfer to your team, and improve with post-call QA.">
 <title>Loop9 — AI voice agents for growing businesses</title>
 <script src="./support.js"></script>
 </head>
@@ -218,15 +221,17 @@
     gap: 14px;
   }
   .lg-feat {
+    display: block;
     padding: 22px 22px 24px;
     border-radius: 16px;
     background: #f7f9fc;
     border: 1px solid rgba(0,0,0,0.06);
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
   }
   .lg-feat:hover {
     background: #eef5ff;
     border-color: rgba(0,132,255,0.2);
+    transform: translateY(-1px);
   }
   .lg-feat h3 {
     font-family: 'Fustat', sans-serif;
@@ -302,6 +307,7 @@
     gap: 14px;
   }
   .lg-use {
+    display: block;
     padding: 24px;
     border-radius: 16px;
     border: 1px solid rgba(0,0,0,0.08);
@@ -444,11 +450,11 @@
 
   <!-- NAV -->
   <nav class="lg-nav" aria-label="Primary">
-    <a href="#" class="lg-brand">Loop9</a>
+    <a href="/" class="lg-brand">Loop9</a>
     <div class="lg-navlinks">
-      <a href="#features" class="lg-navlink">Features</a>
-      <a href="#use-cases" class="lg-navlink">Use cases</a>
-      <a href="#how" class="lg-navlink">How it works</a>
+      <a href="/features/" class="lg-navlink">Features</a>
+      <a href="/industries/" class="lg-navlink">Industries</a>
+      <a href="/use-cases/" class="lg-navlink">Use cases</a>
     </div>
     <div class="lg-nav-actions">
       <a href="https://app.loop9.ai/login" class="lg-btn-ghost">Sign in</a>
@@ -480,7 +486,7 @@
             Start free trial
             <span class="lg-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0084FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
           </a>
-          <a href="#features" class="lg-btn-ghost">See capabilities</a>
+          <a href="/features/" class="lg-btn-ghost">See capabilities</a>
         </div>
 
         <div style="display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 22px; font-size: 13px; color: #6b7280;">
@@ -556,56 +562,37 @@
   <section id="features" class="lg-section">
     <span class="lg-eyebrow">Capabilities</span>
     <h2 class="lg-h2">Everything your phone operation needs</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">From first ring to post-call insight — the toolkit growing businesses use to answer, resolve, and improve.</p>
+    <p class="lg-lead" style="margin-bottom: 36px;">From first ring to post-call insight — dedicated pages for every capability. <a href="/features/" style="color:#0084FF;font-weight:600;">Browse all features →</a></p>
     <div class="lg-feat-grid">
-      <article class="lg-feat">
-        <h3>Build</h3>
-        <p>Create AI voice agents and visual call flows — scripts, conditions, tools, and templates — without engineering.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Call Transfer</h3>
-        <p>Warm-hand off to a human or another agent with full context and configurable caller ID on the transfer.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Book Appointments</h3>
-        <p>Schedule, reschedule, and confirm appointments during the call — then manage them in Operations.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Knowledge Base</h3>
-        <p>Ground answers in your docs and policies with RAG so agents stay accurate without prompt rewrites.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Navigate IVR</h3>
-        <p>Build multilingual inbound menus that route callers by language and DTMF into the right team or agent.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Deploy</h3>
-        <p>Connect a number, publish workflows, and put agents live for inbound answering or outbound campaigns.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Batch Call</h3>
-        <p>Run bulk outbound campaigns — upload contacts, schedule dials, and track outcomes at scale.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Branded Call ID</h3>
-        <p>Place and transfer calls from your business numbers with controlled caller ID customers already trust.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Verified Phone Numbers</h3>
-        <p>Buy, port, or bring SIP trunks — local and toll-free DIDs attached directly to your agents.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Monitor</h3>
-        <p>Live floor views, analytics, and per-call detail so operators see queue health in real time.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>Post Call Analysis</h3>
-        <p>Transcripts, outcomes, and knowledge gaps after every call — so the next conversation is sharper.</p>
-      </article>
-      <article class="lg-feat">
-        <h3>AI Quality Assurance</h3>
-        <p>Score calls for quality, compliance, and resolution across 100% of volume — not a manual sample.</p>
-      </article>
+      <a class="lg-feat" href="/features/build/"><h3>Build</h3><p>Create AI voice agents and visual call flows — scripts, conditions, tools, and templates — without engineering.</p></a>
+      <a class="lg-feat" href="/features/call-transfer/"><h3>Call Transfer</h3><p>Warm-hand off to a human or another agent with full context and configurable caller ID on the transfer.</p></a>
+      <a class="lg-feat" href="/features/book-appointments/"><h3>Book Appointments</h3><p>Schedule, reschedule, and confirm appointments during the call — then manage them in Operations.</p></a>
+      <a class="lg-feat" href="/features/knowledge-base/"><h3>Knowledge Base</h3><p>Ground answers in your docs and policies with RAG so agents stay accurate without prompt rewrites.</p></a>
+      <a class="lg-feat" href="/features/navigate-ivr/"><h3>Navigate IVR</h3><p>Build multilingual inbound menus that route callers by language and DTMF into the right team or agent.</p></a>
+      <a class="lg-feat" href="/features/deploy/"><h3>Deploy</h3><p>Connect a number, publish workflows, and put agents live for inbound answering or outbound campaigns.</p></a>
+      <a class="lg-feat" href="/features/batch-call/"><h3>Batch Call</h3><p>Run bulk outbound campaigns — upload contacts, schedule dials, and track outcomes at scale.</p></a>
+      <a class="lg-feat" href="/features/branded-call-id/"><h3>Branded Call ID</h3><p>Place and transfer calls from your business numbers with controlled caller ID customers already trust.</p></a>
+      <a class="lg-feat" href="/features/verified-phone-numbers/"><h3>Verified Phone Numbers</h3><p>Buy, port, or bring SIP trunks — local and toll-free DIDs attached directly to your agents.</p></a>
+      <a class="lg-feat" href="/features/monitor/"><h3>Monitor</h3><p>Live floor views, analytics, and per-call detail so operators see queue health in real time.</p></a>
+      <a class="lg-feat" href="/features/post-call-analysis/"><h3>Post Call Analysis</h3><p>Transcripts, outcomes, and knowledge gaps after every call — so the next conversation is sharper.</p></a>
+      <a class="lg-feat" href="/features/ai-quality-assurance/"><h3>AI Quality Assurance</h3><p>Score calls for quality, compliance, and resolution across 100% of volume — not a manual sample.</p></a>
+    </div>
+  </section>
+
+  <!-- INDUSTRIES -->
+  <section id="industries" class="lg-section">
+    <span class="lg-eyebrow">Industries</span>
+    <h2 class="lg-h2">Built for the lines that run your business</h2>
+    <p class="lg-lead" style="margin-bottom: 36px;">Corporate-ready voice AI across high-call industries. <a href="/industries/" style="color:#0084FF;font-weight:600;">Explore industries →</a></p>
+    <div class="lg-feat-grid">
+      <a class="lg-feat" href="/industries/healthcare/"><h3>Healthcare</h3><p>Booking, after-hours coverage, and urgent warm transfers for clinics and care teams.</p></a>
+      <a class="lg-feat" href="/industries/financial-services/"><h3>Financial Services</h3><p>Qualified intake, policy FAQs, and QA across every advisory conversation.</p></a>
+      <a class="lg-feat" href="/industries/insurance/"><h3>Insurance</h3><p>FNOL-style intake, coverage answers, and callbacks with full call analysis.</p></a>
+      <a class="lg-feat" href="/industries/logistics/"><h3>Logistics</h3><p>Status FAQs, dispatch escalations, and outbound batch updates at scale.</p></a>
+      <a class="lg-feat" href="/industries/home-services/"><h3>Home Services</h3><p>Job booking, lead capture, and field-friendly transfers when crews are busy.</p></a>
+      <a class="lg-feat" href="/industries/retail-consumer/"><h3>Retail &amp; Consumer</h3><p>Peak-season volume, order FAQs, and brand-consistent QA.</p></a>
+      <a class="lg-feat" href="/industries/travel-hospitality/"><h3>Travel &amp; Hospitality</h3><p>Reservations, stay FAQs, VIP routing, and night coverage.</p></a>
+      <a class="lg-feat" href="/industries/debt-collection/"><h3>Debt Collection</h3><p>Batch outreach, business caller ID, and quality scoring on every attempt.</p></a>
     </div>
   </section>
 
@@ -649,40 +636,18 @@
 
   <!-- USE CASES -->
   <section id="use-cases" class="lg-section">
-    <span class="lg-eyebrow">Built for</span>
-    <h2 class="lg-h2">SME teams that live on the phone</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">Corporate-ready for growing businesses — not just call-center enterprises.</p>
+    <span class="lg-eyebrow">Use cases</span>
+    <h2 class="lg-h2">Practical phone workflows for growing teams</h2>
+    <p class="lg-lead" style="margin-bottom: 36px;">See how Loop9 runs the line day to day. <a href="/use-cases/" style="color:#0084FF;font-weight:600;">All use cases →</a></p>
     <div class="lg-use-grid">
-      <article class="lg-use">
-        <span class="lg-tag">Inbound sales</span>
-        <h3>Never drop a hot lead</h3>
-        <p>Qualify, book, and route buyers the moment they call — no voicemail, no next-day callback.</p>
-      </article>
-      <article class="lg-use">
-        <span class="lg-tag">Support</span>
-        <h3>Deflect the routine</h3>
-        <p>Handle hours, status, and how-to questions automatically; escalate tricky cases with full context.</p>
-      </article>
-      <article class="lg-use">
-        <span class="lg-tag">Clinics</span>
-        <h3>Booking &amp; reminders</h3>
-        <p>Schedule, reschedule, and confirm appointments — cut no-shows with consistent follow-through.</p>
-      </article>
-      <article class="lg-use">
-        <span class="lg-tag">Home services</span>
-        <h3>Dispatch from the field</h3>
-        <p>Book jobs and capture details while your crew is on site. Every call answered.</p>
-      </article>
-      <article class="lg-use">
-        <span class="lg-tag">Real estate</span>
-        <h3>Answer every listing call</h3>
-        <p>Field inquiries, screen buyers, and book showings around the clock across properties.</p>
-      </article>
-      <article class="lg-use">
-        <span class="lg-tag">After hours</span>
-        <h3>Own the night shift</h3>
-        <p>Cover nights, weekends, and holidays — triage urgent calls, capture the rest for morning.</p>
-      </article>
+      <a class="lg-use" href="/use-cases/inbound-sales/"><span class="lg-tag">Inbound sales</span><h3>Never drop a hot lead</h3><p>Qualify, book, and route buyers the moment they call — no voicemail, no next-day callback.</p></a>
+      <a class="lg-use" href="/use-cases/customer-support/"><span class="lg-tag">Support</span><h3>Deflect the routine</h3><p>Handle hours, status, and how-to questions automatically; escalate tricky cases with full context.</p></a>
+      <a class="lg-use" href="/use-cases/appointment-booking/"><span class="lg-tag">Booking</span><h3>Book more appointments</h3><p>Schedule, reschedule, and confirm during the call — cut no-shows with consistent follow-through.</p></a>
+      <a class="lg-use" href="/use-cases/after-hours/"><span class="lg-tag">After hours</span><h3>Own the night shift</h3><p>Cover nights, weekends, and holidays — triage urgent calls, capture the rest for morning.</p></a>
+      <a class="lg-use" href="/use-cases/lead-qualification/"><span class="lg-tag">Qualification</span><h3>Qualify before your team</h3><p>Consistent discovery questions so reps only take sales-ready conversations.</p></a>
+      <a class="lg-use" href="/use-cases/outbound-campaigns/"><span class="lg-tag">Outbound</span><h3>Campaigns at scale</h3><p>Batch dialing with business caller ID and outcome tracking after each run.</p></a>
+      <a class="lg-use" href="/use-cases/department-routing/"><span class="lg-tag">Routing</span><h3>Right department, first</h3><p>Multilingual menus and AI routing into the correct team or specialist.</p></a>
+      <a class="lg-use" href="/use-cases/quality-coaching/"><span class="lg-tag">QA</span><h3>Coach from 100% of calls</h3><p>AI QA and post-call analysis across full volume — not a random sample.</p></a>
     </div>
   </section>
 
@@ -729,8 +694,9 @@
   <footer class="lg-footer">
     <div style="font-family: 'Fustat', sans-serif; font-weight: 800; font-size: 18px; color: #0d0f12;">Loop9</div>
     <div style="display: flex; flex-wrap: wrap; gap: 16px 24px;">
-      <a href="#features">Features</a>
-      <a href="#use-cases">Use cases</a>
+      <a href="/features/">Features</a>
+      <a href="/industries/">Industries</a>
+      <a href="/use-cases/">Use cases</a>
       <a href="https://app.loop9.ai/privacy">Privacy</a>
       <a href="https://app.loop9.ai/terms">Terms</a>
       <a href="https://app.loop9.ai/login">Sign in</a>

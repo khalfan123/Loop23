@@ -1,26 +1,42 @@
 # Loop9 mainsite (front website)
 
-Static marketing site for SME-first AI voice agents. Deployed as Railway service **mainsite** (production canvas), separate from the `loop9` app.
+Multi-page SEO marketing site for SME-first AI voice agents. Railway service **mainsite** (production), separate from `loop9`.
 
 ## CTAs
 
 | Action | URL |
 |--------|-----|
 | Sign in | https://app.loop9.ai/login |
-| Get started / Start free trial | https://app.loop9.ai/register |
-| Privacy / Terms | https://app.loop9.ai/privacy · https://app.loop9.ai/terms |
+| Get started | https://app.loop9.ai/register |
 
-## Page map (`index.html`)
+## Site map
 
-1. Nav — Features, Use cases, How it works, Sign in, Get started  
-2. Hero — SME value + live booking/transfer card  
-3. Platform pillars — Build / Deploy / Monitor  
-4. Capabilities — 12 feature cards  
-5. Telephony — verified numbers, business caller ID, batch calling  
-6. Quality loop — post-call analysis + AI QA  
-7. Use cases — sales, support, clinics, home services, real estate, after-hours  
-8. How it works — 3 steps  
-9. Final CTA + footer  
+| Section | Path |
+|---------|------|
+| Home | `/` |
+| Features hub | `/features/` |
+| 12 feature pages | `/features/{slug}/` |
+| Industries hub | `/industries/` |
+| 8 industry pages | `/industries/{slug}/` |
+| Use cases hub | `/use-cases/` |
+| 8 use-case pages | `/use-cases/{slug}/` |
+| Sitemap | `/sitemap.xml` |
+| Robots | `/robots.txt` |
+
+### Features
+Build, Call Transfer, Book Appointments, Knowledge Base, Navigate IVR, Deploy, Batch Call, Branded Call ID, Verified Phone Numbers, Monitor, Post Call Analysis, AI Quality Assurance
+
+### Industries
+Healthcare, Financial Services, Insurance, Logistics, Home Services, Retail & Consumer, Travel & Hospitality, Debt Collection
+
+### Use cases
+Inbound Sales, Customer Support, Appointment Booking, After Hours, Lead Qualification, Outbound Campaigns, Department Routing, Quality Coaching
+
+## Regenerate SEO pages
+
+```bash
+node mainsite/scripts/generate-pages.mjs
+```
 
 ## Local preview
 
@@ -28,11 +44,7 @@ Static marketing site for SME-first AI voice agents. Deployed as Railway service
 cd mainsite && node server.js
 ```
 
-Open http://localhost:3000
-
 ## Deploy (isolated upload)
-
-Deploy from a clean copy of this folder only — never from the monorepo root (avoids uploading `rest-express`).
 
 ```bash
 DEPLOY_DIR=$(mktemp -d)

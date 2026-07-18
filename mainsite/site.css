@@ -887,8 +887,8 @@ img { max-width: 100%; display: block; }
   color: var(--lg-muted);
 }
 
-@media (max-width: 860px) {
-  .lg-navlinks { display: none; }
+@media (max-width: 980px) {
+  /* mobile nav handled in nav-menu.css */
 }
 @media (min-width: 640px) {
   .lg-feat-grid, .lg-card-grid, .lg-voice-grid, .lg-tel-grid, .lg-trust-grid, .lg-industry-grid, .lg-metrics { grid-template-columns: repeat(2, 1fr); }

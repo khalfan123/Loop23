@@ -735,11 +735,163 @@ img { max-width: 100%; display: block; }
   color: var(--lg-subtle);
 }
 
+/* —— Industry photo cards (Callers-style visual grid) —— */
+.lg-industry-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 32px;
+}
+.lg-industry-card {
+  position: relative;
+  display: block;
+  min-height: 220px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--lg-line);
+  background: #0b1220;
+  color: #fff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.lg-industry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+}
+.lg-industry-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+.lg-industry-card:hover img { transform: scale(1.04); }
+.lg-industry-card .lg-industry-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11,18,32,0.15) 0%, rgba(11,18,32,0.78) 70%, rgba(11,18,32,0.92) 100%);
+}
+.lg-industry-card .lg-industry-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 220px;
+  padding: 22px;
+}
+.lg-industry-card h3 {
+  font-family: var(--lg-font-display);
+  font-weight: 750;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  color: #fff;
+}
+.lg-industry-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.82);
+  max-width: 36ch;
+}
+.lg-industry-card .lg-industry-link {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #9ec9ff;
+}
+
+/* Industry detail hero */
+.lg-industry-hero {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 320px;
+  margin: 0 0 36px;
+  border: 1px solid var(--lg-line);
+}
+.lg-industry-hero img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lg-industry-hero .lg-industry-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, rgba(11,18,32,0.88) 0%, rgba(11,18,32,0.55) 55%, rgba(11,18,32,0.25) 100%);
+}
+.lg-industry-hero-inner {
+  position: relative;
+  z-index: 1;
+  padding: clamp(36px, 6vw, 56px);
+  max-width: 640px;
+  color: #fff;
+}
+.lg-industry-hero-inner .lg-eyebrow { color: #9ec9ff; }
+.lg-industry-hero-inner .lg-h1 {
+  color: #fff;
+  max-width: 14ch;
+}
+.lg-industry-hero-inner .lg-lead {
+  color: rgba(255,255,255,0.86);
+}
+
+.lg-popular {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 0;
+}
+.lg-popular span,
+.lg-popular a {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #fff;
+}
+.lg-popular a:hover { background: rgba(255,255,255,0.24); }
+
+.lg-metrics {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0 0 40px;
+}
+.lg-metric {
+  padding: 20px 22px;
+  border-radius: 14px;
+  border: 1px solid var(--lg-line);
+  background: var(--lg-surface);
+}
+.lg-metric strong {
+  display: block;
+  font-family: var(--lg-font-display);
+  font-weight: 750;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--lg-ink);
+  margin-bottom: 6px;
+}
+.lg-metric span {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--lg-muted);
+}
+
 @media (max-width: 860px) {
   .lg-navlinks { display: none; }
 }
 @media (min-width: 640px) {
-  .lg-feat-grid, .lg-card-grid, .lg-voice-grid, .lg-tel-grid, .lg-trust-grid { grid-template-columns: repeat(2, 1fr); }
+  .lg-feat-grid, .lg-card-grid, .lg-voice-grid, .lg-tel-grid, .lg-trust-grid, .lg-industry-grid, .lg-metrics { grid-template-columns: repeat(2, 1fr); }
   .lg-compare { grid-template-columns: repeat(3, 1fr); }
   .lg-quality { grid-template-columns: repeat(2, 1fr); }
   .lg-footer-inner { grid-template-columns: 1.4fr repeat(3, 1fr); }
@@ -747,7 +899,10 @@ img { max-width: 100%; display: block; }
 @media (min-width: 960px) {
   .lg-hero { grid-template-columns: 1.05fr 0.95fr; gap: 48px; }
   .lg-feat-grid, .lg-card-grid { grid-template-columns: repeat(3, 1fr); }
+  .lg-industry-grid { grid-template-columns: repeat(4, 1fr); }
+  .lg-metrics { grid-template-columns: repeat(3, 1fr); }
   .lg-tel-grid { grid-template-columns: repeat(4, 1fr); }
   .lg-voice-grid { grid-template-columns: repeat(3, 1fr); }
   .lg-trust-grid { grid-template-columns: repeat(4, 1fr); }
+  .lg-industry-hero { min-height: 380px; }
 }

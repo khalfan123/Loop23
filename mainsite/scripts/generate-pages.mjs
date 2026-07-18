@@ -201,6 +201,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for healthcare practices',
     description: 'Loop9 helps clinics and healthcare teams answer calls, book appointments, route urgent cases, and cover after hours.',
     lead: 'Patients expect a live answer. Loop9 covers scheduling, FAQs, and triage handoffs so clinical staff stay focused on care.',
+    tagline: 'Your always-on clinic front desk',
+    popular: ['Appointment Booking', 'After Hours', 'Support', 'Department Routing'],
+    metrics: [
+      { value: '24/7', label: 'Coverage on nights and weekends' },
+      { value: 'Warm transfer', label: 'Urgent cases reach clinicians with context' },
+      { value: 'Full QA', label: 'Score every patient conversation' },
+    ],
     problem: 'Clinic phones mix routine booking with time-sensitive requests. Missed calls become no-shows and frustrated patients.',
     how: 'Use appointment booking for scheduling, knowledge base for hours and prep, IVR for language and department paths, and warm transfer for urgent cases. After-hours coverage keeps the line professional overnight.',
     outcomes: 'Fewer abandoned calls. More booked visits. Clinical staff protected from routine phone load.',
@@ -214,6 +221,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for financial services',
     description: 'Loop9 helps financial services teams qualify callers, answer policy questions, transfer securely, and monitor call quality.',
     lead: 'High-trust industries need accurate answers and clean escalations. Loop9 keeps routine volume off your advisors’ desks.',
+    tagline: 'Your always-on client intake desk',
+    popular: ['Lead Qualification', 'Support', 'Quality Coaching'],
+    metrics: [
+      { value: 'Qualified intake', label: 'Route ready clients to advisors' },
+      { value: 'Grounded answers', label: 'Policy FAQs from your knowledge base' },
+      { value: 'Full QA', label: 'Oversight across every conversation' },
+    ],
     problem: 'Advisors lose hours to intake and FAQs. Inaccurate answers create risk.',
     how: 'Ground agents in approved knowledge, qualify and route callers, transfer with context, and score conversations with AI QA. Business caller ID keeps outbound professional.',
     outcomes: 'Better use of advisor time. Consistent policy answers. Full-volume QA visibility.',
@@ -227,6 +241,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for insurance teams',
     description: 'Loop9 supports insurance inbound for FNOL intake, policy FAQs, appointment setting, and warm transfer to adjusters.',
     lead: 'Reduce hold times on high-volume insurance lines while keeping complex claims in human hands.',
+    tagline: 'Your always-on claims intake partner',
+    popular: ['Support', 'Appointment Booking', 'Outbound Campaigns'],
+    metrics: [
+      { value: 'Faster intake', label: 'Capture FNOL-style details before transfer' },
+      { value: 'Fewer holds', label: 'Routine coverage questions answered live' },
+      { value: 'Callback ready', label: 'Book adjuster follow-ups on the call' },
+    ],
     problem: 'Insurance volume spikes with claims and renewals. Hold times damage trust.',
     how: 'Capture intake, answer coverage FAQs from knowledge, book callbacks, and transfer adjusters with context. Post-call analysis reveals recurring friction.',
     outcomes: 'Shorter waits on routine calls. Cleaner intake for humans. Continuous script improvement.',
@@ -240,6 +261,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for logistics and delivery',
     description: 'Loop9 helps logistics teams handle tracking FAQs, dispatch follow-ups, after-hours calls, and outbound status campaigns.',
     lead: 'Keep drivers and customers informed without drowning dispatch in routine phone traffic.',
+    tagline: 'Your always-on dispatch line',
+    popular: ['Support', 'After Hours', 'Outbound Campaigns'],
+    metrics: [
+      { value: 'Status deflection', label: 'Routine tracking answered without dispatch' },
+      { value: 'Exception routing', label: 'Warm transfer when something breaks' },
+      { value: 'Proactive outbound', label: 'Batch updates before inbound spikes' },
+    ],
     problem: 'Status calls swamp dispatch during delays. After-hours gaps create escalations the next morning.',
     how: 'Deflect status FAQs with knowledge, escalate exceptions via transfer, cover nights, and use batch calling for proactive updates.',
     outcomes: 'Dispatch focuses on exceptions. Customers get faster status answers. Proactive outbound reduces inbound spikes.',
@@ -253,6 +281,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for home services',
     description: 'Loop9 books jobs, captures addresses, answers service FAQs, and covers after hours for home services businesses.',
     lead: 'When crews are in the field, Loop9 keeps the phone line booking and qualifying — not going to voicemail.',
+    tagline: 'Your always-on booking desk',
+    popular: ['Inbound Sales', 'Appointment Booking', 'After Hours'],
+    metrics: [
+      { value: 'Speed-to-lead', label: 'Answer every job inquiry on first ring' },
+      { value: 'More bookings', label: 'Schedule while the caller is still on the line' },
+      { value: 'After-hours capture', label: 'Nights and weekends still convert' },
+    ],
     problem: 'Speed-to-lead decides who wins the job. Missed calls go to competitors.',
     how: 'Answer instantly, book jobs, capture details, transfer complex estimates, and follow up with outbound reminders on business numbers.',
     outcomes: 'More booked jobs from the same inbound volume. After-hours capture. Field teams uninterrupted.',
@@ -266,6 +301,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for retail and consumer brands',
     description: 'Loop9 handles retail order FAQs, store hours, appointment booking, and peak-season call volume for consumer brands.',
     lead: 'Scale customer phone support through peaks without scaling headcount at the same rate.',
+    tagline: 'Your always-on brand support line',
+    popular: ['Support', 'Department Routing', 'Quality Coaching'],
+    metrics: [
+      { value: 'Peak ready', label: 'Absorb seasonal volume without panic hiring' },
+      { value: 'Brand tone', label: 'QA keeps conversations on-brand' },
+      { value: 'Smart routing', label: 'VIP and complex cases reach people' },
+    ],
     problem: 'Seasonal spikes overwhelm small support teams. Brand tone drifts under pressure.',
     how: 'Cover FAQs with knowledge, route VIP cases, book pickups or appointments, monitor live volume, and keep QA on brand.',
     outcomes: 'Stable CX through peaks. Lower cost per routine call. Consistent brand voice.',
@@ -279,6 +321,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for travel and hospitality',
     description: 'Loop9 helps hotels and travel teams take reservations, answer stay FAQs, route VIP callers, and cover nights and weekends.',
     lead: 'Guests call at all hours. Loop9 keeps reservation and FAQ volume covered while staff focus on in-person service.',
+    tagline: 'Your always-on guest concierge',
+    popular: ['Appointment Booking', 'After Hours', 'Department Routing'],
+    metrics: [
+      { value: 'More reservations', label: 'Capture booking intent around the clock' },
+      { value: 'Night coverage', label: 'Same quality after the front desk closes' },
+      { value: 'VIP path', label: 'Managers get high-stakes callers with context' },
+    ],
     problem: 'Night desks are expensive; missed reservation calls are worse.',
     how: 'Book and modify reservations, answer amenity FAQs, route VIP callers, and cover nights with the same agent quality.',
     outcomes: 'More captured reservations. Better guest experience after hours. Staff freed for on-property service.',
@@ -292,6 +341,13 @@ const INDUSTRIES = [
     h1: 'AI voice agents for debt collection outreach',
     description: 'Loop9 supports compliant, consistent outbound collection conversations with batch calling, controlled caller ID, and full QA.',
     lead: 'Run high-volume outreach with consistent scripts, business caller ID, and quality scoring on every contact attempt.',
+    tagline: 'Your always-on outreach engine',
+    popular: ['Outbound Campaigns', 'Quality Coaching', 'Lead Qualification'],
+    metrics: [
+      { value: 'Batch scale', label: 'Reach lists without temporary headcount' },
+      { value: 'Business CID', label: 'Call from numbers customers recognize' },
+      { value: '100% QA', label: 'Score every attempt for consistency' },
+    ],
     problem: 'Collection outreach needs scale and control. Inconsistent scripts create risk.',
     how: 'Batch dial lists with business caller ID, keep conversations consistent, escalate sensitive cases, and score every attempt with AI QA.',
     outcomes: 'Higher contact capacity. Consistent messaging. Supervisors see risk patterns early.',
@@ -652,6 +708,72 @@ writePage(
   })
 );
 
+function industryMain(ind, relatedLinks) {
+  const popular = (ind.popular || [])
+    .map((p) => `<span>${esc(p)}</span>`)
+    .join('\n        ');
+  const metrics = (ind.metrics || [])
+    .map(
+      (m) => `<div class="lg-metric"><strong>${esc(m.value)}</strong><span>${esc(m.label)}</span></div>`
+    )
+    .join('\n      ');
+  const lis = ind.bullets.map((b) => `<li>${esc(b)}</li>`).join('\n      ');
+  const chips = relatedLinks
+    .map((l) => `<a class="lg-chip" href="${esc(l.href)}">${esc(l.label)}</a>`)
+    .join('\n      ');
+  const photo = `/images/industries/${ind.slug}.jpg`;
+
+  return `<div class="lg-industry-hero">
+      <img src="${esc(photo)}" alt="${esc(ind.title)} operations" width="1600" height="900" loading="eager">
+      <div class="lg-industry-shade" aria-hidden="true"></div>
+      <div class="lg-industry-hero-inner">
+        <span class="lg-eyebrow">Industry · ${esc(ind.title)}</span>
+        <h1 class="lg-h1">${esc(ind.h1)}</h1>
+        <p class="lg-lead">${esc(ind.lead)}</p>
+        <p style="margin:14px 0 0;font-size:14px;font-weight:650;color:#9ec9ff;">${esc(ind.tagline || '')}</p>
+        <div class="lg-popular" aria-label="Popular use cases">
+        ${popular}
+        </div>
+        <div class="lg-btn-row">
+          <a href="https://app.loop9.ai/register" class="lg-btn-primary">Start free trial</a>
+          <a href="mailto:sales@loop9.ai" class="lg-btn-ghost">Contact sales</a>
+        </div>
+      </div>
+    </div>
+    <div class="lg-metrics">${metrics}</div>
+    <h2 class="lg-h2">The problem</h2>
+    <p class="lg-body">${esc(ind.problem)}</p>
+    <h2 class="lg-h2">How Loop9 works</h2>
+    <p class="lg-body">${esc(ind.how)}</p>
+    <h2 class="lg-h2">Outcomes for your team</h2>
+    <p class="lg-body">${esc(ind.outcomes)}</p>
+    <ul class="lg-bullets">
+      ${lis}
+    </ul>
+    <div class="lg-related">
+      <h2 class="lg-h2" style="font-size:28px;max-width:none;">Capabilities &amp; use cases</h2>
+      <div class="lg-related-links">
+      ${chips}
+      </div>
+    </div>`;
+}
+
+function industryHubCards() {
+  return `<div class="lg-industry-grid">
+    ${INDUSTRIES.map(
+      (ind) => `<a class="lg-industry-card" href="/industries/${ind.slug}/">
+      <img src="/images/industries/${ind.slug}.jpg" alt="" width="800" height="600" loading="lazy">
+      <div class="lg-industry-shade" aria-hidden="true"></div>
+      <div class="lg-industry-body">
+        <h3>${esc(ind.title)}</h3>
+        <p>${esc(ind.tagline || ind.lead.slice(0, 90))}</p>
+        <span class="lg-industry-link">Explore industry →</span>
+      </div>
+    </a>`
+    ).join('\n    ')}
+  </div>`;
+}
+
 // Industry pages
 for (const ind of INDUSTRIES) {
   const relatedFeats = (ind.features || [])
@@ -673,18 +795,7 @@ for (const ind of INDUSTRIES) {
         { href: '/industries/', label: 'Industries' },
         { href: `/industries/${ind.slug}/`, label: ind.title },
       ]),
-      main: detailMain({
-        eyebrow: 'Industry',
-        h1: ind.h1,
-        lead: ind.lead,
-        problem: ind.problem,
-        how: ind.how,
-        outcomes: ind.outcomes,
-        bullets: ind.bullets,
-        faq: [],
-        relatedTitle: 'Capabilities & use cases',
-        relatedLinks: [...relatedFeats, ...relatedUc],
-      }),
+      main: industryMain(ind, [...relatedFeats, ...relatedUc]),
     })
   );
 }
@@ -701,11 +812,14 @@ writePage(
       { href: '/industries/', label: 'Industries' },
     ]),
     main: `<span class="lg-eyebrow">Industries</span>
-    <h1 class="lg-h1">Built for the lines that run your business</h1>
-    <p class="lg-lead">Corporate-ready voice AI for SME and mid-market teams across high-call industries.</p>
-    ${hubCards(INDUSTRIES, '/industries/', 'Industry')}`,
+    <h1 class="lg-h1">ROI on every customer moment</h1>
+    <p class="lg-lead">Corporate-ready voice AI for the industries that live on the phone — with dedicated pages, outcomes, and workflows for each vertical.</p>
+    ${industryHubCards()}`,
   })
 );
+
+
+
 
 // Use cases
 for (const uc of USE_CASES) {

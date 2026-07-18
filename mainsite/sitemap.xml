@@ -17,6 +17,14 @@
     <changefreq>weekly</changefreq>
   </url>
   <url>
+    <loc>https://mainsite-production-2385.up.railway.app/faq/</loc>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
+    <loc>https://mainsite-production-2385.up.railway.app/security/</loc>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
     <loc>https://mainsite-production-2385.up.railway.app/features/build/</loc>
     <changefreq>weekly</changefreq>
   </url>

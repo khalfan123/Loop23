@@ -1,38 +1,28 @@
-# Loop9 mainsite (front website)
+# Loop9 mainsite (corporate marketing)
 
-Multi-page SEO marketing site for SME-first AI voice agents. Railway service **mainsite** (production), separate from `loop9`.
+Multi-page, content-driven SEO site for SME / mid-market AI voice agents. Railway service **mainsite** (production).
 
 ## CTAs
 
 | Action | URL |
 |--------|-----|
+| Start free trial | https://app.loop9.ai/register |
+| Contact sales | mailto:sales@loop9.ai |
 | Sign in | https://app.loop9.ai/login |
-| Get started | https://app.loop9.ai/register |
 
 ## Site map
 
 | Section | Path |
 |---------|------|
-| Home | `/` |
-| Features hub | `/features/` |
-| 12 feature pages | `/features/{slug}/` |
-| Industries hub | `/industries/` |
-| 8 industry pages | `/industries/{slug}/` |
-| Use cases hub | `/use-cases/` |
-| 8 use-case pages | `/use-cases/{slug}/` |
-| Sitemap | `/sitemap.xml` |
-| Robots | `/robots.txt` |
+| Home (corporate narrative) | `/` |
+| Features (12) | `/features/`, `/features/{slug}/` |
+| Industries (8) | `/industries/`, `/industries/{slug}/` |
+| Use cases (8) | `/use-cases/`, `/use-cases/{slug}/` |
+| FAQ | `/faq/` |
+| Security & controls | `/security/` |
+| Sitemap / robots | `/sitemap.xml`, `/robots.txt` |
 
-### Features
-Build, Call Transfer, Book Appointments, Knowledge Base, Navigate IVR, Deploy, Batch Call, Branded Call ID, Verified Phone Numbers, Monitor, Post Call Analysis, AI Quality Assurance
-
-### Industries
-Healthcare, Financial Services, Insurance, Logistics, Home Services, Retail & Consumer, Travel & Hospitality, Debt Collection
-
-### Use cases
-Inbound Sales, Customer Support, Appointment Booking, After Hours, Lead Qualification, Outbound Campaigns, Department Routing, Quality Coaching
-
-## Regenerate SEO pages
+## Regenerate pages
 
 ```bash
 node mainsite/scripts/generate-pages.mjs
@@ -44,7 +34,7 @@ node mainsite/scripts/generate-pages.mjs
 cd mainsite && node server.js
 ```
 
-## Deploy (isolated upload)
+## Deploy (isolated)
 
 ```bash
 DEPLOY_DIR=$(mktemp -d)

@@ -3,675 +3,377 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Loop9 — AI voice agents for growing businesses. Answer every call, book appointments, transfer to your team, and improve with post-call QA.">
+<meta name="description" content="Loop9 is the corporate AI voice platform for growing businesses. Answer every call, book appointments, transfer with context, and improve with post-call QA.">
 <link rel="canonical" href="https://mainsite-production-2385.up.railway.app/">
-<meta property="og:title" content="Loop9 — AI voice agents for growing businesses">
-<meta property="og:description" content="Answer every call, book appointments, transfer to your team, and improve with post-call QA.">
-<title>Loop9 — AI voice agents for growing businesses</title>
-<script src="./support.js"></script>
-</head>
-<body>
-<x-dc>
-<helmet>
+<meta property="og:title" content="Loop9 — Corporate AI voice agents for the business phone line">
+<meta property="og:description" content="Answer every call, book appointments, transfer with context, and improve with post-call QA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mainsite-production-2385.up.railway.app/">
+<title>Loop9 — Corporate AI voice agents for growing businesses</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fustat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: 'Inter', sans-serif;
-    background: #ffffff;
-    color: #0a0c0f;
-    overflow-x: clip;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-wrap: pretty;
-  }
-  a { color: inherit; text-decoration: none; }
-  button { font-family: inherit; }
-
-  .lg-wrap {
-    position: relative;
-    width: 100%;
-    overflow: clip;
-    background: #ffffff;
-  }
-  .lg-section {
-    position: relative;
-    z-index: 10;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: clamp(56px, 8vw, 96px) clamp(24px, 5vw, 80px);
-  }
-  .lg-eyebrow {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #0084FF;
-    margin: 0 0 16px;
-  }
-  .lg-h2 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: clamp(32px, 4vw, 48px);
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    color: #0a0c0f;
-    margin: 0 0 16px;
-    max-width: 22ch;
-  }
-  .lg-lead {
-    font-size: 17px;
-    line-height: 1.6;
-    color: #4a5058;
-    margin: 0;
-    max-width: 54ch;
-  }
-
-  .lg-nav {
-    position: sticky;
-    top: 20px;
-    z-index: 50;
-    width: fit-content;
-    max-width: calc(100% - 32px);
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 28px;
-    padding: 12px 12px 12px 26px;
-    border-radius: 16px;
-    background: rgba(255,255,255,0.55);
-    backdrop-filter: blur(50px);
-    -webkit-backdrop-filter: blur(50px);
-    border: 1px solid rgba(0,0,0,0.1);
-    box-shadow: inset 0px 4px 4px 0px rgba(255,255,255,0.25), 0 8px 32px rgba(0,80,200,0.08);
-  }
-  .lg-brand {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 800;
-    font-size: 21px;
-    letter-spacing: -0.02em;
-    color: #0d0f12;
-  }
-  .lg-navlinks {
-    display: flex;
-    align-items: center;
-    gap: 26px;
-  }
-  .lg-navlink {
-    font-size: 15px;
-    font-weight: 500;
-    color: #1a1d21;
-    opacity: 0.75;
-    transition: opacity 0.2s;
-  }
-  .lg-navlink:hover { opacity: 1; }
-  .lg-nav-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-  }
-  .lg-btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #0d0f12;
-    padding: 10px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.1);
-    background: rgba(255,255,255,0.35);
-    box-shadow: inset 0px 4px 4px 0px rgba(255,255,255,0.35);
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .lg-btn-ghost:hover { background: rgba(255,255,255,0.6); }
-  .lg-btn-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    padding: 8px 8px 8px 22px;
-    border: 0;
-    border-radius: 16px;
-    background: rgba(0,132,255,0.9);
-    color: #fff;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: inset 0px 4px 4px 0px rgba(255,255,255,0.35);
-    transition: transform 0.25s ease, background 0.2s;
-  }
-  .lg-btn-primary:hover { transform: scale(1.02); background: rgba(0,132,255,1); }
-  .lg-btn-primary .lg-arrow {
-    width: 36px;
-    height: 36px;
-    border-radius: 9999px;
-    background: #fff;
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-
-  .lg-hero-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 48px;
-    align-items: center;
-  }
-  .lg-orb-wrap { min-height: 380px; position: relative; display: grid; place-items: center; }
-  @keyframes lg-bar { 0%,100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
-
-  .lg-trust {
-    text-align: center;
-    font-size: 14px;
-    font-weight: 500;
-    color: #6b7280;
-    margin: 0;
-    letter-spacing: 0.02em;
-  }
-
-  .lg-pillars {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .lg-pillar {
-    padding: 28px 28px 32px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.55);
-    border: 1px solid rgba(0,0,0,0.08);
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5), 0 12px 40px rgba(0,80,200,0.06);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .lg-pillar:hover {
-    transform: translateY(-2px);
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5), 0 16px 48px rgba(0,80,200,0.1);
-  }
-  .lg-pillar-num {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 800;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    color: #0084FF;
-    margin: 0 0 12px;
-  }
-  .lg-pillar h3 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: 24px;
-    letter-spacing: -0.02em;
-    margin: 0 0 10px;
-  }
-  .lg-pillar p {
-    font-size: 15px;
-    line-height: 1.6;
-    color: #4a5058;
-    margin: 0;
-  }
-
-  .lg-feat-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .lg-feat {
-    display: block;
-    padding: 22px 22px 24px;
-    border-radius: 16px;
-    background: #f7f9fc;
-    border: 1px solid rgba(0,0,0,0.06);
-    transition: background 0.2s, border-color 0.2s, transform 0.2s;
-  }
-  .lg-feat:hover {
-    background: #eef5ff;
-    border-color: rgba(0,132,255,0.2);
-    transform: translateY(-1px);
-  }
-  .lg-feat h3 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: 17px;
-    margin: 0 0 8px;
-    letter-spacing: -0.01em;
-  }
-  .lg-feat p {
-    font-size: 14px;
-    line-height: 1.55;
-    color: #4a5058;
-    margin: 0;
-  }
-
-  .lg-tel-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .lg-tel-card {
-    padding: 28px;
-    border-radius: 20px;
-    background: linear-gradient(160deg, rgba(0,132,255,0.08), rgba(255,255,255,0.9));
-    border: 1px solid rgba(0,132,255,0.15);
-  }
-  .lg-tel-card h3 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: 20px;
-    margin: 0 0 10px;
-  }
-  .lg-tel-card p {
-    font-size: 15px;
-    line-height: 1.6;
-    color: #4a5058;
-    margin: 0;
-  }
-
-  .lg-quality {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .lg-quality-card {
-    padding: 32px;
-    border-radius: 20px;
-    background: #0a0c0f;
-    color: #fff;
-  }
-  .lg-quality-card.alt {
-    background: #f7f9fc;
-    color: #0a0c0f;
-    border: 1px solid rgba(0,0,0,0.06);
-  }
-  .lg-quality-card h3 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: 22px;
-    margin: 0 0 12px;
-  }
-  .lg-quality-card p {
-    font-size: 15px;
-    line-height: 1.6;
-    margin: 0;
-    opacity: 0.85;
-  }
-  .lg-quality-card.alt p { color: #4a5058; opacity: 1; }
-
-  .lg-use-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .lg-use {
-    display: block;
-    padding: 24px;
-    border-radius: 16px;
-    border: 1px solid rgba(0,0,0,0.08);
-    background: #fff;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .lg-use:hover {
-    border-color: rgba(0,132,255,0.25);
-    box-shadow: 0 12px 32px rgba(0,80,200,0.08);
-  }
-  .lg-tag {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #0084FF;
-    background: rgba(0,132,255,0.1);
-    padding: 5px 10px;
-    border-radius: 9999px;
-    margin-bottom: 12px;
-  }
-  .lg-use h3 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: 18px;
-    margin: 0 0 8px;
-  }
-  .lg-use p {
-    font-size: 14px;
-    line-height: 1.55;
-    color: #4a5058;
-    margin: 0;
-  }
-
-  .lg-steps {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .lg-step {
-    padding: 28px;
-    border-radius: 16px;
-    background: #f7f9fc;
-    border: 1px solid rgba(0,0,0,0.06);
-  }
-  .lg-step-num {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 800;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    color: #0084FF;
-    margin: 0 0 12px;
-  }
-  .lg-step h3 {
-    font-family: 'Fustat', sans-serif;
-    font-weight: 700;
-    font-size: 20px;
-    margin: 0 0 8px;
-  }
-  .lg-step p {
-    font-size: 14px;
-    line-height: 1.55;
-    color: #4a5058;
-    margin: 0;
-  }
-
-  .lg-final {
-    text-align: center;
-    padding: clamp(64px, 10vw, 120px) clamp(24px, 5vw, 80px);
-    border-radius: 28px;
-    background: linear-gradient(160deg, rgba(0,132,255,0.12), rgba(97,177,255,0.06) 40%, #fff);
-    border: 1px solid rgba(0,132,255,0.12);
-  }
-  .lg-final .lg-h2 {
-    max-width: 18ch;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .lg-final .lg-lead {
-    margin: 0 auto 28px;
-  }
-  .lg-final-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-  }
-
-  .lg-footer {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px clamp(24px, 5vw, 80px) 56px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px 32px;
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid rgba(0,0,0,0.06);
-    font-size: 14px;
-    color: #6b7280;
-  }
-  .lg-footer a:hover { color: #0084FF; }
-
-  @media (max-width: 820px) {
-    .lg-nav {
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px 16px;
-      padding: 14px 16px;
-      width: calc(100% - 32px);
-    }
-    .lg-navlinks { display: none; }
-    .lg-nav-actions { margin-left: 0; }
-  }
-  @media (min-width: 640px) {
-    .lg-feat-grid { grid-template-columns: repeat(2, 1fr); }
-    .lg-use-grid { grid-template-columns: repeat(2, 1fr); }
-    .lg-tel-grid { grid-template-columns: repeat(3, 1fr); }
-    .lg-quality { grid-template-columns: repeat(2, 1fr); }
-    .lg-steps { grid-template-columns: repeat(3, 1fr); }
-  }
-  @media (min-width: 900px) {
-    .lg-pillars { grid-template-columns: repeat(3, 1fr); }
-  }
-  @media (min-width: 1024px) {
-    .lg-hero-grid { grid-template-columns: 1.05fr 1fr; gap: 40px; }
-    .lg-orb-wrap { min-height: 560px; }
-    .lg-feat-grid { grid-template-columns: repeat(3, 1fr); }
-    .lg-use-grid { grid-template-columns: repeat(3, 1fr); }
-  }
-</style>
-</helmet>
-
+<link href="https://fonts.googleapis.com/css2?family=Fustat:wght@400;600;700;800&family=Inter:wght@400;500;600;650&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
 <div class="lg-wrap">
 
-  <!-- background glow -->
-  <div style="position: absolute; top: -240px; left: -180px; width: 620px; height: 520px; border-radius: 50%; background: #60B1FF; filter: blur(150px); opacity: 0.45; pointer-events: none; z-index: 0;"></div>
-  <div style="position: absolute; top: -80px; left: 120px; width: 460px; height: 420px; border-radius: 50%; background: #319AFF; filter: blur(150px); opacity: 0.35; pointer-events: none; z-index: 0;"></div>
-
-  <!-- NAV -->
-  <nav class="lg-nav" aria-label="Primary">
-    <a href="/" class="lg-brand">Loop9</a>
-    <div class="lg-navlinks">
-      <a href="/features/" class="lg-navlink">Features</a>
-      <a href="/industries/" class="lg-navlink">Industries</a>
-      <a href="/use-cases/" class="lg-navlink">Use cases</a>
+  <header class="lg-topbar">
+    <div class="lg-topbar-inner">
+      <a href="/" class="lg-brand">Loop9</a>
+      <nav class="lg-navlinks" aria-label="Primary">
+        <a href="/features/" class="lg-navlink">Features</a>
+        <a href="/industries/" class="lg-navlink">Industries</a>
+        <a href="/use-cases/" class="lg-navlink">Use cases</a>
+        <a href="/security/" class="lg-navlink">Security</a>
+        <a href="/faq/" class="lg-navlink">FAQ</a>
+      </nav>
+      <div class="lg-nav-actions">
+        <a href="https://app.loop9.ai/login" class="lg-btn-ghost">Sign in</a>
+        <a href="mailto:sales@loop9.ai" class="lg-btn-ghost">Contact sales</a>
+        <a href="https://app.loop9.ai/register" class="lg-btn-primary">Start free trial</a>
+      </div>
     </div>
-    <div class="lg-nav-actions">
-      <a href="https://app.loop9.ai/login" class="lg-btn-ghost">Sign in</a>
-      <a href="https://app.loop9.ai/register" class="lg-btn-primary" style="padding: 10px 18px; border-radius: 12px; gap: 8px; font-size: 15px;">
-        Get started
-      </a>
-    </div>
-  </nav>
+  </header>
 
   <!-- HERO -->
-  <section class="lg-section" style="padding-top: clamp(40px, 6vw, 72px); padding-bottom: 40px;">
-    <div class="lg-hero-grid">
+  <section class="lg-section">
+    <div class="lg-hero">
       <div>
-        <div style="display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 9999px; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.06); backdrop-filter: blur(20px); box-shadow: inset 0px 2px 3px 0px rgba(255,255,255,0.4);">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #0a9d63;"></span>
-          <span style="font-size: 14px; font-weight: 500; color: #3a3f47;">Built for teams that cannot miss a call</span>
-        </div>
-
-        <h1 style="font-family: 'Fustat', sans-serif; font-weight: 700; font-size: clamp(42px, 5.8vw, 68px); line-height: 1.05; letter-spacing: -2px; color: #0a0c0f; margin: 26px 0 0;">
-          Your phone line,<br>run like a department
-        </h1>
-
-        <p style="font-family: 'Inter', sans-serif; font-size: 18px; letter-spacing: -0.3px; line-height: 1.55; color: #4a5058; max-width: 32rem; margin: 22px 0 0;">
-          Loop9 puts a human-sounding AI agent on your business number. It answers in one ring, books appointments, answers from your knowledge base, and transfers what needs a person — so growing teams stop losing revenue to missed calls.
-        </p>
-
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; align-items: center;">
+        <div class="lg-hero-proof"><span class="lg-hero-proof-dot" aria-hidden="true"></span> Built for operations teams that cannot miss a call</div>
+        <h1 class="lg-h1">Your phone line, run like a department</h1>
+        <p class="lg-lead">Loop9 puts a human-sounding AI agent on your business number. It answers in one ring, books appointments, answers from your knowledge base, and transfers what needs a person — so growing teams stop losing revenue to missed calls.</p>
+        <div class="lg-btn-row">
           <a href="https://app.loop9.ai/register" class="lg-btn-primary">
             Start free trial
-            <span class="lg-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0084FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+            <span class="lg-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0084FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
           </a>
-          <a href="/features/" class="lg-btn-ghost">See capabilities</a>
+          <a href="mailto:sales@loop9.ai" class="lg-btn-ghost">Contact sales</a>
         </div>
-
-        <div style="display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 22px; font-size: 13px; color: #6b7280;">
-          <span>No credit card to start</span>
-          <span style="opacity: 0.4;">·</span>
+        <div class="lg-hero-meta">
           <span>Keep your number</span>
-          <span style="opacity: 0.4;">·</span>
+          <span>·</span>
           <span>Live in an afternoon</span>
+          <span>·</span>
+          <span>Hybrid human handoff</span>
         </div>
       </div>
-
-      <!-- Live call card -->
-      <div class="lg-orb-wrap">
-        <div style="position: absolute; width: 78%; height: 78%; border-radius: 50%; background: #319AFF; filter: blur(120px); opacity: 0.4;"></div>
-        <div style="position: relative; width: 100%; max-width: 440px; padding: 24px; border-radius: 24px; background: rgba(255,255,255,0.4); backdrop-filter: blur(50px); -webkit-backdrop-filter: blur(50px); border: 1px solid rgba(255,255,255,0.6); box-shadow: inset 0px 4px 4px 0px rgba(255,255,255,0.35), 0 30px 60px rgba(0,80,200,0.18);">
-          <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid rgba(0,0,0,0.08);">
-            <span style="width: 44px; height: 44px; border-radius: 14px; background: rgba(0,132,255,0.85); display: grid; place-items: center; box-shadow: inset 0px 3px 3px rgba(255,255,255,0.35);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.36 1.94.7 2.86a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.22-1.27a2 2 0 0 1 2.11-.45c.92.34 1.88.57 2.86.7A2 2 0 0 1 22 16.92z"/></svg></span>
-            <div style="flex: 1;">
-              <div style="font-family: 'Fustat', sans-serif; font-weight: 700; font-size: 16px; color: #0a0c0f;">Loop9 Agent</div>
-              <div style="font-size: 13px; color: #4a5058;">Inbound · Booking &amp; transfer</div>
+      <div>
+        <div class="lg-call-card">
+          <div class="lg-call-head">
+            <span class="lg-call-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.36 1.94.7 2.86a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.22-1.27a2 2 0 0 1 2.11-.45c.92.34 1.88.57 2.86.7A2 2 0 0 1 22 16.92z"/></svg></span>
+            <div style="flex:1;">
+              <div style="font-family:var(--lg-font-display);font-weight:700;font-size:15px;">Loop9 Agent</div>
+              <div style="font-size:13px;color:var(--lg-subtle);">Inbound · Booking &amp; transfer</div>
             </div>
-            <span style="display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #0a9d63; background: rgba(10,157,99,0.12); padding: 5px 12px; border-radius: 9999px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0a9d63;"></span>Live</span>
+            <span class="lg-live">Live</span>
           </div>
-          <div style="display: flex; align-items: center; justify-content: center; gap: 5px; height: 64px; padding: 18px 0 10px;" aria-hidden="true">
-            <span style="width: 4px; height: 40%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite;"></span>
-            <span style="width: 4px; height: 72%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.1s;"></span>
-            <span style="width: 4px; height: 100%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.2s;"></span>
-            <span style="width: 4px; height: 55%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.3s;"></span>
-            <span style="width: 4px; height: 85%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.4s;"></span>
-            <span style="width: 4px; height: 45%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.5s;"></span>
-            <span style="width: 4px; height: 92%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.6s;"></span>
-            <span style="width: 4px; height: 60%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.7s;"></span>
-            <span style="width: 4px; height: 96%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.8s;"></span>
-            <span style="width: 4px; height: 50%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 0.9s;"></span>
-            <span style="width: 4px; height: 78%; border-radius: 4px; background: #0084FF; transform-origin: center; animation: lg-bar 1s ease-in-out infinite 1s;"></span>
+          <div class="lg-wave" aria-hidden="true">
+            <span style="height:40%;animation-delay:0s"></span>
+            <span style="height:72%;animation-delay:.1s"></span>
+            <span style="height:100%;animation-delay:.2s"></span>
+            <span style="height:55%;animation-delay:.3s"></span>
+            <span style="height:85%;animation-delay:.4s"></span>
+            <span style="height:45%;animation-delay:.5s"></span>
+            <span style="height:92%;animation-delay:.6s"></span>
+            <span style="height:60%;animation-delay:.7s"></span>
+            <span style="height:96%;animation-delay:.8s"></span>
+            <span style="height:50%;animation-delay:.9s"></span>
+            <span style="height:78%;animation-delay:1s"></span>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 4px;">
-            <div style="display: flex; gap: 10px;"><span style="flex-shrink: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: #4a5058; background: rgba(255,255,255,0.6); padding: 5px 9px; border-radius: 8px; height: fit-content;">CALLER</span><p style="margin: 0; font-size: 14px; line-height: 1.5; color: #3a3f47;">I need to move my install to next week — and speak to billing if that changes the quote.</p></div>
-            <div style="display: flex; gap: 10px;"><span style="flex-shrink: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: #fff; background: rgba(0,132,255,0.85); padding: 5px 9px; border-radius: 8px; height: fit-content;">LOOP9</span><p style="margin: 0; font-size: 14px; line-height: 1.5; color: #0a0c0f;">Booked Thursday at 2. Connecting you to billing now with the new slot on the line.</p></div>
+          <div class="lg-bubble-row">
+            <span class="lg-bubble-label caller">CALLER</span>
+            <p>I need to move my install to next week — and speak to billing if that changes the quote.</p>
+          </div>
+          <div class="lg-bubble-row">
+            <span class="lg-bubble-label agent">LOOP9</span>
+            <p style="color:var(--lg-ink);">Booked Thursday at 2. Connecting you to billing now with the new slot on the line.</p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <p class="lg-trust" style="padding: 0 clamp(24px, 5vw, 80px) clamp(40px, 5vw, 64px);">Built for growing operations teams — clinics, services, sales floors, and after-hours coverage</p>
-
-  <!-- PILLARS: Build / Deploy / Monitor -->
-  <section id="platform" class="lg-section" style="padding-top: 24px;">
-    <span class="lg-eyebrow">The platform</span>
-    <h2 class="lg-h2">Build. Deploy. Monitor.</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">One loop from agent design to live calls to continuous improvement — designed for operators, not just engineers.</p>
-    <div class="lg-pillars">
-      <article class="lg-pillar">
-        <p class="lg-pillar-num">01 — BUILD</p>
-        <h3>Design agents that work your way</h3>
-        <p>Visual agents and flows, knowledge base answers, appointment booking, inbound IVR menus, and transfer rules — without writing code.</p>
-      </article>
-      <article class="lg-pillar">
-        <p class="lg-pillar-num">02 — DEPLOY</p>
-        <h3>Go live on your numbers</h3>
-        <p>Attach verified business numbers, publish workflows, and launch inbound coverage or outbound batch campaigns when you are ready.</p>
-      </article>
-      <article class="lg-pillar">
-        <p class="lg-pillar-num">03 — MONITOR</p>
-        <h3>Run the floor, then raise the bar</h3>
-        <p>Watch live calls, review every conversation after the fact, and score quality automatically so supervisors see issues early.</p>
-      </article>
+  <!-- WHAT -->
+  <section class="lg-band-alt" id="what">
+    <div class="lg-section">
+      <span class="lg-eyebrow">What Loop9 is</span>
+      <h2 class="lg-h2">Human-sounding voice AI for the business phone line</h2>
+      <p class="lg-lead">Loop9 is an operator platform — not a demo toy. Build agents, deploy them on verified numbers, monitor the floor live, then improve every conversation with post-call analysis and AI quality assurance.</p>
+      <p class="lg-body" style="margin-top:20px;">Inbound and outbound. Appointments and transfers. Knowledge-grounded answers and department routing. Designed for clinics, services, sales floors, support desks, and after-hours coverage — the teams that live on the phone.</p>
     </div>
   </section>
 
-  <!-- 12 CAPABILITIES -->
-  <section id="features" class="lg-section">
-    <span class="lg-eyebrow">Capabilities</span>
-    <h2 class="lg-h2">Everything your phone operation needs</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">From first ring to post-call insight — dedicated pages for every capability. <a href="/features/" style="color:#0084FF;font-weight:600;">Browse all features →</a></p>
-    <div class="lg-feat-grid">
-      <a class="lg-feat" href="/features/build/"><h3>Build</h3><p>Create AI voice agents and visual call flows — scripts, conditions, tools, and templates — without engineering.</p></a>
-      <a class="lg-feat" href="/features/call-transfer/"><h3>Call Transfer</h3><p>Warm-hand off to a human or another agent with full context and configurable caller ID on the transfer.</p></a>
-      <a class="lg-feat" href="/features/book-appointments/"><h3>Book Appointments</h3><p>Schedule, reschedule, and confirm appointments during the call — then manage them in Operations.</p></a>
-      <a class="lg-feat" href="/features/knowledge-base/"><h3>Knowledge Base</h3><p>Ground answers in your docs and policies with RAG so agents stay accurate without prompt rewrites.</p></a>
-      <a class="lg-feat" href="/features/navigate-ivr/"><h3>Navigate IVR</h3><p>Build multilingual inbound menus that route callers by language and DTMF into the right team or agent.</p></a>
-      <a class="lg-feat" href="/features/deploy/"><h3>Deploy</h3><p>Connect a number, publish workflows, and put agents live for inbound answering or outbound campaigns.</p></a>
-      <a class="lg-feat" href="/features/batch-call/"><h3>Batch Call</h3><p>Run bulk outbound campaigns — upload contacts, schedule dials, and track outcomes at scale.</p></a>
-      <a class="lg-feat" href="/features/branded-call-id/"><h3>Branded Call ID</h3><p>Place and transfer calls from your business numbers with controlled caller ID customers already trust.</p></a>
-      <a class="lg-feat" href="/features/verified-phone-numbers/"><h3>Verified Phone Numbers</h3><p>Buy, port, or bring SIP trunks — local and toll-free DIDs attached directly to your agents.</p></a>
-      <a class="lg-feat" href="/features/monitor/"><h3>Monitor</h3><p>Live floor views, analytics, and per-call detail so operators see queue health in real time.</p></a>
-      <a class="lg-feat" href="/features/post-call-analysis/"><h3>Post Call Analysis</h3><p>Transcripts, outcomes, and knowledge gaps after every call — so the next conversation is sharper.</p></a>
-      <a class="lg-feat" href="/features/ai-quality-assurance/"><h3>AI Quality Assurance</h3><p>Score calls for quality, compliance, and resolution across 100% of volume — not a manual sample.</p></a>
+  <!-- COMPARE -->
+  <section class="lg-band" id="compare">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Why teams switch</span>
+      <h2 class="lg-h2">Beyond menus and brittle bots</h2>
+      <p class="lg-lead">Callers expect a conversation. Loop9 delivers multi-turn voice AI with real actions — while keeping humans one warm transfer away.</p>
+      <div class="lg-compare">
+        <article class="lg-compare-card">
+          <span class="lg-tag">Legacy IVR</span>
+          <h3 class="lg-h3">Touch-tone trees</h3>
+          <ul>
+            <li>Press-1 routing only</li>
+            <li>Callers abandon menus</li>
+            <li>No booking or resolution</li>
+            <li>Hard to change paths</li>
+          </ul>
+        </article>
+        <article class="lg-compare-card">
+          <span class="lg-tag">Basic voice bots</span>
+          <h3 class="lg-h3">Scripted one-turn</h3>
+          <ul>
+            <li>Breaks on edge cases</li>
+            <li>Limited tools mid-call</li>
+            <li>Weak handoff context</li>
+            <li>Spot-check QA only</li>
+          </ul>
+        </article>
+        <article class="lg-compare-card featured">
+          <span class="lg-tag">Loop9</span>
+          <h3 class="lg-h3">Operator voice AI</h3>
+          <ul>
+            <li>Natural multi-turn calls</li>
+            <li>Book, answer, transfer live</li>
+            <li>Warm handoff with context</li>
+            <li>QA on 100% of volume</li>
+          </ul>
+        </article>
+      </div>
     </div>
   </section>
 
-  <!-- INDUSTRIES -->
-  <section id="industries" class="lg-section">
-    <span class="lg-eyebrow">Industries</span>
-    <h2 class="lg-h2">Built for the lines that run your business</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">Corporate-ready voice AI across high-call industries. <a href="/industries/" style="color:#0084FF;font-weight:600;">Explore industries →</a></p>
-    <div class="lg-feat-grid">
-      <a class="lg-feat" href="/industries/healthcare/"><h3>Healthcare</h3><p>Booking, after-hours coverage, and urgent warm transfers for clinics and care teams.</p></a>
-      <a class="lg-feat" href="/industries/financial-services/"><h3>Financial Services</h3><p>Qualified intake, policy FAQs, and QA across every advisory conversation.</p></a>
-      <a class="lg-feat" href="/industries/insurance/"><h3>Insurance</h3><p>FNOL-style intake, coverage answers, and callbacks with full call analysis.</p></a>
-      <a class="lg-feat" href="/industries/logistics/"><h3>Logistics</h3><p>Status FAQs, dispatch escalations, and outbound batch updates at scale.</p></a>
-      <a class="lg-feat" href="/industries/home-services/"><h3>Home Services</h3><p>Job booking, lead capture, and field-friendly transfers when crews are busy.</p></a>
-      <a class="lg-feat" href="/industries/retail-consumer/"><h3>Retail &amp; Consumer</h3><p>Peak-season volume, order FAQs, and brand-consistent QA.</p></a>
-      <a class="lg-feat" href="/industries/travel-hospitality/"><h3>Travel &amp; Hospitality</h3><p>Reservations, stay FAQs, VIP routing, and night coverage.</p></a>
-      <a class="lg-feat" href="/industries/debt-collection/"><h3>Debt Collection</h3><p>Batch outreach, business caller ID, and quality scoring on every attempt.</p></a>
+  <!-- BUILD DEPLOY MONITOR -->
+  <section class="lg-band-alt" id="platform">
+    <div class="lg-section">
+      <span class="lg-eyebrow">The platform</span>
+      <h2 class="lg-h2">Build. Deploy. Monitor.</h2>
+      <p class="lg-lead">One operating loop from agent design to live calls to continuous improvement — built for ops leaders, not only engineers.</p>
+      <div class="lg-editorial">
+        <article class="lg-editorial-item">
+          <div class="lg-editorial-num">01 BUILD</div>
+          <div>
+            <h3 class="lg-h3">Design agents that work your way</h3>
+            <p>Visual agents and flows, knowledge base answers, appointment booking, inbound IVR menus, and transfer rules — without writing code. Your team owns how every call should feel.</p>
+            <a class="more" href="/features/build/">Explore Build →</a>
+          </div>
+        </article>
+        <article class="lg-editorial-item">
+          <div class="lg-editorial-num">02 DEPLOY</div>
+          <div>
+            <h3 class="lg-h3">Go live on your numbers</h3>
+            <p>Attach verified business numbers, publish workflows, and launch inbound coverage or outbound batch campaigns when you are ready — without ripping out the line customers already know.</p>
+            <a class="more" href="/features/deploy/">Explore Deploy →</a>
+          </div>
+        </article>
+        <article class="lg-editorial-item">
+          <div class="lg-editorial-num">03 MONITOR</div>
+          <div>
+            <h3 class="lg-h3">Run the floor, then raise the bar</h3>
+            <p>Watch live calls, review every conversation after the fact, and score quality automatically so supervisors see issues early — across full volume, not a random sample.</p>
+            <a class="more" href="/features/monitor/">Explore Monitor →</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- VOICE QUALITY -->
+  <section class="lg-band" id="voice">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Conversation quality</span>
+      <h2 class="lg-h2">Sounds like a person. Acts like an operator.</h2>
+      <p class="lg-lead">Low-latency voice, natural turn-taking, and multilingual paths — so callers stay engaged and your team stays in control.</p>
+      <div class="lg-voice-grid">
+        <article class="lg-voice-card">
+          <h3 class="lg-h3">Responsive dialogue</h3>
+          <p>Real-time voice pipelines keep conversations fluid — interruptions, clarifications, and follow-ups included.</p>
+        </article>
+        <article class="lg-voice-card">
+          <h3 class="lg-h3">Natural turn-taking</h3>
+          <p>Agents know when to listen and when to speak, so calls feel like a front desk — not a rigid script.</p>
+        </article>
+        <article class="lg-voice-card">
+          <h3 class="lg-h3">Multilingual ready</h3>
+          <p>Serve callers in the language they prefer, with inbound menus and agents aligned to your markets.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="lg-band-alt" id="features">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Capabilities</span>
+      <h2 class="lg-h2">Everything your phone operation needs</h2>
+      <p class="lg-lead">Dedicated pages for every capability — built for SEO and for operators evaluating the full stack. <a href="/features/" style="color:var(--lg-accent);font-weight:600;">Browse all features →</a></p>
+      <div class="lg-feat-grid">
+        <a class="lg-feat" href="/features/build/"><h3>Build</h3><p>Visual agents and flows — scripts, conditions, tools, and templates — without engineering.</p></a>
+        <a class="lg-feat" href="/features/call-transfer/"><h3>Call Transfer</h3><p>Warm handoff to a human or agent with context and configurable caller ID.</p></a>
+        <a class="lg-feat" href="/features/book-appointments/"><h3>Book Appointments</h3><p>Schedule and confirm during the call; manage bookings in Operations.</p></a>
+        <a class="lg-feat" href="/features/knowledge-base/"><h3>Knowledge Base</h3><p>RAG-grounded answers from your docs so agents stay accurate.</p></a>
+        <a class="lg-feat" href="/features/navigate-ivr/"><h3>Navigate IVR</h3><p>Multilingual inbound menus that route into the right team or agent.</p></a>
+        <a class="lg-feat" href="/features/deploy/"><h3>Deploy</h3><p>Connect a number, publish workflows, go live inbound or outbound.</p></a>
+        <a class="lg-feat" href="/features/batch-call/"><h3>Batch Call</h3><p>Bulk outbound campaigns with scheduling and outcome tracking.</p></a>
+        <a class="lg-feat" href="/features/branded-call-id/"><h3>Branded Call ID</h3><p>Call and transfer from your business numbers with controlled caller ID.</p></a>
+        <a class="lg-feat" href="/features/verified-phone-numbers/"><h3>Verified Phone Numbers</h3><p>Buy, port, or SIP — DIDs attached directly to agents.</p></a>
+        <a class="lg-feat" href="/features/monitor/"><h3>Monitor</h3><p>Live floor, analytics, and per-call detail for operators.</p></a>
+        <a class="lg-feat" href="/features/post-call-analysis/"><h3>Post Call Analysis</h3><p>Transcripts, outcomes, and knowledge gaps after every call.</p></a>
+        <a class="lg-feat" href="/features/ai-quality-assurance/"><h3>AI Quality Assurance</h3><p>Score quality and compliance across 100% of volume.</p></a>
+      </div>
     </div>
   </section>
 
   <!-- TELEPHONY -->
-  <section id="telephony" class="lg-section" style="padding-top: 24px;">
-    <span class="lg-eyebrow">Telephony</span>
-    <h2 class="lg-h2">Numbers customers trust</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">A telephony stack built for reach, reliability, and professional presence on every outbound and inbound line.</p>
-    <div class="lg-tel-grid">
-      <article class="lg-tel-card">
-        <h3>Verified phone numbers</h3>
-        <p>Provision local, toll-free, or ported numbers and bind them to agents in minutes.</p>
-      </article>
-      <article class="lg-tel-card">
-        <h3>Business caller ID</h3>
-        <p>Call and transfer as your company — controlled caller ID from the numbers you own.</p>
-      </article>
-      <article class="lg-tel-card">
-        <h3>Batch calling</h3>
-        <p>Launch outbound campaigns with scheduling and conversion tracking after each run.</p>
-      </article>
+  <section class="lg-band" id="telephony">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Telephony</span>
+      <h2 class="lg-h2">Numbers customers trust</h2>
+      <p class="lg-lead">A telephony stack built for reach, reliability, and professional presence on every line.</p>
+      <div class="lg-tel-grid">
+        <article class="lg-tel-card"><h3>Verified numbers</h3><p>Local, toll-free, or ported DIDs bound to agents.</p></article>
+        <article class="lg-tel-card"><h3>Business caller ID</h3><p>Outbound and transfers from numbers you own.</p></article>
+        <article class="lg-tel-card"><h3>Batch calling</h3><p>Campaign dialing with conversion tracking.</p></article>
+        <article class="lg-tel-card"><h3>SIP ready</h3><p>Bring trunks and keep familiar telephony.</p></article>
+      </div>
     </div>
   </section>
 
-  <!-- QUALITY LOOP -->
-  <section id="quality" class="lg-section">
-    <span class="lg-eyebrow">Quality loop</span>
-    <h2 class="lg-h2">Every call makes the next one better</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">Stop spot-checking a handful of recordings. Loop9 analyzes and scores the full book of calls.</p>
-    <div class="lg-quality">
-      <article class="lg-quality-card">
-        <h3>Post call analysis</h3>
-        <p>Automatic transcripts, outcomes, and knowledge-gap signals after each conversation — so ops and product see what callers actually need.</p>
-      </article>
-      <article class="lg-quality-card alt">
-        <h3>AI quality assurance</h3>
-        <p>Score quality, compliance, and resolution across every call. Supervisors catch coaching moments without listening to the entire day.</p>
-      </article>
+  <!-- QUALITY -->
+  <section class="lg-band-alt" id="quality">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Quality loop</span>
+      <h2 class="lg-h2">Every call makes the next one better</h2>
+      <p class="lg-lead">Stop spot-checking a handful of recordings. Analyze and score the full book of calls.</p>
+      <div class="lg-quality">
+        <article class="lg-quality-card">
+          <h3>Post call analysis</h3>
+          <p>Transcripts, outcomes, and knowledge-gap signals after each conversation — so ops sees what callers actually need.</p>
+        </article>
+        <article class="lg-quality-card alt">
+          <h3>AI quality assurance</h3>
+          <p>Score quality, compliance, and resolution across every call. Supervisors catch coaching moments without listening to the entire day.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- INDUSTRIES -->
+  <section class="lg-band" id="industries">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Industries</span>
+      <h2 class="lg-h2">Built for the lines that run your business</h2>
+      <p class="lg-lead">Corporate-ready voice AI across high-call industries. <a href="/industries/" style="color:var(--lg-accent);font-weight:600;">Explore industries →</a></p>
+      <div class="lg-feat-grid">
+        <a class="lg-feat" href="/industries/healthcare/"><h3>Healthcare</h3><p>Booking, after-hours, and urgent warm transfers for clinics.</p></a>
+        <a class="lg-feat" href="/industries/financial-services/"><h3>Financial Services</h3><p>Qualified intake, policy FAQs, and full-call QA.</p></a>
+        <a class="lg-feat" href="/industries/insurance/"><h3>Insurance</h3><p>Intake, coverage answers, and callbacks with analysis.</p></a>
+        <a class="lg-feat" href="/industries/logistics/"><h3>Logistics</h3><p>Status FAQs, dispatch escalations, outbound updates.</p></a>
+        <a class="lg-feat" href="/industries/home-services/"><h3>Home Services</h3><p>Job booking and lead capture while crews are in the field.</p></a>
+        <a class="lg-feat" href="/industries/retail-consumer/"><h3>Retail &amp; Consumer</h3><p>Peak volume, order FAQs, brand-consistent QA.</p></a>
+        <a class="lg-feat" href="/industries/travel-hospitality/"><h3>Travel &amp; Hospitality</h3><p>Reservations, stay FAQs, VIP routing, nights.</p></a>
+        <a class="lg-feat" href="/industries/debt-collection/"><h3>Debt Collection</h3><p>Batch outreach, business caller ID, QA on attempts.</p></a>
+      </div>
     </div>
   </section>
 
   <!-- USE CASES -->
-  <section id="use-cases" class="lg-section">
-    <span class="lg-eyebrow">Use cases</span>
-    <h2 class="lg-h2">Practical phone workflows for growing teams</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">See how Loop9 runs the line day to day. <a href="/use-cases/" style="color:#0084FF;font-weight:600;">All use cases →</a></p>
-    <div class="lg-use-grid">
-      <a class="lg-use" href="/use-cases/inbound-sales/"><span class="lg-tag">Inbound sales</span><h3>Never drop a hot lead</h3><p>Qualify, book, and route buyers the moment they call — no voicemail, no next-day callback.</p></a>
-      <a class="lg-use" href="/use-cases/customer-support/"><span class="lg-tag">Support</span><h3>Deflect the routine</h3><p>Handle hours, status, and how-to questions automatically; escalate tricky cases with full context.</p></a>
-      <a class="lg-use" href="/use-cases/appointment-booking/"><span class="lg-tag">Booking</span><h3>Book more appointments</h3><p>Schedule, reschedule, and confirm during the call — cut no-shows with consistent follow-through.</p></a>
-      <a class="lg-use" href="/use-cases/after-hours/"><span class="lg-tag">After hours</span><h3>Own the night shift</h3><p>Cover nights, weekends, and holidays — triage urgent calls, capture the rest for morning.</p></a>
-      <a class="lg-use" href="/use-cases/lead-qualification/"><span class="lg-tag">Qualification</span><h3>Qualify before your team</h3><p>Consistent discovery questions so reps only take sales-ready conversations.</p></a>
-      <a class="lg-use" href="/use-cases/outbound-campaigns/"><span class="lg-tag">Outbound</span><h3>Campaigns at scale</h3><p>Batch dialing with business caller ID and outcome tracking after each run.</p></a>
-      <a class="lg-use" href="/use-cases/department-routing/"><span class="lg-tag">Routing</span><h3>Right department, first</h3><p>Multilingual menus and AI routing into the correct team or specialist.</p></a>
-      <a class="lg-use" href="/use-cases/quality-coaching/"><span class="lg-tag">QA</span><h3>Coach from 100% of calls</h3><p>AI QA and post-call analysis across full volume — not a random sample.</p></a>
+  <section class="lg-band-alt" id="use-cases">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Use cases</span>
+      <h2 class="lg-h2">Practical phone workflows for growing teams</h2>
+      <p class="lg-lead">See how Loop9 runs the line day to day. <a href="/use-cases/" style="color:var(--lg-accent);font-weight:600;">All use cases →</a></p>
+      <div class="lg-feat-grid">
+        <a class="lg-feat" href="/use-cases/inbound-sales/"><span class="lg-tag">Sales</span><h3>Inbound sales</h3><p>Qualify, book, and route buyers instantly.</p></a>
+        <a class="lg-feat" href="/use-cases/customer-support/"><span class="lg-tag">Support</span><h3>Customer support</h3><p>Deflect routine; escalate with context.</p></a>
+        <a class="lg-feat" href="/use-cases/appointment-booking/"><span class="lg-tag">Ops</span><h3>Appointment booking</h3><p>Convert callers into calendar holds.</p></a>
+        <a class="lg-feat" href="/use-cases/after-hours/"><span class="lg-tag">Coverage</span><h3>After hours</h3><p>Own nights, weekends, and holidays.</p></a>
+        <a class="lg-feat" href="/use-cases/lead-qualification/"><span class="lg-tag">Pipeline</span><h3>Lead qualification</h3><p>Consistent discovery before reps engage.</p></a>
+        <a class="lg-feat" href="/use-cases/outbound-campaigns/"><span class="lg-tag">Outbound</span><h3>Outbound campaigns</h3><p>Batch dialing with outcome tracking.</p></a>
+        <a class="lg-feat" href="/use-cases/department-routing/"><span class="lg-tag">Routing</span><h3>Department routing</h3><p>Menus and AI into the right team.</p></a>
+        <a class="lg-feat" href="/use-cases/quality-coaching/"><span class="lg-tag">QA</span><h3>Quality coaching</h3><p>Coach from 100% of call volume.</p></a>
+      </div>
     </div>
   </section>
 
-  <!-- HOW IT WORKS -->
-  <section id="how" class="lg-section">
-    <span class="lg-eyebrow">How it works</span>
-    <h2 class="lg-h2">Live on your line in an afternoon</h2>
-    <p class="lg-lead" style="margin-bottom: 36px;">Three steps from empty line to answering like a full front desk.</p>
-    <div class="lg-steps">
-      <article class="lg-step">
-        <p class="lg-step-num">STEP 01</p>
-        <h3>Connect your number</h3>
-        <p>Buy, port, or forward. Keep the line your customers already know.</p>
-      </article>
-      <article class="lg-step">
-        <p class="lg-step-num">STEP 02</p>
-        <h3>Train the agent</h3>
-        <p>Add your knowledge base, pick a voice, set transfer rules and booking options.</p>
-      </article>
-      <article class="lg-step">
-        <p class="lg-step-num">STEP 03</p>
-        <h3>Go live &amp; monitor</h3>
-        <p>Loop9 starts answering. Watch the floor, review QA, and scale to more lines.</p>
-      </article>
+  <!-- INTEGRATIONS -->
+  <section class="lg-band" id="integrations">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Integrations</span>
+      <h2 class="lg-h2">Works with the stack you already run</h2>
+      <p class="lg-lead">Connect telephony, CRM, calendars, and automation so agents act on real business data — not scripts alone.</p>
+      <div class="lg-integrations">
+        <span class="lg-int">Twilio</span>
+        <span class="lg-int">HubSpot</span>
+        <span class="lg-int">Salesforce</span>
+        <span class="lg-int">n8n</span>
+        <span class="lg-int">Zapier</span>
+        <span class="lg-int">Cal.com</span>
+        <span class="lg-int">Slack</span>
+        <span class="lg-int">OpenAI</span>
+        <span class="lg-int">ElevenLabs</span>
+        <span class="lg-int">Stripe</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST -->
+  <section class="lg-band-alt" id="trust">
+    <div class="lg-section">
+      <span class="lg-eyebrow">Trust &amp; controls</span>
+      <h2 class="lg-h2">Built for operators who need visibility</h2>
+      <p class="lg-lead">Practical controls for teams handling real customer conversations — without overclaiming certifications. <a href="/security/" style="color:var(--lg-accent);font-weight:600;">Security overview →</a></p>
+      <div class="lg-trust-grid">
+        <article class="lg-trust-card"><h3>Role-based access</h3><p>Control who can build, deploy, and review calls across your workspace.</p></article>
+        <article class="lg-trust-card"><h3>Full transcripts</h3><p>Review conversations for coaching, disputes, and continuous improvement.</p></article>
+        <article class="lg-trust-card"><h3>Hybrid handoff</h3><p>Escalate to humans with context when judgment or empathy is required.</p></article>
+        <article class="lg-trust-card"><h3>Operational QA</h3><p>Score quality across volume so issues surface before they scale.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="lg-band" id="faq">
+    <div class="lg-section">
+      <span class="lg-eyebrow">FAQ</span>
+      <h2 class="lg-h2">Common questions from operations teams</h2>
+      <p class="lg-lead">Straight answers for teams evaluating voice AI for the phone line. <a href="/faq/" style="color:var(--lg-accent);font-weight:600;">Full FAQ →</a></p>
+      <div class="lg-faq">
+        <details open>
+          <summary>What is an AI voice agent?</summary>
+          <p>An AI voice agent listens and speaks on phone calls like a trained receptionist. It understands intent, keeps context across turns, and can take actions such as booking appointments or transferring to a human.</p>
+        </details>
+        <details>
+          <summary>Can we keep our existing phone number?</summary>
+          <p>Yes. Buy, port, or forward numbers — or connect via SIP — then attach them to Loop9 agents so customers still dial the line they know.</p>
+        </details>
+        <details>
+          <summary>What happens when a caller needs a person?</summary>
+          <p>Configure warm call transfer rules. Loop9 hands off to your team with context so customers do not repeat themselves.</p>
+        </details>
+        <details>
+          <summary>How is this different from a traditional IVR?</summary>
+          <p>IVR forces touch-tone menus. Loop9 holds natural conversations, resolves routine requests, and routes the rest — with optional inbound menus when you still want structured paths.</p>
+        </details>
+        <details>
+          <summary>Can Loop9 book appointments on the call?</summary>
+          <p>Yes. Agents can schedule and confirm during the conversation; your team manages bookings afterward in Operations.</p>
+        </details>
+        <details>
+          <summary>Do you support outbound / batch calling?</summary>
+          <p>Yes. Run batch campaigns for reminders, follow-ups, and outreach with business caller ID and outcome tracking.</p>
+        </details>
+        <details>
+          <summary>How do you measure quality?</summary>
+          <p>Post-call analysis and AI quality assurance cover transcripts, outcomes, and scores across volume — so supervisors are not limited to random samples.</p>
+        </details>
+        <details>
+          <summary>Is Loop9 multilingual?</summary>
+          <p>Yes. Support callers in their preferred language with multilingual agents and inbound IVR routing where needed.</p>
+        </details>
+      </div>
     </div>
   </section>
 
@@ -680,44 +382,52 @@
     <div class="lg-final">
       <span class="lg-eyebrow">Get started</span>
       <h2 class="lg-h2">Put an AI front desk on your business number</h2>
-      <p class="lg-lead">Answer every call, book what you can, transfer what you should — and improve with every conversation.</p>
+      <p class="lg-lead">Answer, book, transfer, and improve — built for growing operations teams.</p>
       <div class="lg-final-actions">
         <a href="https://app.loop9.ai/register" class="lg-btn-primary">
           Start free trial
-          <span class="lg-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0084FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+          <span class="lg-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0084FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
         </a>
+        <a href="mailto:sales@loop9.ai" class="lg-btn-ghost">Contact sales</a>
         <a href="https://app.loop9.ai/login" class="lg-btn-ghost">Sign in</a>
       </div>
     </div>
   </section>
 
   <footer class="lg-footer">
-    <div style="font-family: 'Fustat', sans-serif; font-weight: 800; font-size: 18px; color: #0d0f12;">Loop9</div>
-    <div style="display: flex; flex-wrap: wrap; gap: 16px 24px;">
-      <a href="/features/">Features</a>
-      <a href="/industries/">Industries</a>
-      <a href="/use-cases/">Use cases</a>
-      <a href="https://app.loop9.ai/privacy">Privacy</a>
-      <a href="https://app.loop9.ai/terms">Terms</a>
-      <a href="https://app.loop9.ai/login">Sign in</a>
+    <div class="lg-footer-inner">
+      <div class="lg-footer-col">
+        <strong style="font-size:18px;">Loop9</strong>
+        <span>AI voice agents for growing businesses</span>
+        <a href="https://app.loop9.ai/login">Sign in</a>
+        <a href="https://app.loop9.ai/register">Start free trial</a>
+        <a href="mailto:sales@loop9.ai">Contact sales</a>
+      </div>
+      <div class="lg-footer-col">
+        <strong>Product</strong>
+        <a href="/features/">Features</a>
+        <a href="/industries/">Industries</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+      </div>
+      <div class="lg-footer-col">
+        <strong>Resources</strong>
+        <a href="/faq/">FAQ</a>
+        <a href="/features/build/">Build</a>
+        <a href="/features/monitor/">Monitor</a>
+        <a href="/features/ai-quality-assurance/">AI QA</a>
+      </div>
+      <div class="lg-footer-col">
+        <strong>Legal</strong>
+        <a href="https://app.loop9.ai/privacy">Privacy</a>
+        <a href="https://app.loop9.ai/terms">Terms</a>
+      </div>
     </div>
-    <div>&copy; <span id="lg-year">2026</span> Loop9. All rights reserved.</div>
+    <div class="lg-footer-bottom">&copy; <span id="lg-year">2026</span> Loop9. All rights reserved.</div>
   </footer>
-
 </div>
-</x-dc>
-<script type="text/x-dc" data-dc-script>
-class Component extends DCLogic {
-  componentDidMount() {
-    const y = document.getElementById('lg-year');
-    if (y) y.textContent = String(new Date().getFullYear());
-    document.querySelectorAll('video').forEach(v => {
-      v.muted = true;
-      const p = v.play();
-      if (p && p.catch) p.catch(() => {});
-    });
-  }
-}
+<script>
+  document.getElementById('lg-year').textContent = String(new Date().getFullYear());
 </script>
 </body>
 </html>

@@ -126,6 +126,7 @@ import { liveMonitoringWs } from "./services/live-monitoring-ws";
 import integrationRoutes from "./routes/integration-routes";
 import integrationOAuthCallback from "./routes/integration-oauth-callback";
 import { createIntegrationConciergeRoutes } from "./routes/integration-concierge-routes";
+import { createAutomationCopilotRoutes } from "./routes/automation-copilot-routes";
 import contactImportRoutes from "./routes/contact-import-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
 import bcrypt from "bcrypt";
@@ -1608,6 +1609,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // AI Integration Concierge routes (Bedrock + n8n provisioning)
   app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, createIntegrationConciergeRoutes());
+
+  // Automation Builder Copilot (chat + saved sessions)
+  app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, createAutomationCopilotRoutes());
 
   // Integration Marketplace routes (n8n-powered)
   app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, integrationRoutes);

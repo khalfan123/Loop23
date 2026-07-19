@@ -6,10 +6,14 @@ import AutomationOverview from "./AutomationOverview";
 import MarketplacePage from "./MarketplacePage";
 import MyAutomationsPage from "./MyAutomationsPage";
 import ApiWebhooksPage from "./ApiWebhooksPage";
+import AutomationBuilderPage from "./AutomationBuilderPage";
 
 function useAutomationSection(location: string) {
   const { t } = useTranslation();
   return useMemo(() => {
+    if (location.startsWith("/app/settings/automation/builder")) {
+      return t("automation.tabs.builder", "Builder");
+    }
     if (location.startsWith("/app/settings/automation/starter")) {
       return t("automation.tabs.starterPack", "Starter pack");
     }
@@ -62,6 +66,7 @@ export default function AutomationHub() {
             path="/app/settings/automation/marketplace"
             component={MarketplacePage}
           />
+          <Route path="/app/settings/automation/builder" component={AutomationBuilderPage} />
           <Route path="/app/settings/automation/starter" component={AutomationOverview} />
           <Route path="/app/settings/automation/mine" component={MyAutomationsPage} />
           <Route path="/app/settings/automation/api" component={ApiWebhooksPage} />

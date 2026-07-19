@@ -4485,6 +4485,22 @@ export type InsertIntegrationSyncLog = z.infer<typeof insertIntegrationSyncLogSc
 export type IntegrationSyncLog = typeof integrationSyncLogs.$inferSelect;
 
 // ============================================================
+// Automation Copilot — user-scoped saved chats (builder only)
+// ============================================================
+
+export const automationCopilotChats = pgTable("automation_copilot_chats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("Untitled chat"),
+  messages: jsonb("messages").$type<Array<{ role: "user" | "assistant"; content: string }>>().notNull().default([]),
+  automation: jsonb("automation").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type AutomationCopilotChat = typeof automationCopilotChats.$inferSelect;
+
+// ============================================================
 // Calendar Connections — Native Google/Outlook OAuth
 // ============================================================
 

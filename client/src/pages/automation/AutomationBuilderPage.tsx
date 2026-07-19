@@ -349,6 +349,43 @@ export default function AutomationBuilderPage() {
     queryKey: ["/api/auth/me"],
   });
 
+  const { data: callCenterScope } = useQuery<{
+    departments: Array<{
+      id: string;
+      name: string;
+      source?: "ops" | "deprock";
+      agents: Array<{ id: string; name: string; language: string }>;
+    }>;
+    voices?: Array<{ id: string; name: string }>;
+    gaps?: Array<{ module: string; message: string; nextStep: string }>;
+    companyName?: string;
+  }>({
+    queryKey: ["/api/integrations/copilot/call-center"],
+  });
+
+  const callCenterAgents = useMemo(() => {
+    const list: Array<{ id: string; name: string; departmentName: string }> = [];
+    for (const dept of callCenterScope?.departments || []) {
+      for (const agent of dept.agents) {
+        if (!list.some((a) => a.id === agent.id)) {
+          list.push({
+            id: agent.id,
+            name: agent.name,
+            departmentName: dept.name,
+          });
+        }
+      }
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [callCenterScope]);
+
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    type: string;
+    summary: string;
+    confirmToken?: string;
+  } | null>(null);
+  const [publishing, setPublishing] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -390,6 +427,41 @@ export default function AutomationBuilderPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, working]);
 
+  const applyChatResponse = useCallback(
+    (data: {
+      sessionId?: string;
+      automation?: BuilderAutomation;
+      reply?: string;
+      chatId?: string;
+      pendingConfirmation?: { type: string; summary: string; confirmToken?: string } | null;
+    }) => {
+      if (data.sessionId) setSessionId(data.sessionId);
+      if (data.chatId) setSavedChatId(data.chatId);
+      if (data.pendingConfirmation) {
+        setPendingConfirmation(data.pendingConfirmation);
+      } else {
+        setPendingConfirmation(null);
+      }
+      if (copilotMode === "build" && data.automation) {
+        setAutomation(data.automation);
+        const focus =
+          data.automation.steps?.find(
+            (s: BuilderStep) =>
+              s.type === "action" &&
+              (s.config?.nodeType === "webhook" || s.appId === "webhooks" || !s.actionId),
+          ) || data.automation.steps?.[1];
+        if (focus?.id) setSelectedStepId(focus.id);
+      } else if (data.automation) {
+        setAutomation(data.automation);
+      }
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply || "Done." },
+      ]);
+    },
+    [copilotMode],
+  );
+
   const sendChat = useCallback(async () => {
     const text = input.trim();
     if (!text || working) return;
@@ -403,24 +475,11 @@ export default function AutomationBuilderPage() {
         message: text,
         automation,
         mode: copilotMode,
+        chatId: savedChatId || undefined,
       });
       const data = await res.json();
       if (abortRef.current) return;
-      if (data.sessionId) setSessionId(data.sessionId);
-      if (copilotMode === "build" && data.automation) {
-        setAutomation(data.automation);
-        const focus =
-          data.automation.steps?.find(
-            (s: BuilderStep) =>
-              s.type === "action" &&
-              (s.config?.nodeType === "webhook" || s.appId === "webhooks" || !s.actionId),
-          ) || data.automation.steps?.[1];
-        if (focus?.id) setSelectedStepId(focus.id);
-      }
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply || "Done." },
-      ]);
+      applyChatResponse(data);
     } catch (err: any) {
       if (!abortRef.current) {
         setMessages((prev) => [
@@ -434,7 +493,121 @@ export default function AutomationBuilderPage() {
     } finally {
       setWorking(false);
     }
-  }, [input, working, sessionId, automation, copilotMode]);
+  }, [input, working, sessionId, automation, copilotMode, savedChatId, applyChatResponse]);
+
+  const respondToConfirmation = useCallback(
+    async (confirm: boolean) => {
+      if (working) return;
+      setWorking(true);
+      abortRef.current = false;
+      const text = confirm ? "confirm" : "cancel";
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      try {
+        const res = await apiRequest("POST", "/api/integrations/copilot/chat", {
+          sessionId,
+          message: text,
+          confirm,
+          confirmToken: confirm ? pendingConfirmation?.confirmToken : undefined,
+          automation,
+          mode: copilotMode,
+          chatId: savedChatId || undefined,
+        });
+        const data = await res.json();
+        if (abortRef.current) return;
+        applyChatResponse(data);
+      } catch (err: any) {
+        if (!abortRef.current) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: err?.message || "Confirmation failed. Try again.",
+            },
+          ]);
+        }
+      } finally {
+        setWorking(false);
+      }
+    },
+    [
+      working,
+      sessionId,
+      automation,
+      copilotMode,
+      savedChatId,
+      pendingConfirmation,
+      applyChatResponse,
+    ],
+  );
+
+  const requestPublish = useCallback(async () => {
+    if (publishing || working) return;
+    setPublishing(true);
+    try {
+      const confirm =
+        pendingConfirmation?.type === "publish" && !!pendingConfirmation.confirmToken;
+      const res = await apiRequest("POST", "/api/integrations/copilot/publish", {
+        sessionId,
+        automation,
+        chatId: savedChatId || undefined,
+        confirm,
+        confirmToken: confirm ? pendingConfirmation?.confirmToken : undefined,
+      });
+      const data = await res.json();
+      if (data.needsConfirmation) {
+        setPendingConfirmation(data.pendingConfirmation || { type: "publish", summary: "" });
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: [
+              "### Confirm publish",
+              "",
+              data.message || "Confirm to publish this automation for your call center.",
+              "",
+              data.pendingConfirmation?.summary || "",
+              "",
+              "Click **Yes, confirm** or **Publish** again. Typing yes alone is not enough.",
+              "",
+              "> **Next best action:** Confirm publish, or keep editing.",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ]);
+        return;
+      }
+      if (data.ok && data.automation) {
+        setAutomation(data.automation);
+        if (data.chatId) setSavedChatId(data.chatId);
+        setPendingConfirmation(null);
+        void refetchSavedAutomations();
+        void refetchSavedChats();
+        toast({
+          title: "Published",
+          description: data.message || "Automation is published (not draft).",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Publish failed",
+        description: err?.message || "Could not publish",
+        variant: "destructive",
+      });
+    } finally {
+      setPublishing(false);
+    }
+  }, [
+    publishing,
+    working,
+    sessionId,
+    automation,
+    savedChatId,
+    pendingConfirmation,
+    toast,
+    refetchSavedAutomations,
+    refetchSavedChats,
+  ]);
 
   const stopWorking = () => {
     abortRef.current = true;
@@ -654,6 +827,31 @@ export default function AutomationBuilderPage() {
   const deleteSavedAutomation = useCallback(
     (id: string) => deleteSavedItem(id, "automation"),
     [deleteSavedItem],
+  );
+
+  const publishSavedAutomation = useCallback(
+    async (id: string) => {
+      try {
+        const res = await apiRequest("POST", `/api/integrations/copilot/automations/${id}/publish`, {});
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Publish failed");
+        if (savedChatId === id && data.automation) {
+          setAutomation(data.automation as BuilderAutomation);
+        }
+        void refetchSavedAutomations();
+        toast({
+          title: "Published",
+          description: data.message || "Status changed to Published.",
+        });
+      } catch (err: any) {
+        toast({
+          title: "Could not publish",
+          description: err?.message || "Try again",
+          variant: "destructive",
+        });
+      }
+    },
+    [savedChatId, refetchSavedAutomations, toast],
   );
 
   const startNewChat = useCallback(async () => {
@@ -953,13 +1151,35 @@ export default function AutomationBuilderPage() {
             onNewChat={() => void startNewChat()}
             onLoadAutomation={(id) => void loadSavedAutomation(id)}
             onDeleteAutomation={(id) => void deleteSavedAutomation(id)}
+            onPublishAutomation={(id) => void publishSavedAutomation(id)}
           />
         ) : (
           <ScrollArea className="flex-1 min-h-0 px-3 py-3">
             <div className="space-y-4">
-              {messages.map((m, i) => (
-                <CopilotChatMessage key={`${m.role}-${i}`} role={m.role} content={m.content} />
-              ))}
+              {messages.map((m, i) => {
+                const isLastAssistant =
+                  m.role === "assistant" && i === messages.length - 1;
+                return (
+                  <CopilotChatMessage
+                    key={`${m.role}-${i}`}
+                    role={m.role}
+                    content={m.content}
+                    muted={i === 0 && m.role === "assistant"}
+                    pendingConfirmation={!!pendingConfirmation && isLastAssistant}
+                    confirming={working}
+                    onConfirm={
+                      pendingConfirmation && isLastAssistant
+                        ? () => void respondToConfirmation(true)
+                        : undefined
+                    }
+                    onCancel={
+                      pendingConfirmation && isLastAssistant
+                        ? () => void respondToConfirmation(false)
+                        : undefined
+                    }
+                  />
+                );
+              })}
               {working && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1114,9 +1334,26 @@ export default function AutomationBuilderPage() {
             className="h-8 max-w-xs border-0 bg-transparent shadow-none font-semibold focus-visible:ring-1"
             data-testid="input-automation-name"
           />
-          <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-            {automation.status}
+          <Badge
+            variant={automation.status === "published" ? "default" : "secondary"}
+            className={
+              automation.status === "published"
+                ? "text-[10px] uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-600"
+                : "text-[10px] uppercase tracking-wide"
+            }
+            data-testid="badge-automation-status"
+          >
+            {automation.status === "published" ? "Published" : "Draft"}
           </Badge>
+          <span
+            className="hidden sm:inline text-[11px] text-muted-foreground truncate max-w-[260px]"
+            title="Scoped to your workspace: Ops, Deprock, voices, and knowledge base"
+            data-testid="label-call-center-scope"
+          >
+            {callCenterScope?.departments?.length
+              ? `Your call center · ${callCenterScope.departments.length} dept${callCenterScope.departments.length === 1 ? "" : "s"} · ${callCenterAgents.length} agent${callCenterAgents.length === 1 ? "" : "s"}${callCenterScope.voices?.length ? ` · ${callCenterScope.voices.length} voice${callCenterScope.voices.length === 1 ? "" : "s"}` : ""}`
+              : "Your call center · add departments to unlock transfers"}
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="outline"
@@ -1132,7 +1369,15 @@ export default function AutomationBuilderPage() {
               )}
               Test
             </Button>
-            <Button size="sm" disabled data-testid="button-publish">
+            <Button
+              size="sm"
+              onClick={() => void requestPublish()}
+              disabled={publishing || working}
+              data-testid="button-publish"
+            >
+              {publishing ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : null}
               Publish
             </Button>
           </div>
@@ -1492,12 +1737,12 @@ export default function AutomationBuilderPage() {
               ) : (
                 <AlertCircle className="h-4 w-4 text-destructive" />
               )}
-              Test dry-run
+              Test results
             </DialogTitle>
             <DialogDescription>
               {testResult?.summary ||
                 testResult?.error ||
-                "Walks your steps with a sample payload. No live webhooks are called."}
+                "Walks your steps with sample data and probes webhook URLs live."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 max-h-[50vh] overflow-y-auto">

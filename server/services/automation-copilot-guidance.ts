@@ -1,5 +1,7 @@
 'use strict';
 
+export { buildCopilotSystemPrompt } from './automation-copilot-system-prompt';
+
 export type GuidanceStep = {
   id: string;
   order: number;
@@ -387,9 +389,9 @@ export function buildFinishChecklist(
 
 export function buildWelcomeMessage(companyName: string): string {
   const company =
-    companyName && companyName !== 'your company' ? companyName : 'your company';
+    companyName && companyName !== 'your company' ? companyName : 'your call center';
   return [
-    `Hi — I'm **Copilot**, your personal automation assistant for **${company}**.`,
+    `Hi — I'm **Copilot**, your personal automation engineer for **${company}**.`,
     '',
     `Describe what should happen after a call — I'll scaffold the flow on the canvas and tell you exactly how to finish each step.`,
     '',
@@ -599,7 +601,7 @@ export function enhanceAskReply(
   return nextLine ? `${reply}\n\n${nextLine}` : reply.slice(0, 4000);
 }
 
-export function buildCopilotSystemPrompt(input: {
+function buildLegacyCopilotSystemPrompt(input: {
   companyName: string;
   mode: 'ask' | 'build';
   catalog: Array<{ id: string; name: string; category: string }>;

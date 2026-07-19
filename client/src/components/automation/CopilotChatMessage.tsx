@@ -189,9 +189,20 @@ function CopilotMarkdown({ content }: { content: string }) {
 export function CopilotChatMessage({
   role,
   content,
+  muted = false,
+  pendingConfirmation = false,
+  onConfirm,
+  onCancel,
+  confirming = false,
 }: {
   role: "user" | "assistant";
   content: string;
+  /** Muted/secondary styling for welcome and similar intro bubbles. */
+  muted?: boolean;
+  pendingConfirmation?: boolean;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  confirming?: boolean;
 }) {
   if (role === "user") {
     return (
@@ -214,8 +225,45 @@ export function CopilotChatMessage({
           Copilot
         </span>
       </div>
-      <div className="rounded-2xl border border-border/40 bg-white dark:bg-zinc-900/80 px-3.5 py-3 shadow-sm">
-        <CopilotMarkdown content={content} />
+      <div
+        className={cn(
+          "rounded-2xl border border-border/40 bg-white dark:bg-zinc-900/80 px-3.5 py-3 shadow-sm",
+          muted && "text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-muted-foreground [&_em]:text-muted-foreground",
+        )}
+      >
+        {muted ? (
+          <p className="text-[13px] leading-[1.55] text-muted-foreground whitespace-pre-wrap">
+            {content}
+          </p>
+        ) : (
+          <CopilotMarkdown content={content} />
+        )}
+        {pendingConfirmation && (onConfirm || onCancel) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {onConfirm && (
+              <button
+                type="button"
+                disabled={confirming}
+                onClick={onConfirm}
+                className="rounded-lg bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background disabled:opacity-60"
+                data-testid="button-copilot-confirm"
+              >
+                {confirming ? "Confirming…" : "Yes, confirm"}
+              </button>
+            )}
+            {onCancel && (
+              <button
+                type="button"
+                disabled={confirming}
+                onClick={onCancel}
+                className="rounded-lg border border-border px-3 py-1.5 text-[12px] font-medium text-foreground disabled:opacity-60"
+                data-testid="button-copilot-cancel-confirm"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

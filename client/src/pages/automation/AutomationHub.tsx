@@ -12,7 +12,7 @@ function useAutomationSection(location: string) {
   const { t } = useTranslation();
   return useMemo(() => {
     if (location.startsWith("/app/settings/automation/builder")) {
-      return t("automation.tabs.builder", "Builder");
+      return null;
     }
     if (location.startsWith("/app/settings/automation/starter")) {
       return t("automation.tabs.starterPack", "Starter pack");
@@ -23,7 +23,10 @@ function useAutomationSection(location: string) {
     if (location.startsWith("/app/settings/automation/api")) {
       return t("automation.tabs.api", "API & Webhooks");
     }
-    return t("automation.tabs.marketplace", "Marketplace");
+    if (location.startsWith("/app/settings/automation/marketplace")) {
+      return t("automation.tabs.marketplace", "Marketplace");
+    }
+    return null;
   }, [location, t]);
 }
 
@@ -31,26 +34,29 @@ export default function AutomationHub() {
   const { t } = useTranslation();
   const [location] = useLocation();
   const section = useAutomationSection(location);
+  const isBuilder = location.startsWith("/app/settings/automation/builder");
 
   return (
     <div className="-m-6">
-      <div className="px-6 pt-5 pb-4 border-b border-[var(--l9-border,#EEF0F3)] bg-white">
-        <h1
-          className="text-[11px] font-semibold tracking-tight text-[#0F172A]"
-          data-testid="automation-page-title"
-        >
-          <Link
-            href="/app/settings/automation/marketplace"
-            className="text-[rgba(60,60,67,0.55)] hover:text-[#2563EB] transition-colors font-semibold"
+      {!isBuilder && section ? (
+        <div className="px-6 pt-5 pb-4 border-b border-[var(--l9-border,#EEF0F3)] bg-white">
+          <h1
+            className="text-[11px] font-semibold tracking-tight text-[#0F172A]"
+            data-testid="automation-page-title"
           >
-            {t("automation.hub.title", "Automation")}
-          </Link>
-          <span className="mx-2 font-normal text-[rgba(60,60,67,0.35)]" aria-hidden>
-            &gt;
-          </span>
-          <span>{section}</span>
-        </h1>
-      </div>
+            <Link
+              href="/app/settings/automation/builder"
+              className="text-[rgba(60,60,67,0.55)] hover:text-[#2563EB] transition-colors font-semibold"
+            >
+              {t("automation.hub.title", "Automation")}
+            </Link>
+            <span className="mx-2 font-normal text-[rgba(60,60,67,0.35)]" aria-hidden>
+              &gt;
+            </span>
+            <span>{section}</span>
+          </h1>
+        </div>
+      ) : null}
 
       <RouteErrorBoundary label={`automation:${location}`} resetKey={location}>
         <Switch>
@@ -71,10 +77,10 @@ export default function AutomationHub() {
           <Route path="/app/settings/automation/mine" component={MyAutomationsPage} />
           <Route path="/app/settings/automation/api" component={ApiWebhooksPage} />
           <Route path="/app/settings/automation">
-            <Redirect to="/app/settings/automation/marketplace" />
+            <Redirect to="/app/settings/automation/builder" />
           </Route>
           <Route>
-            <Redirect to="/app/settings/automation/marketplace" />
+            <Redirect to="/app/settings/automation/builder" />
           </Route>
         </Switch>
       </RouteErrorBoundary>

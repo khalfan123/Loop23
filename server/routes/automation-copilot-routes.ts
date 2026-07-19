@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db';
 import { automationCopilotChats, integrationApps } from '@shared/schema';
-import { storage } from '../storage';
 import { awsBedrockService } from '../services/aws-bedrock';
 import {
   CONCIERGE_ALLOWED_TRIGGER_EVENTS,
@@ -13,13 +12,29 @@ import {
 } from '../constants/platform-webhook-events';
 import {
   buildAskReply,
-  buildCopilotSystemPrompt,
   buildScaffoldIntro,
   buildWelcomeMessage,
   enhanceAskReply,
   formatDryRunChatMessage,
   mergeBuildReply,
 } from '../services/automation-copilot-guidance';
+import { buildCopilotSystemPrompt } from '../services/automation-copilot-system-prompt';
+import {
+  confirmTokenMatches,
+  createConfirmToken,
+  detectDestructiveIntent,
+  isAffirmativeConfirmation,
+  loadTenantCopilotContext,
+  requireUserScope,
+  sanitizeAutomationToTenantScope,
+  TenantScopeError,
+  tenantAgentIdSet,
+  type TenantCopilotContext,
+} from '../services/automation-copilot-context';
+import {
+  isGenericCompanyLabel,
+  resolveCopilotCompanyName,
+} from '../services/automation-copilot-company';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -33,16 +48,8 @@ function getUserId(req: AuthRequest): string {
 }
 
 async function resolveCompanyName(userId: string): Promise<string> {
-  try {
-    const user = await storage.getUser(userId);
-    const fromProfile = user?.company?.trim();
-    if (fromProfile) return fromProfile;
-    const fromBilling = user?.billingName?.trim();
-    if (fromBilling) return fromBilling;
-  } catch {
-    // ignore — fall through to default
-  }
-  return 'your company';
+  const companyName = await resolveCopilotCompanyName(userId);
+  return isGenericCompanyLabel(companyName) ? 'your call center' : companyName;
 }
 
 type CopilotStep = {
@@ -66,13 +73,21 @@ type CopilotMessage = {
   content: string;
 };
 
+type PendingDestructive = {
+  type: 'publish' | 'delete_chat' | 'overwrite';
+  summary: string;
+  confirmToken: string;
+};
+
 type CopilotSession = {
   id: string;
   userId: string;
+  workspaceId: string | null;
   companyName: string;
   messages: CopilotMessage[];
   automation: CopilotAutomation;
   updatedAt: number;
+  pendingDestructive: PendingDestructive | null;
 };
 
 const sessions = new Map<string, CopilotSession>();
@@ -88,6 +103,14 @@ function isRateLimited(key: string, limit: number, windowMs: number) {
   hits.push(now);
   chatRateLimit.set(key, hits);
   return { limited: false, retryAfterMs: 0 };
+}
+
+function pendingMatchesConfirm(
+  pending: PendingDestructive | null,
+  confirm: boolean,
+  token: unknown,
+): boolean {
+  return Boolean(pending && confirm && confirmTokenMatches(pending.confirmToken, token));
 }
 
 function emptyAutomation(): CopilotAutomation {
@@ -662,6 +685,7 @@ async function bedrockCopilotTurn(input: {
   catalog: Array<{ id: string; name: string; category: string }>;
   mode: CopilotMode;
   companyName?: string;
+  tenantContext?: TenantCopilotContext;
 }): Promise<{ reply: string; automation: CopilotAutomation | null }> {
   const company =
     input.companyName && input.companyName.trim() ? input.companyName.trim() : 'your company';
@@ -684,6 +708,7 @@ async function bedrockCopilotTurn(input: {
     mode: input.mode,
     catalog: input.catalog,
     triggers: CONCIERGE_ALLOWED_TRIGGER_EVENTS,
+    tenantContext: input.tenantContext,
   });
 
   const historyText = input.history
@@ -812,6 +837,35 @@ export function createAutomationCopilotRoutes(): Router {
     }
   });
 
+  router.get('/copilot/call-center', async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      requireUserScope(userId);
+      const companyName = await resolveCompanyName(userId);
+      const ctx = await loadTenantCopilotContext(userId, companyName);
+      res.json({
+        departments: ctx.departments,
+        ops: ctx.ops,
+        deprock: ctx.deprock,
+        voices: ctx.voices,
+        knowledgeBaseCount: ctx.knowledgeBase.length,
+        gaps: ctx.gaps,
+        workspaceId: ctx.workspaceId,
+        companyName: ctx.companyName,
+      });
+    } catch (error: any) {
+      console.error('[Copilot] call-center scope error:', error);
+      const status = error instanceof TenantScopeError ? 500 : 500;
+      res.status(status).json({
+        error:
+          error instanceof TenantScopeError
+            ? 'Tenant scope missing — cannot load call center data'
+            : error.message || 'Failed to load call center scope',
+      });
+    }
+  });
+
   router.get('/copilot/apps/:appId/actions', async (req: AuthRequest, res: Response) => {
     try {
       const userId = getUserId(req);
@@ -826,7 +880,9 @@ export function createAutomationCopilotRoutes(): Router {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      requireUserScope(userId);
       const companyName = await resolveCompanyName(userId);
+      const tenantContext = await loadTenantCopilotContext(userId, companyName);
 
       const restoreMessages = Array.isArray(req.body?.messages)
         ? req.body.messages.filter(
@@ -846,13 +902,16 @@ export function createAutomationCopilotRoutes(): Router {
           req.body.automation,
           new Set(catalog.map((a) => a.id)),
         );
-        if (validated.ok) automation = validated.automation;
+        if (validated.ok) {
+          automation = sanitizeAutomationToTenantScope(validated.automation, tenantContext);
+        }
       }
 
       const id = crypto.randomUUID();
       const session: CopilotSession = {
         id,
         userId,
+        workspaceId: tenantContext.workspaceId,
         companyName,
         messages:
           restoreMessages.length > 0
@@ -865,6 +924,7 @@ export function createAutomationCopilotRoutes(): Router {
               ],
         automation,
         updatedAt: Date.now(),
+        pendingDestructive: null,
       };
       sessions.set(id, session);
       res.json({
@@ -872,10 +932,17 @@ export function createAutomationCopilotRoutes(): Router {
         automation: session.automation,
         messages: session.messages,
         companyName,
+        workspaceId: session.workspaceId,
+        gaps: tenantContext.gaps,
         restored: restoreMessages.length > 0,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Failed to create session' });
+      res.status(500).json({
+        error:
+          error instanceof TenantScopeError
+            ? 'Tenant scope missing — cannot start Copilot session'
+            : error.message || 'Failed to create session',
+      });
     }
   });
 
@@ -883,6 +950,7 @@ export function createAutomationCopilotRoutes(): Router {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      requireUserScope(userId);
 
       const rl = isRateLimited(`copilot:${userId}`, 8, 10_000);
       if (rl.limited) {
@@ -891,25 +959,31 @@ export function createAutomationCopilotRoutes(): Router {
       }
 
       const message = String(req.body?.message || '').trim();
-      if (!message) return res.status(400).json({ error: 'message is required' });
+      const confirmFlag = req.body?.confirm === true;
+      const confirmToken = req.body?.confirmToken;
+      if (!message && !confirmFlag) return res.status(400).json({ error: 'message is required' });
 
       const mode: CopilotMode = req.body?.mode === 'ask' ? 'ask' : 'build';
+      const companyName = await resolveCompanyName(userId);
+      const tenantContext = await loadTenantCopilotContext(userId, companyName);
 
       let session = req.body?.sessionId ? sessions.get(String(req.body.sessionId)) : undefined;
       if (!session || session.userId !== userId) {
-        const companyName = await resolveCompanyName(userId);
         const id = crypto.randomUUID();
         session = {
           id,
           userId,
+          workspaceId: tenantContext.workspaceId,
           companyName,
           messages: [],
           automation: emptyAutomation(),
           updatedAt: Date.now(),
+          pendingDestructive: null,
         };
         sessions.set(id, session);
-      } else if (!session.companyName) {
-        session.companyName = await resolveCompanyName(userId);
+      } else {
+        if (!session.companyName) session.companyName = companyName;
+        session.workspaceId = tenantContext.workspaceId;
       }
 
       if (req.body?.automation && typeof req.body.automation === 'object') {
@@ -918,7 +992,145 @@ export function createAutomationCopilotRoutes(): Router {
           req.body.automation,
           new Set(catalog.map((a) => a.id)),
         );
-        if (validated.ok) session.automation = validated.automation;
+        if (validated.ok) {
+          session.automation = sanitizeAutomationToTenantScope(
+            validated.automation,
+            tenantContext,
+          );
+        }
+      }
+
+      // Confirm a pending destructive action (publish / delete / overwrite)
+      if (
+        pendingMatchesConfirm(session.pendingDestructive, confirmFlag, confirmToken) &&
+        session.pendingDestructive
+      ) {
+        const pending = session.pendingDestructive;
+        const userLine = message || 'confirm';
+        session.messages.push({ role: 'user', content: userLine });
+
+        if (pending.type === 'publish') {
+          session.automation = { ...session.automation, status: 'published' };
+          session.pendingDestructive = null;
+          const reply = [
+            '### Published',
+            '',
+            `**${session.automation.name}** is now marked published for ${session.companyName}.`,
+            '',
+            summarizeAutomationForConfirm(session.automation),
+            '',
+            '> **Next best action:** Run **Test** anytime after edits to re-verify.',
+          ].join('\n');
+          session.messages.push({ role: 'assistant', content: reply });
+          session.updatedAt = Date.now();
+          return res.json({
+            sessionId: session.id,
+            reply,
+            automation: session.automation,
+            mode,
+            messages: session.messages.slice(-20),
+            pendingConfirmation: null,
+            bedrockConfigured: awsBedrockService.isConfigured(),
+          });
+        }
+
+        session.pendingDestructive = null;
+        const cancelledReply = [
+          '### Confirmation cleared',
+          '',
+          `I did not complete **${pending.type}**. Say what you’d like to do next.`,
+          '',
+          '> **Next best action:** Ask me to build, edit, or publish again when ready.',
+        ].join('\n');
+        session.messages.push({ role: 'assistant', content: cancelledReply });
+        session.updatedAt = Date.now();
+        return res.json({
+          sessionId: session.id,
+          reply: cancelledReply,
+          automation: session.automation,
+          mode,
+          messages: session.messages.slice(-20),
+          pendingConfirmation: null,
+          bedrockConfigured: awsBedrockService.isConfigured(),
+        });
+      }
+
+      if (
+        session.pendingDestructive &&
+        message &&
+        isAffirmativeConfirmation(message)
+      ) {
+        session.messages.push({ role: 'user', content: message });
+        const reply = [
+          '### Confirm with the button',
+          '',
+          'Typing **yes** is not enough for security. Click **Yes, confirm** (or Cancel) in the chat.',
+          '',
+          session.pendingDestructive.summary,
+        ].join('\n');
+        session.messages.push({ role: 'assistant', content: reply });
+        session.updatedAt = Date.now();
+        return res.json({
+          sessionId: session.id,
+          reply,
+          automation: session.automation,
+          mode,
+          messages: session.messages.slice(-20),
+          pendingConfirmation: session.pendingDestructive,
+          bedrockConfigured: awsBedrockService.isConfigured(),
+        });
+      }
+
+      // New destructive intent → ask for confirmation (do not execute)
+      const destructive = message ? detectDestructiveIntent(message) : null;
+      if (destructive) {
+        session.messages.push({ role: 'user', content: message });
+        const summary = summarizeAutomationForConfirm(session.automation);
+        session.pendingDestructive = {
+          type: destructive,
+          summary,
+          confirmToken: createConfirmToken(),
+        };
+        const reply = [
+          '### Confirm publish',
+          '',
+          `I will publish this automation for **${session.companyName}** only after you confirm.`,
+          '',
+          summary,
+          '',
+          'Click **Yes, confirm** to proceed, or **Cancel** to abort. Typing yes alone is not enough.',
+          '',
+          '> **Next best action:** Confirm publish, or keep editing the canvas.',
+        ].join('\n');
+        session.messages.push({ role: 'assistant', content: reply });
+        session.updatedAt = Date.now();
+        return res.json({
+          sessionId: session.id,
+          reply,
+          automation: session.automation,
+          mode,
+          messages: session.messages.slice(-20),
+          pendingConfirmation: session.pendingDestructive,
+          bedrockConfigured: awsBedrockService.isConfigured(),
+        });
+      }
+
+      if (/\bcancel\b/i.test(message) && session.pendingDestructive) {
+        session.messages.push({ role: 'user', content: message });
+        session.pendingDestructive = null;
+        const reply =
+          '### Cancelled\n\nNo publish/delete was applied. Your draft is unchanged.\n\n> **Next best action:** Continue building on the canvas.';
+        session.messages.push({ role: 'assistant', content: reply });
+        session.updatedAt = Date.now();
+        return res.json({
+          sessionId: session.id,
+          reply,
+          automation: session.automation,
+          mode,
+          messages: session.messages.slice(-20),
+          pendingConfirmation: null,
+          bedrockConfigured: awsBedrockService.isConfigured(),
+        });
       }
 
       session.messages.push({ role: 'user', content: message });
@@ -930,9 +1142,16 @@ export function createAutomationCopilotRoutes(): Router {
         catalog,
         mode,
         companyName: session.companyName || 'your company',
+        tenantContext,
       });
 
-      if (mode === 'build' && turn.automation) session.automation = turn.automation;
+      if (mode === 'build' && turn.automation) {
+        const scoped = sanitizeAutomationToTenantScope(turn.automation, tenantContext);
+        session.automation = {
+          ...scoped,
+          status: scoped.status === 'published' ? 'draft' : scoped.status,
+        };
+      }
       session.messages.push({ role: 'assistant', content: turn.reply });
       session.updatedAt = Date.now();
 
@@ -942,11 +1161,100 @@ export function createAutomationCopilotRoutes(): Router {
         automation: session.automation,
         mode,
         messages: session.messages.slice(-20),
+        pendingConfirmation: session.pendingDestructive || null,
+        gaps: tenantContext.gaps,
         bedrockConfigured: awsBedrockService.isConfigured(),
       });
     } catch (error: any) {
       console.error('[Copilot] chat error:', error);
-      res.status(500).json({ error: error.message || 'Copilot chat failed' });
+      res.status(500).json({
+        error:
+          error instanceof TenantScopeError
+            ? 'Tenant scope missing — Copilot halted rather than running an unscoped query'
+            : error.message || 'Copilot chat failed',
+      });
+    }
+  });
+
+  router.post('/copilot/publish', async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      requireUserScope(userId);
+
+      const session = req.body?.sessionId
+        ? sessions.get(String(req.body.sessionId))
+        : undefined;
+      if (!session || session.userId !== userId) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      if (req.body?.automation && typeof req.body.automation === 'object') {
+        const catalog = await listCatalogApps();
+        const companyName = session.companyName || (await resolveCompanyName(userId));
+        const tenantContext = await loadTenantCopilotContext(userId, companyName);
+        const validated = validateProposedAutomation(
+          req.body.automation,
+          new Set(catalog.map((a) => a.id)),
+        );
+        if (validated.ok) {
+          session.automation = sanitizeAutomationToTenantScope(
+            validated.automation,
+            tenantContext,
+          );
+        }
+      }
+
+      if (req.body?.confirm !== true) {
+        const summary = summarizeAutomationForConfirm(session.automation);
+        session.pendingDestructive = {
+          type: 'publish',
+          summary,
+          confirmToken: createConfirmToken(),
+        };
+        return res.json({
+          ok: false,
+          needsConfirmation: true,
+          pendingConfirmation: session.pendingDestructive,
+          automation: session.automation,
+          message:
+            'Confirm publish to go live. Call again with confirm:true and confirmToken from pendingConfirmation.',
+        });
+      }
+
+      if (
+        !pendingMatchesConfirm(
+          session.pendingDestructive,
+          true,
+          req.body?.confirmToken,
+        )
+      ) {
+        const summary = summarizeAutomationForConfirm(session.automation);
+        session.pendingDestructive = {
+          type: 'publish',
+          summary,
+          confirmToken: createConfirmToken(),
+        };
+        return res.json({
+          ok: false,
+          needsConfirmation: true,
+          pendingConfirmation: session.pendingDestructive,
+          automation: session.automation,
+          message: 'Publish confirmation token missing or expired. Confirm again with the new token.',
+        });
+      }
+
+      session.automation = { ...session.automation, status: 'published' };
+      session.pendingDestructive = null;
+      session.updatedAt = Date.now();
+      res.json({
+        ok: true,
+        automation: session.automation,
+        message: `Published “${session.automation.name}” for your call center.`,
+      });
+    } catch (error: any) {
+      console.error('[Copilot] publish error:', error);
+      res.status(500).json({ error: error.message || 'Publish failed' });
     }
   });
 
@@ -954,6 +1262,7 @@ export function createAutomationCopilotRoutes(): Router {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      requireUserScope(userId);
       const session = sessions.get(String(req.params.id));
       if (!session || session.userId !== userId) {
         return res.status(404).json({ error: 'Session not found' });
@@ -964,7 +1273,9 @@ export function createAutomationCopilotRoutes(): Router {
         new Set(catalog.map((a) => a.id)),
       );
       if (!validated.ok) return res.status(400).json({ error: validated.error });
-      session.automation = validated.automation;
+      const companyName = session.companyName || (await resolveCompanyName(userId));
+      const tenantContext = await loadTenantCopilotContext(userId, companyName);
+      session.automation = sanitizeAutomationToTenantScope(validated.automation, tenantContext);
       session.updatedAt = Date.now();
       res.json({ automation: session.automation });
     } catch (error: any) {
@@ -976,6 +1287,7 @@ export function createAutomationCopilotRoutes(): Router {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      requireUserScope(userId);
 
       const rl = isRateLimited(`copilot-test:${userId}`, 12, 10_000);
       if (rl.limited) {
@@ -995,7 +1307,23 @@ export function createAutomationCopilotRoutes(): Router {
         });
       }
 
-      const result = dryRunAutomation(validated.automation, catalogSlugs);
+      const connectedRows = await db
+        .select({ slug: integrationApps.slug })
+        .from(userIntegrations)
+        .innerJoin(integrationApps, eq(userIntegrations.appId, integrationApps.id))
+        .where(eq(userIntegrations.userId, userId));
+      const connectedSlugs = new Set(connectedRows.map((r) => r.slug));
+      const companyName = await resolveCompanyName(userId);
+      const tenantContext = await loadTenantCopilotContext(userId, companyName);
+      const allowedAgents = tenantAgentIdSet(tenantContext);
+
+      const scoped = sanitizeAutomationToTenantScope(validated.automation, tenantContext);
+      const result = dryRunAutomation(
+        scoped,
+        catalogSlugs,
+        connectedSlugs,
+        allowedAgents,
+      );
       const chatMessage = formatDryRunChatMessage(
         result.ok,
         validated.automation.name,
@@ -1014,26 +1342,14 @@ export function createAutomationCopilotRoutes(): Router {
       });
     } catch (error: any) {
       console.error('[Copilot] test error:', error);
-      res.status(500).json({ error: error.message || 'Test failed' });
+      res.status(500).json({
+        error:
+          error instanceof TenantScopeError
+            ? 'Tenant scope missing — test halted'
+            : error.message || 'Test failed',
+      });
     }
   });
-
-  // ── Saved chats (user-scoped only) ─────────────────────────────
-
-  function deriveChatTitle(
-    messages: Array<{ role: string; content: string }>,
-    automationName?: string,
-  ): string {
-    const firstUser = messages.find((m) => m.role === 'user' && m.content.trim());
-    if (firstUser) {
-      const clean = firstUser.content.replace(/\s+/g, ' ').trim();
-      return clean.length > 72 ? `${clean.slice(0, 69)}…` : clean;
-    }
-    if (automationName && automationName.trim() && automationName !== 'Untitled automation') {
-      return automationName.trim().slice(0, 72);
-    }
-    return 'Untitled chat';
-  }
 
   router.get('/copilot/chats', async (req: AuthRequest, res: Response) => {
     try {

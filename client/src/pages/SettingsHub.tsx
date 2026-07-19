@@ -1,7 +1,7 @@
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon, LifeBuoy, Key, LayoutGrid, Sparkles, KeyRound, Bot } from "lucide-react";
+import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon, LifeBuoy, Key, LayoutGrid, KeyRound, Bot } from "lucide-react";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { BUILD_VERSION_FULL } from "@/lib/build-version";
 import Settings from "@/pages/Settings";
@@ -140,27 +140,24 @@ export default function SettingsHub() {
 
   const subPanelContent = isWebhooksPage ? (
     <>
-      <SubPanelSection title={t('automation.subnav.sections', 'Sections')}>
+      <SubPanelSection>
+        <SubPanelItem
+          icon={<Bot className="w-4 h-4" />}
+          label={t('automation.tabs.builder', 'Builder')}
+          isActive={
+            location.startsWith('/app/settings/automation/builder') ||
+            location === '/app/settings/automation' ||
+            location === '/app/settings/automation/'
+          }
+          onClick={() => setLocation('/app/settings/automation/builder')}
+          data-testid="nav-automation-builder"
+        />
         <SubPanelItem
           icon={<LayoutGrid className="w-4 h-4" />}
           label={t('automation.tabs.marketplace', 'Marketplace')}
           isActive={location.startsWith('/app/settings/automation/marketplace')}
           onClick={() => setLocation('/app/settings/automation/marketplace')}
           data-testid="nav-automation-marketplace"
-        />
-        <SubPanelItem
-          icon={<Bot className="w-4 h-4" />}
-          label={t('automation.tabs.builder', 'Builder')}
-          isActive={location.startsWith('/app/settings/automation/builder')}
-          onClick={() => setLocation('/app/settings/automation/builder')}
-          data-testid="nav-automation-builder"
-        />
-        <SubPanelItem
-          icon={<Sparkles className="w-4 h-4" />}
-          label={t('automation.tabs.starterPack', 'Starter pack')}
-          isActive={location.startsWith('/app/settings/automation/starter')}
-          onClick={() => setLocation('/app/settings/automation/starter')}
-          data-testid="nav-automation-starter"
         />
         <SubPanelItem
           icon={<Workflow className="w-4 h-4" />}

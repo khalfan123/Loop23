@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
@@ -78,7 +78,7 @@ type NavId =
 
 const NAV: Array<{ id: NavId; label: string; icon: LucideIcon }> = [
   { id: "home", label: "Home", icon: Home },
-  { id: "apps", label: "Apps", icon: Package },
+  { id: "apps", label: "Marketplace", icon: Package },
   { id: "ai", label: "AI", icon: Sparkles },
   { id: "flow", label: "Flow controls", icon: GitBranch },
   { id: "utilities", label: "Utilities", icon: Wrench },
@@ -423,6 +423,8 @@ type Props = {
   onSelectTemplate: (template: BuilderTemplateChoice) => void;
   onSelectApp?: (app: { id: string; name: string; logoUrl?: string | null }) => void;
   onSelectTool?: (tool: BuilderToolChoice) => void;
+  /** Which sidebar section to show when the dialog opens. */
+  initialNav?: NavId;
 };
 
 export function BuilderTemplatePicker({
@@ -431,9 +433,18 @@ export function BuilderTemplatePicker({
   onSelectTemplate,
   onSelectApp,
   onSelectTool,
+  initialNav = "home",
 }: Props) {
-  const [nav, setNav] = useState<NavId>("home");
+  const [nav, setNav] = useState<NavId>(initialNav);
   const [query, setQuery] = useState("");
+
+  // Sync entry point when the dialog opens (templates vs marketplace).
+  useEffect(() => {
+    if (open) {
+      setNav(initialNav);
+      setQuery("");
+    }
+  }, [open, initialNav]);
 
   const { data: marketplaceApps = [], isLoading: appsLoading } = useQuery<IntegrationApp[]>({
     queryKey: ["/api/integrations/apps"],
@@ -529,7 +540,7 @@ export function BuilderTemplatePicker({
       : nav === "templates"
         ? "All templates"
         : nav === "apps"
-          ? "Apps"
+          ? "Marketplace"
           : NAV.find((n) => n.id === nav)?.label || "Browse";
 
   return (

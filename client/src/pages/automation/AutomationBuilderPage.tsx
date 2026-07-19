@@ -24,6 +24,7 @@ import {
   Sparkles,
   Square,
   StopCircle,
+  Store,
   Volume2,
   Webhook,
   Zap,
@@ -274,6 +275,9 @@ export default function AutomationBuilderPage() {
   const [pickerStepId, setPickerStepId] = useState<string | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templatePickerNav, setTemplatePickerNav] = useState<
+    "home" | "templates" | "apps"
+  >("home");
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [savedChatId, setSavedChatId] = useState<string | null>(null);
   const [savingChat, setSavingChat] = useState(false);
@@ -1093,14 +1097,14 @@ export default function AutomationBuilderPage() {
 
   return (
     <div
-      className="h-[calc(100vh-7.5rem)] min-h-[560px] flex bg-[#f4f5f7] dark:bg-zinc-950"
+      className="h-[calc(100vh-var(--l9-topbar-height))] min-h-[560px] flex bg-[#f4f5f7] dark:bg-zinc-950"
       data-testid="automation-builder-page"
     >
-      {/* Copilot panel */}
+      {/* Copilot panel — primary chat surface (templates + marketplace in composer) */}
       <aside
         className={cn(
           "shrink-0 border-r border-border/60 bg-white dark:bg-zinc-900 flex flex-col transition-[width] duration-200",
-          copilotOpen ? "w-[340px]" : "w-0 overflow-hidden border-0",
+          copilotOpen ? "w-[min(440px,42vw)]" : "w-0 overflow-hidden border-0",
         )}
       >
         <div className="h-12 px-3 flex items-center justify-between border-b border-border/50">
@@ -1194,15 +1198,30 @@ export default function AutomationBuilderPage() {
         )}
 
         <div className="p-3 border-t border-border/50 space-y-2">
-          <div className="flex items-center gap-1.5 px-0.5">
+          <div className="flex items-center gap-1.5 px-0.5 flex-wrap">
             <button
               type="button"
-              onClick={() => setTemplatePickerOpen(true)}
+              onClick={() => {
+                setTemplatePickerNav("templates");
+                setTemplatePickerOpen(true);
+              }}
               data-testid="button-choose-template"
               className="inline-flex items-center gap-1.5 h-7 rounded-full border border-border/70 bg-muted/40 hover:bg-muted/70 px-2.5 text-[12px] font-medium text-foreground transition-colors"
             >
               <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />
               Choose from template
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTemplatePickerNav("apps");
+                setTemplatePickerOpen(true);
+              }}
+              data-testid="button-choose-marketplace"
+              className="inline-flex items-center gap-1.5 h-7 rounded-full border border-border/70 bg-muted/40 hover:bg-muted/70 px-2.5 text-[12px] font-medium text-foreground transition-colors"
+            >
+              <Store className="h-3.5 w-3.5 text-muted-foreground" />
+              Marketplace
             </button>
           </div>
           <div className="rounded-2xl border border-border/70 bg-background p-2 shadow-sm focus-within:border-border focus-within:ring-1 focus-within:ring-border/60">
@@ -1522,17 +1541,31 @@ export default function AutomationBuilderPage() {
             {!automation.steps.some((s) => s.actionId) && (
               <div className="mt-8 text-center px-4">
                 <p className="text-sm text-muted-foreground">
-                  Use Copilot or{" "}
+                  Use Copilot,{" "}
                   <button
                     type="button"
                     className="underline underline-offset-2 hover:text-foreground"
                     onClick={() => {
                       setCopilotOpen(true);
+                      setTemplatePickerNav("templates");
                       setTemplatePickerOpen(true);
                     }}
                     data-testid="button-choose-template-empty"
                   >
                     Choose from template
+                  </button>
+                  , or{" "}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:text-foreground"
+                    onClick={() => {
+                      setCopilotOpen(true);
+                      setTemplatePickerNav("apps");
+                      setTemplatePickerOpen(true);
+                    }}
+                    data-testid="button-choose-marketplace-empty"
+                  >
+                    Marketplace
                   </button>{" "}
                   in chat to get started.
                 </p>
@@ -1615,6 +1648,7 @@ export default function AutomationBuilderPage() {
       <BuilderTemplatePicker
         open={templatePickerOpen}
         onOpenChange={setTemplatePickerOpen}
+        initialNav={templatePickerNav}
         onSelectTemplate={applyTemplate}
         onSelectTool={applyTool}
         onSelectApp={(app) => {

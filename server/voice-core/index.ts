@@ -36,7 +36,7 @@ export type {
 } from './metrics';
 export { estimateTTSCostUsd, setTTSCostRates, ttsCostPer1kChars, TTS_COST_PER_1K_CHARS_USD } from './cost';
 
-export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, mulawToPcm16, MULAW_DECODE_TABLE } from './audio/g711';
+export { mulawEnergy, pcmToMulaw, linearToMulaw, downsamplePcm16By2, downsamplePcm16ByFactor, mulawToPcm16, MULAW_DECODE_TABLE } from './audio/g711';
 export { createMulawWavHeader, createPcm16WavHeader } from './audio/wav';
 export { applyAgc, computeAgcGain, rmsFraction } from './audio/agc';
 export { VoiceActivityDetector } from './audio/vad';

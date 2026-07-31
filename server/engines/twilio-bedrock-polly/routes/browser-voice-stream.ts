@@ -227,7 +227,12 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       agentLanguage
     );
 
-    const agentTtsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : 'aws_polly';
+    const agentTtsProvider: TtsProvider =
+      agent.voiceProvider === 'elevenlabs'
+        ? 'elevenlabs'
+        : agent.voiceProvider === 'local_clone'
+          ? 'local_clone'
+          : 'aws_polly';
     let elApiKey: string | undefined;
     if (agentTtsProvider === 'elevenlabs' && agent.elevenLabsVoiceId) {
       if (agent.elevenLabsCredentialId) {
@@ -256,6 +261,9 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       elevenLabsVoiceId: agent.elevenLabsVoiceId || undefined,
       elevenLabsApiKey: elApiKey,
       elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+      localCloneVoiceId: agentTtsProvider === 'local_clone' ? (agent.openaiVoice || undefined) : undefined,
+      localCloneApiKey: agentTtsProvider === 'local_clone' ? process.env.LOCAL_CLONE_TTS_API_KEY : undefined,
+      localCloneModelId: agentTtsProvider === 'local_clone' ? process.env.LOCAL_CLONE_TTS_MODEL : undefined,
       voiceStability: agent.voiceStability ?? 0.55,
       voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
       voiceSpeed: agent.voiceSpeed ?? 1.0,

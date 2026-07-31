@@ -180,6 +180,69 @@ describe('ElevenLabsTTSProvider', () => {
   });
 });
 
+describe('LocalCloneTTSProvider', () => {
+  it('posts OpenAI-compatible speech and downsamples PCM to 8kHz', async () => {
+    const { LocalCloneTTSProvider } = await import('../../server/voice-core/providers/local-clone-tts.provider');
+    const pcm24k = Buffer.alloc(4800); // 100ms @ 24kHz mono s16le
+    for (let i = 0; i < pcm24k.length / 2; i++) pcm24k.writeInt16LE(i % 100, i * 2);
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => pcm24k.buffer.slice(pcm24k.byteOffset, pcm24k.byteOffset + pcm24k.byteLength),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const prevUrl = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    const prevRate = process.env.LOCAL_CLONE_TTS_SAMPLE_RATE;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    process.env.LOCAL_CLONE_TTS_SAMPLE_RATE = '24000';
+    try {
+      const provider = new LocalCloneTTSProvider();
+      const result = await provider.synthesize({
+        text: 'hello clone',
+        voiceId: 'voice-a',
+        sampleRateHz: 8000,
+        format: 'pcm',
+        options: { apiKey: 'k1', modelId: 'm1' },
+      });
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(String(url)).toBe('http://127.0.0.1:3900/v1/audio/speech');
+      expect((init.headers as Record<string, string>).Authorization).toBe('Bearer k1');
+      const body = JSON.parse(String(init.body));
+      expect(body).toMatchObject({
+        model: 'm1',
+        input: 'hello clone',
+        voice: 'voice-a',
+        response_format: 'pcm',
+      });
+      // 24k -> 8k is factor 3
+      expect(result.audio.length).toBe(Math.floor(pcm24k.length / 2 / 3) * 2);
+      expect(result.encoding).toBe('pcm16le');
+      expect(result.providerId).toBe('local_clone');
+    } finally {
+      if (prevUrl === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prevUrl;
+      if (prevRate === undefined) delete process.env.LOCAL_CLONE_TTS_SAMPLE_RATE;
+      else process.env.LOCAL_CLONE_TTS_SAMPLE_RATE = prevRate;
+    }
+  });
+
+  it('throws when LOCAL_CLONE_TTS_BASE_URL missing', async () => {
+    const { LocalCloneTTSProvider } = await import('../../server/voice-core/providers/local-clone-tts.provider');
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+    try {
+      const provider = new LocalCloneTTSProvider();
+      await expect(
+        provider.synthesize({ text: 'hi', voiceId: 'v', sampleRateHz: 8000 }),
+      ).rejects.toThrow(/LOCAL_CLONE_TTS_BASE_URL/);
+    } finally {
+      if (prev !== undefined) process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
+  });
+});
+
 describe('buildTTSRouteContext ElevenLabs options', () => {
   it('forwards agent voice settings into TTSRequest.options', () => {
     const agentConfig: AgentConfig = {

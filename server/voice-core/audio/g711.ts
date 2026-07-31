@@ -104,16 +104,29 @@ export function pcmToMulaw(pcmBuffer: Buffer): Buffer {
 }
 
 /**
+ * Naive N:1 decimation of a PCM16LE mono buffer (e.g. 16kHz -> 8kHz with
+ * factor 2, or 24kHz -> 8kHz with factor 3), keeping every Nth sample.
+ * No anti-alias filtering — matches the legacy bridge downsample style.
+ */
+export function downsamplePcm16ByFactor(pcmIn: Buffer, factor: number): Buffer {
+  const step = Math.floor(factor);
+  if (!Number.isFinite(step) || step < 2) {
+    throw new Error(`downsamplePcm16ByFactor expects factor >= 2, got ${factor}`);
+  }
+  const sampleCount = Math.floor(pcmIn.length / 2);
+  const outputCount = Math.floor(sampleCount / step);
+  const pcmOut = Buffer.alloc(outputCount * 2);
+  for (let i = 0; i < outputCount; i++) {
+    pcmOut.writeInt16LE(pcmIn.readInt16LE(i * step * 2), i * 2);
+  }
+  return pcmOut;
+}
+
+/**
  * Naive 2:1 decimation of a PCM16LE mono buffer (e.g. 16kHz -> 8kHz),
  * keeping every other sample. No anti-alias filtering — matches the
  * legacy bridge behavior exactly.
  */
 export function downsamplePcm16By2(pcmIn: Buffer): Buffer {
-  const sampleCount = pcmIn.length / 2;
-  const outputCount = Math.floor(sampleCount / 2);
-  const pcmOut = Buffer.alloc(outputCount * 2);
-  for (let i = 0; i < outputCount; i++) {
-    pcmOut.writeInt16LE(pcmIn.readInt16LE(i * 4), i * 2);
-  }
-  return pcmOut;
+  return downsamplePcm16ByFactor(pcmIn, 2);
 }

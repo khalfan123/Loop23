@@ -81,10 +81,13 @@ export class BedrockAgentFactory {
     userTier?: 'free' | 'pro';
     toolContext?: ToolContext;
     language?: string;
-    ttsProvider?: 'aws_polly' | 'elevenlabs' | 'cartesia';
+    ttsProvider?: 'aws_polly' | 'elevenlabs' | 'cartesia' | 'local_clone';
     elevenLabsVoiceId?: string;
     elevenLabsApiKey?: string;
     elevenLabsModelId?: string;
+    localCloneVoiceId?: string;
+    localCloneApiKey?: string;
+    localCloneModelId?: string;
     voiceStability?: number;
     voiceSimilarityBoost?: number;
     voiceSpeed?: number;
@@ -96,7 +99,12 @@ export class BedrockAgentFactory {
     dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
-    const voice = (params.ttsProvider === 'elevenlabs' || params.ttsProvider === 'cartesia') ? params.voice : this.validateVoice(params.voice);
+    const voice =
+      params.ttsProvider === 'elevenlabs' ||
+      params.ttsProvider === 'cartesia' ||
+      params.ttsProvider === 'local_clone'
+        ? params.voice
+        : this.validateVoice(params.voice);
     const model = this.validateModel(params.model, tier);
     const language = params.language || 'en';
 
@@ -143,6 +151,9 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
       elevenLabsVoiceId: params.elevenLabsVoiceId,
       elevenLabsApiKey: params.elevenLabsApiKey,
       elevenLabsModelId: params.elevenLabsModelId,
+      localCloneVoiceId: params.localCloneVoiceId,
+      localCloneApiKey: params.localCloneApiKey,
+      localCloneModelId: params.localCloneModelId,
       voiceStability: params.voiceStability,
       voiceSimilarityBoost: params.voiceSimilarityBoost,
       voiceSpeed: params.voiceSpeed,

@@ -19,6 +19,7 @@ export const TTS_COST_PER_1K_CHARS_USD: Record<TTSProviderId, number> = {
   aws_polly: 0.016,   // Polly neural: $16 / 1M chars
   elevenlabs: 0.18,   // ElevenLabs mid-tier blended
   cartesia: 0.05,     // Cartesia Sonic blended
+  local_clone: 0.0,   // Self-hosted GPU — attribute infra separately
 };
 
 let rates: Record<TTSProviderId, number> = { ...TTS_COST_PER_1K_CHARS_USD };

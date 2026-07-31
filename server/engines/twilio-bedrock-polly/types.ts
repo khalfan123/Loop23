@@ -178,7 +178,7 @@ export interface AgentTool {
   handler: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
-export type TtsProvider = 'aws_polly' | 'elevenlabs' | 'cartesia';
+export type TtsProvider = 'aws_polly' | 'elevenlabs' | 'cartesia' | 'local_clone';
 
 /**
  * Agent configuration for a Bedrock+Polly call session.
@@ -199,6 +199,12 @@ export interface AgentConfig {
   elevenLabsApiKey?: string;
   /** Optional ElevenLabs model override; phone defaults to eleven_flash_v2_5. */
   elevenLabsModelId?: string;
+  /** OpenAI-compatible local clone profile id (OmniVoice / self-hosted). */
+  localCloneVoiceId?: string;
+  /** Optional bearer for LOCAL_CLONE_TTS_BASE_URL. */
+  localCloneApiKey?: string;
+  /** Optional model/engine id for local clone TTS. */
+  localCloneModelId?: string;
   /** ElevenLabs voice_settings — applied on live phone TTS. */
   voiceStability?: number;
   voiceSimilarityBoost?: number;

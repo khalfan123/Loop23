@@ -27,9 +27,10 @@ const OPENAI_REALTIME_VOICE_IDS = new Set([
 
 type IvrConnectRouting = {
   engine: 'openai-realtime' | 'bedrock-polly';
-  ttsProvider?: 'elevenlabs' | 'cartesia' | 'aws_polly';
+  ttsProvider?: 'elevenlabs' | 'cartesia' | 'aws_polly' | 'local_clone';
   elevenLabsVoiceId?: string;
   cartesiaVoiceId?: string;
+  localCloneVoiceId?: string;
   voiceForCallRecord: string;
   openaiModel: string;
 };
@@ -54,6 +55,17 @@ function resolveIvrConnectRouting(agent: typeof agents.$inferSelect): IvrConnect
       engine: 'openai-realtime',
       voiceForCallRecord: openaiVoice || TWILIO_OPENAI_CONFIG.defaultVoice,
       openaiModel: TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
+    };
+  }
+
+  if (provider === 'local_clone') {
+    const cloneId = agent.openaiVoice || undefined;
+    return {
+      engine: 'bedrock-polly',
+      ttsProvider: 'local_clone',
+      localCloneVoiceId: cloneId,
+      voiceForCallRecord: cloneId || agent.awsPollyVoiceId || 'Joanna',
+      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
     };
   }
 
@@ -122,6 +134,12 @@ function applyTtsMetadata(callMetadata: Record<string, unknown>, routing: IvrCon
   } else if (routing.ttsProvider === 'cartesia') {
     callMetadata.ttsProvider = 'cartesia';
     callMetadata.cartesiaVoiceId = routing.cartesiaVoiceId;
+  } else if (routing.ttsProvider === 'local_clone') {
+    callMetadata.ttsProvider = 'local_clone';
+    callMetadata.localCloneVoiceId = routing.localCloneVoiceId || agent.openaiVoice || undefined;
+    callMetadata.localCloneApiKey = process.env.LOCAL_CLONE_TTS_API_KEY || undefined;
+    callMetadata.localCloneModelId = process.env.LOCAL_CLONE_TTS_MODEL || undefined;
+    callMetadata.voiceSpeed = agent.voiceSpeed ?? 1.0;
   } else if (routing.ttsProvider === 'aws_polly') {
     callMetadata.ttsProvider = 'aws_polly';
   }

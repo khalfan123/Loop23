@@ -40,6 +40,7 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     expect(ctx.buildRequest('aws_polly')).toMatchObject({ text: 'hello', voiceId: 'Matthew', sampleRateHz: 8000 });
     expect(ctx.buildRequest('elevenlabs')).toBeNull();
     expect(ctx.buildRequest('cartesia')).toBeNull();
+    expect(ctx.buildRequest('local_clone')).toBeNull();
   });
 
   it('elevenlabs agent with per-agent key: preferred elevenlabs, key passed through, raw Polly fallback voice', () => {
@@ -124,6 +125,50 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     // the router's final fallback must always be a real Polly voice.
     expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Hala' });
   });
+
+  it('local_clone preferred when voice id + LOCAL_CLONE_TTS_BASE_URL set', () => {
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    try {
+      const config = agent({
+        voice: 'Joanna',
+        ttsProvider: 'local_clone',
+        localCloneVoiceId: 'clone-voice-1',
+        localCloneApiKey: 'clone-key',
+        localCloneModelId: 'omnivoice-1hd',
+      });
+      const ctx = buildTTSRouteContext(config, 'local_clone', 'hello');
+      expect(ctx.preferred).toBe('local_clone');
+      expect(ctx.finalFallback).toBe('aws_polly');
+      expect(ctx.buildRequest('local_clone')).toMatchObject({
+        text: 'hello',
+        voiceId: 'clone-voice-1',
+        sampleRateHz: 8000,
+        options: { apiKey: 'clone-key', modelId: 'omnivoice-1hd' },
+      });
+      expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Joanna' });
+    } finally {
+      if (prev === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
+  });
+
+  it('local_clone demotes without base URL', () => {
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+    try {
+      const config = agent({
+        ttsProvider: 'local_clone',
+        localCloneVoiceId: 'clone-voice-1',
+      });
+      const ctx = buildTTSRouteContext(config, 'local_clone', 'hello');
+      expect(ctx.preferred).toBe('aws_polly');
+      expect(ctx.buildRequest('local_clone')).toBeNull();
+    } finally {
+      if (prev === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
+  });
 });
 
 describe('buildBrowserTTSRouteContext — browser test-call shapes', () => {
@@ -162,5 +207,29 @@ describe('buildBrowserTTSRouteContext — browser test-call shapes', () => {
     const config = agent({ voice: 'Joanna', ttsProvider: 'elevenlabs', elevenLabsVoiceId: 'v-1' });
     const ctx = buildBrowserTTSRouteContext(config, 'Joanna', 'hi');
     expect(ctx.buildRequest('elevenlabs')).toBeNull();
+  });
+
+  it('local_clone agent builds mp3 preview request when base URL configured', () => {
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    try {
+      const config = agent({
+        ttsProvider: 'local_clone',
+        localCloneVoiceId: 'profile-1',
+        localCloneApiKey: 'k',
+        localCloneModelId: 'tts-1',
+      });
+      const ctx = buildBrowserTTSRouteContext(config, 'Joanna', 'hi');
+      expect(ctx.preferred).toBe('local_clone');
+      expect(ctx.buildRequest('local_clone')).toMatchObject({
+        voiceId: 'profile-1',
+        format: 'mp3',
+        sampleRateHz: 22050,
+        options: { apiKey: 'k', modelId: 'tts-1' },
+      });
+    } finally {
+      if (prev === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
   });
 });

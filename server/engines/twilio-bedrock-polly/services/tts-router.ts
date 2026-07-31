@@ -30,6 +30,7 @@ import {
 } from '../../../voice-core';
 import { PollyTTSProvider, defaultPollyVoiceForLanguage } from '../../../voice-core/providers/polly-tts.provider';
 import { ElevenLabsTTSProvider } from '../../../voice-core/providers/elevenlabs-tts.provider';
+import { LocalCloneTTSProvider } from '../../../voice-core/providers/local-clone-tts.provider';
 import { humanizeToSSML } from './ssml-humanizer';
 import { recordTTSAttemptSpan } from '../../../observability/tracing';
 import type { AgentConfig, TtsProvider } from '../types';
@@ -107,6 +108,7 @@ function buildRouter(pollyInstance: PollyTTSProvider, label: string): ProviderRo
   const registry = new ProviderRegistry();
   registry.registerTTS(pollyInstance);
   registry.registerTTS(new ElevenLabsTTSProvider());
+  registry.registerTTS(new LocalCloneTTSProvider());
   const config = resolveRouterConfig();
   return new ProviderRouter(registry, {
     // Multi-signal selection runs live: rank usable providers by weighted
@@ -165,7 +167,13 @@ export function buildTTSRouteContext(
     console.warn('[BedrockPolly Bridge] Cartesia TTS is deprecated — using Polly for this agent');
   }
   const preferred: TTSProviderId =
-    ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId ? 'elevenlabs' : 'aws_polly';
+    ttsProvider === 'local_clone' &&
+    agentConfig.localCloneVoiceId &&
+    !!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()
+      ? 'local_clone'
+      : ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId
+        ? 'elevenlabs'
+        : 'aws_polly';
 
   // With cross-provider routing on, any premium provider the agent is FULLY
   // credentialed for is offered as a real candidate, so health/cost scoring
@@ -183,6 +191,21 @@ export function buildTTSRouteContext(
       // Cartesia is deprecated in production (provider removed); agents still
       // configured with it fall through to Polly regardless of policy.
       if (id === 'cartesia') return null;
+      if (id === 'local_clone') {
+        if (!offer('local_clone') || !agentConfig.localCloneVoiceId) return null;
+        if (!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()) return null;
+        return {
+          text,
+          voiceId: agentConfig.localCloneVoiceId,
+          language: agentConfig.language,
+          sampleRateHz: 8000,
+          options: {
+            apiKey: agentConfig.localCloneApiKey || process.env.LOCAL_CLONE_TTS_API_KEY,
+            modelId: agentConfig.localCloneModelId || process.env.LOCAL_CLONE_TTS_MODEL,
+            speed: agentConfig.voiceSpeed ?? 1.0,
+          },
+        };
+      }
       if (id === 'elevenlabs') {
         if (!offer('elevenlabs') || !agentConfig.elevenLabsVoiceId) return null;
         const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
@@ -237,7 +260,13 @@ export function buildBrowserTTSRouteContext(
   text: string
 ): TTSRouteContext {
   const preferred: TTSProviderId =
-    agentConfig.ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId ? 'elevenlabs' : 'aws_polly';
+    agentConfig.ttsProvider === 'local_clone' &&
+    agentConfig.localCloneVoiceId &&
+    !!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()
+      ? 'local_clone'
+      : agentConfig.ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId
+        ? 'elevenlabs'
+        : 'aws_polly';
 
   return {
     preferred,
@@ -245,6 +274,21 @@ export function buildBrowserTTSRouteContext(
     language: agentConfig.language,
     buildRequest: (id: TTSProviderId): TTSRequest | null => {
       if (id === 'cartesia') return null;
+      if (id === 'local_clone') {
+        if (!agentConfig.localCloneVoiceId || !process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()) return null;
+        return {
+          text,
+          voiceId: agentConfig.localCloneVoiceId,
+          language: agentConfig.language,
+          sampleRateHz: 22050,
+          format: 'mp3',
+          options: {
+            apiKey: agentConfig.localCloneApiKey || process.env.LOCAL_CLONE_TTS_API_KEY,
+            modelId: agentConfig.localCloneModelId || process.env.LOCAL_CLONE_TTS_MODEL,
+            speed: agentConfig.voiceSpeed ?? 1.0,
+          },
+        };
+      }
       if (id === 'elevenlabs') {
         if (!agentConfig.elevenLabsVoiceId) return null;
         const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;

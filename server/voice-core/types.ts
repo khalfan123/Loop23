@@ -8,7 +8,7 @@
  * ============================================================
  */
 
-export type TTSProviderId = 'aws_polly' | 'elevenlabs' | 'cartesia';
+export type TTSProviderId = 'aws_polly' | 'elevenlabs' | 'cartesia' | 'local_clone';
 
 export interface TTSRequest {
   /** Caller has already sanitized and truncated the text. */
@@ -23,7 +23,7 @@ export interface TTSRequest {
   format?: 'pcm' | 'mp3';
   /** Provider-specific escape hatches. */
   options?: {
-    /** ElevenLabs per-agent API key. */
+    /** ElevenLabs / local-clone per-agent API key. */
     apiKey?: string;
     /** ElevenLabs model id (e.g. eleven_flash_v2_5, eleven_multilingual_v2). */
     modelId?: string;
@@ -31,7 +31,7 @@ export interface TTSRequest {
     stability?: number;
     /** ElevenLabs voice_settings.similarity_boost (0–1). */
     similarityBoost?: number;
-    /** ElevenLabs / Cartesia speech rate multiplier. */
+    /** ElevenLabs / Cartesia / local-clone speech rate multiplier. */
     speed?: number;
     /** ElevenLabs voice_settings.style (0–1). */
     style?: number;

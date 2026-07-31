@@ -108,10 +108,21 @@ export class BedrockPollyCallService {
       const rawModel = (agent.llmModel as BedrockModel) || 'claude-sonnet-4-6';
       const defaultModel: BedrockModel = BedrockAgentFactory.validateModel(rawModel, userTier);
 
-      const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : agent.voiceProvider === 'cartesia' ? 'cartesia' : 'aws_polly';
+      const ttsProvider: TtsProvider =
+        agent.voiceProvider === 'elevenlabs'
+          ? 'elevenlabs'
+          : agent.voiceProvider === 'cartesia'
+            ? 'cartesia'
+            : agent.voiceProvider === 'local_clone'
+              ? 'local_clone'
+              : 'aws_polly';
       let elevenLabsApiKey: string | undefined;
       const elevenLabsVoiceId = agent.elevenLabsVoiceId || undefined;
       const cartesiaVoiceId = ttsProvider === 'cartesia' ? (agent.openaiVoice || undefined) : undefined;
+      // Phase 1: clone profile id lives in openai_voice when voice_provider=local_clone (no schema migration).
+      const localCloneVoiceId = ttsProvider === 'local_clone' ? (agent.openaiVoice || undefined) : undefined;
+      const localCloneApiKey = ttsProvider === 'local_clone' ? process.env.LOCAL_CLONE_TTS_API_KEY : undefined;
+      const localCloneModelId = ttsProvider === 'local_clone' ? process.env.LOCAL_CLONE_TTS_MODEL : undefined;
 
       if (ttsProvider === 'elevenlabs') {
         if (agent.elevenLabsCredentialId) {
@@ -128,6 +139,13 @@ export class BedrockPollyCallService {
           elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
         }
         logger.info(`Using ElevenLabs TTS for agent ${agentId}, voice: ${elevenLabsVoiceId}`, undefined, 'BedrockPollyCall');
+      }
+      if (ttsProvider === 'local_clone') {
+        logger.info(
+          `Using local_clone TTS for agent ${agentId}, voice: ${localCloneVoiceId || 'unset'} (base=${process.env.LOCAL_CLONE_TTS_BASE_URL ? 'set' : 'missing'})`,
+          undefined,
+          'BedrockPollyCall',
+        );
       }
       
       if (agent.type === 'flow' && effectiveFlowId) {
@@ -168,6 +186,9 @@ export class BedrockPollyCallService {
               elevenLabsVoiceId,
               elevenLabsApiKey,
               elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+              localCloneVoiceId,
+              localCloneApiKey,
+              localCloneModelId,
               voiceStability: agent.voiceStability ?? 0.55,
               voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
               voiceSpeed: agent.voiceSpeed ?? 1.0,
@@ -221,6 +242,9 @@ export class BedrockPollyCallService {
               elevenLabsVoiceId,
               elevenLabsApiKey,
               elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+              localCloneVoiceId,
+              localCloneApiKey,
+              localCloneModelId,
               voiceStability: agent.voiceStability ?? 0.55,
               voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
               voiceSpeed: agent.voiceSpeed ?? 1.0,
@@ -339,6 +363,9 @@ export class BedrockPollyCallService {
           elevenLabsVoiceId,
           elevenLabsApiKey,
           elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+          localCloneVoiceId,
+          localCloneApiKey,
+          localCloneModelId,
           voiceStability: agent.voiceStability ?? 0.55,
           voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
           voiceSpeed: agent.voiceSpeed ?? 1.0,
@@ -479,6 +506,9 @@ export class BedrockPollyCallService {
           elevenLabsVoiceId: elevenLabsVoiceId || null,
           elevenLabsApiKey: elevenLabsApiKey || null,
           elevenLabsModelId: (agent as any).elevenLabsModelId || null,
+          localCloneVoiceId: localCloneVoiceId || null,
+          localCloneApiKey: localCloneApiKey || null,
+          localCloneModelId: localCloneModelId || null,
           voiceStability: agent.voiceStability ?? 0.55,
           voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
           voiceSpeed: agent.voiceSpeed ?? 1.0,

@@ -276,6 +276,9 @@ async function initializeSession(
         elevenLabsVoiceId: (metadata?.elevenLabsVoiceId as string) || undefined,
         elevenLabsApiKey: (metadata?.elevenLabsApiKey as string) || undefined,
         elevenLabsModelId: (metadata?.elevenLabsModelId as string) || undefined,
+        localCloneVoiceId: (metadata?.localCloneVoiceId as string) || undefined,
+        localCloneApiKey: (metadata?.localCloneApiKey as string) || undefined,
+        localCloneModelId: (metadata?.localCloneModelId as string) || undefined,
         voiceStability: typeof metadata?.voiceStability === 'number' ? metadata.voiceStability : undefined,
         voiceSimilarityBoost: typeof metadata?.voiceSimilarityBoost === 'number' ? metadata.voiceSimilarityBoost : undefined,
         voiceSpeed: typeof metadata?.voiceSpeed === 'number' ? metadata.voiceSpeed : undefined,
@@ -395,6 +398,9 @@ async function initializeSession(
         agentConfig.elevenLabsVoiceId = (metadata.elevenLabsVoiceId as string) || undefined;
         agentConfig.elevenLabsApiKey = (metadata.elevenLabsApiKey as string) || undefined;
         agentConfig.elevenLabsModelId = (metadata.elevenLabsModelId as string) || undefined;
+        agentConfig.localCloneVoiceId = (metadata.localCloneVoiceId as string) || undefined;
+        agentConfig.localCloneApiKey = (metadata.localCloneApiKey as string) || undefined;
+        agentConfig.localCloneModelId = (metadata.localCloneModelId as string) || undefined;
         if (typeof metadata.voiceStability === 'number') agentConfig.voiceStability = metadata.voiceStability;
         if (typeof metadata.voiceSimilarityBoost === 'number') agentConfig.voiceSimilarityBoost = metadata.voiceSimilarityBoost;
         if (typeof metadata.voiceSpeed === 'number') agentConfig.voiceSpeed = metadata.voiceSpeed;
@@ -402,6 +408,9 @@ async function initializeSession(
         if (typeof metadata.voiceSpeakerBoost === 'boolean') agentConfig.voiceSpeakerBoost = metadata.voiceSpeakerBoost;
         if (metadata.ttsProvider === 'cartesia') {
           agentConfig.cartesiaVoiceId = (metadata.cartesiaVoiceId as string) || agentConfig.voice || undefined;
+        }
+        if (metadata.ttsProvider === 'local_clone' && !agentConfig.localCloneVoiceId) {
+          agentConfig.localCloneVoiceId = (callRecord.openaiVoice as string) || undefined;
         }
       }
     }

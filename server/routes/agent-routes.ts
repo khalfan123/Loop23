@@ -177,6 +177,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             return res.status(400).json({ error: "AWS Polly Voice ID is required for Polly agents" });
           }
           console.log(`📞 Creating AWS Polly agent with voice: ${req.body.awsPollyVoiceId}`);
+        } else if (voiceProvider === 'local_clone') {
+          const cloneId = req.body.localCloneVoiceId || openaiVoice;
+          if (!cloneId) {
+            return res.status(400).json({ error: "Instant Clone profile ID is required for local_clone agents" });
+          }
+          console.log(`📞 Creating local_clone agent with voice: ${cloneId}`);
         } else {
           // Twilio/ElevenLabs agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -297,8 +303,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       let usedCredentialId: string | null = null;
 
       const isAwsPollyProvider = voiceProvider === 'aws_polly';
+      const isLocalCloneProvider = voiceProvider === 'local_clone';
 
-      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider) {
+      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider && !isLocalCloneProvider) {
         const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
         if (!credential) {
           return res.status(500).json({ error: "No available ElevenLabs API keys" });
@@ -398,6 +405,15 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         if (isOpenAIProvider) {
           // OpenAI-based flow agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
           console.log(`📞 [Flow Agent Create] Creating ${telephonyProvider} flow agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
+        } else if (voiceProvider === 'local_clone') {
+          const cloneId = req.body.localCloneVoiceId || openaiVoice;
+          if (!cloneId) {
+            return res.status(400).json({ error: "Instant Clone profile ID is required for local_clone flow agents" });
+          }
+        } else if (voiceProvider === 'aws_polly') {
+          if (!req.body.awsPollyVoiceId) {
+            return res.status(400).json({ error: "AWS Polly Voice ID is required for Polly flow agents" });
+          }
         } else {
           // ElevenLabs/Twilio flow agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -414,8 +430,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           return res.status(404).json({ error: "Selected flow not found" });
         }
 
-        if (isOpenAIProvider) {
-          console.log(`📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${telephonyProvider} flow agent`);
+        if (isOpenAIProvider || voiceProvider === 'local_clone' || voiceProvider === 'aws_polly') {
+          console.log(
+            `📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${voiceProvider || telephonyProvider} flow agent`,
+          );
           // elevenLabsAgentId remains null for non-ElevenLabs flow agents
         } else {
           // ElevenLabs/Twilio flow agents - delegate to FlowAgentService for proper two-phase creation
@@ -466,7 +484,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         config: config || null,
         elevenLabsAgentId,
         elevenLabsCredentialId: usedCredentialId,
-        elevenLabsVoiceId: (type === 'incoming' || type === 'flow') ? elevenLabsVoiceId : null,
+        elevenLabsVoiceId:
+          voiceProvider === 'local_clone' || voiceProvider === 'aws_polly'
+            ? null
+            : (type === 'incoming' || type === 'flow')
+              ? elevenLabsVoiceId
+              : null,
         firstMessage: (type === 'incoming' || type === 'flow') ? (firstMessage || null) : null,
         language: (type === 'incoming' || type === 'flow') ? (language || null) : null,
         llmModel: (type === 'incoming' || type === 'flow') ? effectiveLlmModelId : null,
@@ -490,9 +513,17 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         // Voice provider configuration
         voiceProvider: voiceProvider || 'elevenlabs',
         awsPollyVoiceId: voiceProvider === 'aws_polly' ? req.body.awsPollyVoiceId : null,
+        localCloneVoiceId:
+          voiceProvider === 'local_clone'
+            ? (req.body.localCloneVoiceId || openaiVoice || null)
+            : null,
         // OpenAI Realtime configuration (for twilio_openai provider)
         telephonyProvider: isOpenAIProvider ? telephonyProvider : 'twilio',
-        openaiVoice: isOpenAIProvider ? (openaiVoice || 'alloy') : null,
+        openaiVoice: isOpenAIProvider
+          ? (openaiVoice || 'alloy')
+          : voiceProvider === 'local_clone'
+            ? (req.body.localCloneVoiceId || openaiVoice || null)
+            : null,
         // Template tracking fields
         sourceTemplateId: sourceTemplateId || null,
         isFromTemplate: isFromTemplate || false,

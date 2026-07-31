@@ -1111,7 +1111,11 @@ export default function Agents() {
           <div className="flex items-center justify-between p-3 md:p-4 border-b glass-surface">
             <h2 className="text-base md:text-lg font-semibold tracking-tight">
               {voiceLanguage === 'all' 
-                ? (voiceProvider === 'elevenlabs' ? 'ElevenLabs Voices' : 'OpenAI Voices')
+                ? (voiceProvider === 'elevenlabs'
+                    ? 'ElevenLabs Voices'
+                    : voiceProvider === 'clone' || voiceProvider === 'local_clone'
+                      ? 'Instant Clone'
+                      : 'OpenAI Voices')
                 : `${availableVoiceLanguages.find(l => l.value === voiceLanguage)?.label || 'Voices'} Voices`}
             </h2>
           </div>
@@ -1120,7 +1124,6 @@ export default function Agents() {
               externalProvider={voiceProvider} 
               externalLanguage={voiceLanguage} 
               hideHeader 
-              hideProviderTabs 
             />
           </div>
         </div>

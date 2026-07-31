@@ -108,7 +108,7 @@ export class BedrockPollyCallService {
       const rawModel = (agent.llmModel as BedrockModel) || 'claude-sonnet-4-6';
       const defaultModel: BedrockModel = BedrockAgentFactory.validateModel(rawModel, userTier);
 
-      const ttsProvider: TtsProvider =
+      let ttsProvider: TtsProvider =
         agent.voiceProvider === 'elevenlabs'
           ? 'elevenlabs'
           : agent.voiceProvider === 'cartesia'
@@ -119,12 +119,16 @@ export class BedrockPollyCallService {
       let elevenLabsApiKey: string | undefined;
       const elevenLabsVoiceId = agent.elevenLabsVoiceId || undefined;
       const cartesiaVoiceId = ttsProvider === 'cartesia' ? (agent.openaiVoice || undefined) : undefined;
-      // Phase 1: clone profile id lives in openai_voice when voice_provider=local_clone (no schema migration).
-      const localCloneVoiceId = ttsProvider === 'local_clone' ? (agent.openaiVoice || undefined) : undefined;
-      const localCloneApiKey = ttsProvider === 'local_clone' ? process.env.LOCAL_CLONE_TTS_API_KEY : undefined;
-      const localCloneModelId = ttsProvider === 'local_clone' ? process.env.LOCAL_CLONE_TTS_MODEL : undefined;
+      // Always surface clone id when present so Phase 4 soft takeover can prefer
+      // local_clone while keeping ElevenLabs credentials for hybrid fail-open.
+      const localCloneVoiceId =
+        (agent as { localCloneVoiceId?: string | null }).localCloneVoiceId ||
+        (agent.voiceProvider === 'local_clone' ? agent.openaiVoice || undefined : undefined) ||
+        undefined;
+      const localCloneApiKey = localCloneVoiceId ? process.env.LOCAL_CLONE_TTS_API_KEY : undefined;
+      const localCloneModelId = localCloneVoiceId ? process.env.LOCAL_CLONE_TTS_MODEL : undefined;
 
-      if (ttsProvider === 'elevenlabs') {
+      if (ttsProvider === 'elevenlabs' || (localCloneVoiceId && agent.elevenLabsVoiceId)) {
         if (agent.elevenLabsCredentialId) {
           const [cred] = await db
             .select()
@@ -138,11 +142,13 @@ export class BedrockPollyCallService {
         if (!elevenLabsApiKey) {
           elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
         }
-        logger.info(`Using ElevenLabs TTS for agent ${agentId}, voice: ${elevenLabsVoiceId}`, undefined, 'BedrockPollyCall');
+        if (ttsProvider === 'elevenlabs') {
+          logger.info(`Using ElevenLabs TTS for agent ${agentId}, voice: ${elevenLabsVoiceId}`, undefined, 'BedrockPollyCall');
+        }
       }
-      if (ttsProvider === 'local_clone') {
+      if (ttsProvider === 'local_clone' || localCloneVoiceId) {
         logger.info(
-          `Using local_clone TTS for agent ${agentId}, voice: ${localCloneVoiceId || 'unset'} (base=${process.env.LOCAL_CLONE_TTS_BASE_URL ? 'set' : 'missing'})`,
+          `local_clone voice available for agent ${agentId}: ${localCloneVoiceId || 'unset'} (provider=${ttsProvider}, base=${process.env.LOCAL_CLONE_TTS_BASE_URL ? 'set' : 'missing'})`,
           undefined,
           'BedrockPollyCall',
         );

@@ -173,6 +173,27 @@ export const syncedVoices = pgTable("synced_voices", {
   credentialVoiceUnique: unique().on(table.credentialId, table.voiceId),
 }));
 
+/** Instant Clone profiles (local_clone TTS) — consent + sample metadata + sidecar voice id. */
+export const voiceCloneProfiles = pgTable("voice_clone_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  /** Voice id passed to LOCAL_CLONE /v1/audio/speech */
+  providerProfileId: text("provider_profile_id").notNull(),
+  /** pending | processing | ready | failed */
+  status: text("status").notNull().default("pending"),
+  language: text("language").default("en"),
+  consentAcceptedAt: timestamp("consent_accepted_at").notNull(),
+  consentVersion: text("consent_version").notNull(),
+  consentIp: text("consent_ip"),
+  samplePath: text("sample_path"),
+  sampleMimeType: text("sample_mime_type"),
+  sampleBytes: integer("sample_bytes"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const agents = pgTable("agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -225,10 +246,12 @@ export const agents = pgTable("agents", {
   knowledgeBaseIds: text("knowledge_base_ids").array(),
   
   // Shared Voice Configuration (used by both Incoming and Flow agents)
-  // Voice Provider: 'elevenlabs' (default), 'aws_polly', or 'openai'
+  // Voice Provider: 'elevenlabs' (default), 'aws_polly', 'openai', or 'local_clone'
   voiceProvider: text("voice_provider").default("elevenlabs"),
   elevenLabsVoiceId: text("eleven_labs_voice_id"),
   awsPollyVoiceId: text("aws_polly_voice_id"), // AWS Polly voice ID (e.g., 'Joanna', 'Matthew')
+  /** Instant Clone / local_clone profile id (provider_profile_id or legacy openai_voice) */
+  localCloneVoiceId: text("local_clone_voice_id"),
   awsPollyEngine: text("aws_polly_engine").default("neural"), // 'standard', 'neural', 'long-form', 'generative'
   awsCredentialId: varchar("aws_credential_id"), // References awsCredentials.id
   
@@ -1545,6 +1568,12 @@ export const insertSyncedVoiceSchema = createInsertSchema(syncedVoices).omit({
   syncedAt: true,
 });
 
+export const insertVoiceCloneProfileSchema = createInsertSchema(voiceCloneProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertAgentSchema = createInsertSchema(agents).omit({
   id: true,
   createdAt: true,
@@ -1810,6 +1839,8 @@ export type ElevenLabsCredential = typeof elevenLabsCredentials.$inferSelect;
 export type InsertElevenLabsCredential = z.infer<typeof insertElevenLabsCredentialSchema>;
 export type SyncedVoice = typeof syncedVoices.$inferSelect;
 export type InsertSyncedVoice = z.infer<typeof insertSyncedVoiceSchema>;
+export type VoiceCloneProfile = typeof voiceCloneProfiles.$inferSelect;
+export type InsertVoiceCloneProfile = z.infer<typeof insertVoiceCloneProfileSchema>;
 export type Agent = typeof agents.$inferSelect;
 export type InsertAgent = z.infer<typeof insertAgentSchema>;
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;

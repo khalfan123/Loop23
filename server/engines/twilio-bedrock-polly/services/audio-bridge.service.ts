@@ -58,6 +58,11 @@ import {
 } from '../../../voice-core/stt/whisper-filters';
 import { defaultPollyVoiceForLanguage } from '../../../voice-core/providers/polly-tts.provider';
 import { ElevenLabsTTSProvider } from '../../../voice-core/providers/elevenlabs-tts.provider';
+import { LocalCloneTTSProvider } from '../../../voice-core/providers/local-clone-tts.provider';
+import {
+  isLocalCloneLiveEnabled,
+  warmLocalCloneSidecar,
+} from '../../../voice-core/providers/local-clone-config';
 import {
   getDeprockTTSRouter,
   getDeprockPollyProvider,
@@ -71,6 +76,10 @@ import { recordVoiceTurnSpan } from '../../../observability/tracing';
 
 /** Shared adapter for pre-warming cached ElevenLabs backchannel phrases. */
 const backchannelElevenLabs = new ElevenLabsTTSProvider();
+/** Shared adapter for local_clone backchannel warm (Phase 2 hybrid live). */
+const backchannelLocalClone = new LocalCloneTTSProvider();
+/** Dedupe process-wide sidecar warm so every call does not re-cold-start GPU. */
+let localCloneSidecarWarm: Promise<boolean> | null = null;
 
 /** Shared, stateless adaptive-dialogue policy (see VOICE_ADAPTIVE_DIALOGUE). */
 const ADAPTIVE_DIALOGUE_POLICY = new AdaptiveDialoguePolicy();
@@ -231,8 +240,18 @@ export class BedrockPollyAudioBridge {
   static async createSession(params: CreateSessionParams): Promise<BedrockPollyBridgeSession> {
     const { callSid, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection, humanWizardCli } = params;
 
-    const ttsLabel = agentConfig.ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'AWS Polly';
-    const ttsVoiceId = agentConfig.ttsProvider === 'elevenlabs' ? agentConfig.elevenLabsVoiceId : agentConfig.voice;
+    const ttsLabel =
+      agentConfig.ttsProvider === 'elevenlabs'
+        ? 'ElevenLabs'
+        : agentConfig.ttsProvider === 'local_clone'
+          ? 'LocalClone'
+          : 'AWS Polly';
+    const ttsVoiceId =
+      agentConfig.ttsProvider === 'elevenlabs'
+        ? agentConfig.elevenLabsVoiceId
+        : agentConfig.ttsProvider === 'local_clone'
+          ? agentConfig.localCloneVoiceId
+          : agentConfig.voice;
     console.log(`[BedrockPolly Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
     console.log(`[BedrockPolly Bridge] TTS: ${ttsLabel}, Voice: ${ttsVoiceId}, Model: ${agentConfig.model}`);
 
@@ -281,6 +300,7 @@ export class BedrockPollyAudioBridge {
 
     // Best-effort: warm same-voice backchannels so the first response feels instant.
     this.warmElevenLabsBackchannels(session).catch(() => undefined);
+    this.warmLocalCloneForSession(session).catch(() => undefined);
 
     console.log(`[BedrockPolly Bridge] Session created for ${callSid} — ready for Twilio stream`);
     return session;
@@ -738,9 +758,63 @@ export class BedrockPollyAudioBridge {
 
   private static getBackchannelCacheKey(session: BedrockPollyBridgeSession): string | null {
     const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+    if (session.agentConfig.ttsProvider === 'local_clone' && session.agentConfig.localCloneVoiceId) {
+      return `local_clone:${lang}:${session.agentConfig.localCloneVoiceId}`;
+    }
     const voiceId = session.agentConfig.elevenLabsVoiceId;
     if (!voiceId) return null;
     return `${lang}:${voiceId}`;
+  }
+
+  private static async warmLocalCloneForSession(session: BedrockPollyBridgeSession): Promise<void> {
+    if (session.agentConfig.ttsProvider !== 'local_clone' || !isLocalCloneLiveEnabled()) return;
+    if (!session.agentConfig.localCloneVoiceId) return;
+
+    if (!localCloneSidecarWarm) {
+      localCloneSidecarWarm = warmLocalCloneSidecar().then((ok) => {
+        console.log(`[BedrockPolly Bridge] local_clone sidecar warm ${ok ? 'ok' : 'failed'}`);
+        return ok;
+      });
+    }
+    await localCloneSidecarWarm;
+
+    const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+    const phrases = this.BACKCHANNEL_PHRASES[lang] || this.BACKCHANNEL_PHRASES['en'];
+    const key = this.getBackchannelCacheKey(session);
+    if (!key) return;
+
+    const existing = this.backchannelCache.get(key);
+    if (existing?.mulawByPhrase?.size) return;
+    if (existing?.warming) return existing.warming;
+
+    const entry = existing || { mulawByPhrase: new Map<string, Buffer>() };
+    entry.warming = (async () => {
+      for (const phrase of phrases) {
+        if (entry.mulawByPhrase.has(phrase)) continue;
+        try {
+          const result = await backchannelLocalClone.synthesize({
+            text: phrase,
+            voiceId: session.agentConfig.localCloneVoiceId!,
+            sampleRateHz: 8000,
+            options: {
+              apiKey: session.agentConfig.localCloneApiKey || process.env.LOCAL_CLONE_TTS_API_KEY,
+              modelId: session.agentConfig.localCloneModelId || process.env.LOCAL_CLONE_TTS_MODEL,
+              speed: session.agentConfig.voiceSpeed ?? 1.0,
+            },
+          });
+          const mulaw =
+            result.encoding === 'mulaw' ? result.audio : this.pcmToMulaw(result.audio);
+          entry.mulawByPhrase.set(phrase, mulaw);
+        } catch {
+          // Best-effort; skip failures.
+        }
+      }
+    })().finally(() => {
+      entry.warming = undefined;
+    });
+
+    this.backchannelCache.set(key, entry);
+    await entry.warming;
   }
 
   private static async warmElevenLabsBackchannels(session: BedrockPollyBridgeSession): Promise<void> {
@@ -793,7 +867,12 @@ export class BedrockPollyAudioBridge {
   }
 
   private static playCachedElevenLabsBackchannel(session: BedrockPollyBridgeSession, phrase: string): boolean {
-    if (session.agentConfig.ttsProvider !== 'elevenlabs') return false;
+    if (
+      session.agentConfig.ttsProvider !== 'elevenlabs' &&
+      session.agentConfig.ttsProvider !== 'local_clone'
+    ) {
+      return false;
+    }
     const key = this.getBackchannelCacheKey(session);
     if (!key) return false;
     const entry = this.backchannelCache.get(key);
@@ -821,7 +900,12 @@ export class BedrockPollyAudioBridge {
       errorCategory: 'latency',
       severity: 'info',
       message: `backchannel_cache_hit phrase="${phrase}"`,
-      metadata: { callSid: session.callSid, phrase, usedProvider: 'elevenlabs', cacheHit: true },
+      metadata: {
+        callSid: session.callSid,
+        phrase,
+        usedProvider: session.agentConfig.ttsProvider || 'elevenlabs',
+        cacheHit: true,
+      },
     }).catch(() => undefined);
     return true;
   }
@@ -829,7 +913,10 @@ export class BedrockPollyAudioBridge {
   private static async playFillerAudio(session: BedrockPollyBridgeSession, filler: string): Promise<void> {
     try {
       // For the best-in-industry <1s feel, prefer same-voice backchannels if available.
-      if (session.agentConfig.ttsProvider === 'elevenlabs') {
+      if (
+        session.agentConfig.ttsProvider === 'elevenlabs' ||
+        session.agentConfig.ttsProvider === 'local_clone'
+      ) {
         const played = this.playCachedElevenLabsBackchannel(session, filler);
         if (played) return;
         callErrorLogger.logCallError({
@@ -837,10 +924,19 @@ export class BedrockPollyAudioBridge {
           errorCategory: 'latency',
           severity: 'info',
           message: `backchannel_cache_miss phrase="${filler}"`,
-          metadata: { callSid: session.callSid, phrase: filler, usedProvider: 'elevenlabs', cacheHit: false },
+          metadata: {
+            callSid: session.callSid,
+            phrase: filler,
+            usedProvider: session.agentConfig.ttsProvider || 'elevenlabs',
+            cacheHit: false,
+          },
         }).catch(() => undefined);
         // Warm in background; do not block critical path.
-        this.warmElevenLabsBackchannels(session).catch(() => undefined);
+        if (session.agentConfig.ttsProvider === 'elevenlabs') {
+          this.warmElevenLabsBackchannels(session).catch(() => undefined);
+        } else {
+          this.warmLocalCloneForSession(session).catch(() => undefined);
+        }
         return;
       }
 

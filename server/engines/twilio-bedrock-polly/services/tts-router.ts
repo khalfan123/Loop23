@@ -31,6 +31,11 @@ import {
 import { PollyTTSProvider, defaultPollyVoiceForLanguage } from '../../../voice-core/providers/polly-tts.provider';
 import { ElevenLabsTTSProvider } from '../../../voice-core/providers/elevenlabs-tts.provider';
 import { LocalCloneTTSProvider } from '../../../voice-core/providers/local-clone-tts.provider';
+import {
+  isLocalCloneBaseConfigured,
+  isLocalCloneLiveEnabled,
+} from '../../../voice-core/providers/local-clone-config';
+import { shouldSoftPreferLocalClone } from '../../../voice-core/providers/local-clone-cost-takeover';
 import { humanizeToSSML } from './ssml-humanizer';
 import { recordTTSAttemptSpan } from '../../../observability/tracing';
 import type { AgentConfig, TtsProvider } from '../types';
@@ -62,6 +67,11 @@ let pollyProvider: PollyTTSProvider | null = null;
  *                                before falling all the way to Polly).
  *                                Default off (voice-identity preserving).
  *   VOICE_ROUTER_W_LATENCY|_ERROR|_COST  optional selection weights.
+ *   LOCAL_CLONE_TTS_LIVE         1/true — allow local_clone on telephony
+ *                                (Phase 2). Preview/browser needs only
+ *                                LOCAL_CLONE_TTS_BASE_URL.
+ *   LOCAL_CLONE_COST_TAKEOVER    1/true — Phase 4 soft prefer local_clone
+ *                                for EL agents that already have a clone id.
  * ------------------------------------------------------------
  */
 export interface VoiceRouterConfig {
@@ -166,22 +176,71 @@ export function buildTTSRouteContext(
     // Cartesia is deprecated in production; route these agents to Polly.
     console.warn('[BedrockPolly Bridge] Cartesia TTS is deprecated — using Polly for this agent');
   }
-  const preferred: TTSProviderId =
-    ttsProvider === 'local_clone' &&
-    agentConfig.localCloneVoiceId &&
-    !!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()
-      ? 'local_clone'
-      : ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId
-        ? 'elevenlabs'
-        : 'aws_polly';
+  // Phase 2: telephony requires LOCAL_CLONE_TTS_LIVE; otherwise demote to Polly
+  // (or leave ElevenLabs agents alone if that was the configured provider).
+  // Phase 4: soft cost takeover can prefer local_clone for EL agents that
+  // already carry a clone profile id (hybrid EL stays as fail-open).
+  let health:
+    | Array<{
+        providerId: TTSProviderId;
+        breaker: 'closed' | 'open' | 'half_open';
+        ewmaLatencyMs: number | null;
+        attempts?: number;
+        failures?: number;
+      }>
+    | undefined;
+  try {
+    // Prefer live router health when available (avoids circular init on first call).
+    if (router) {
+      health = router.healthSnapshot().map((h) => ({
+        providerId: h.providerId,
+        breaker: h.breaker,
+        ewmaLatencyMs: h.ewmaLatencyMs,
+        attempts: h.attempts,
+        failures: h.failures,
+      }));
+    }
+  } catch {
+    health = undefined;
+  }
+
+  const softTakeover = shouldSoftPreferLocalClone({
+    configuredProvider: ttsProvider,
+    localCloneVoiceId: agentConfig.localCloneVoiceId,
+    agentId: agentConfig.toolContext?.agentId,
+    health,
+  });
+
+  const localCloneLive =
+    ((ttsProvider === 'local_clone' || softTakeover) &&
+      !!agentConfig.localCloneVoiceId &&
+      isLocalCloneLiveEnabled());
+
+  const preferred: TTSProviderId = localCloneLive
+    ? 'local_clone'
+    : ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId
+      ? 'elevenlabs'
+      : 'aws_polly';
+
+  // Hybrid live / cost takeover: when local_clone is preferred, also offer
+  // ElevenLabs if the agent is fully credentialed — GPU cold-start / latency
+  // budget aborts then fail-open to EL before Polly.
+  const hybridLocalClone =
+    preferred === 'local_clone' &&
+    !!agentConfig.elevenLabsVoiceId &&
+    !!(agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY);
 
   // With cross-provider routing on, any premium provider the agent is FULLY
   // credentialed for is offered as a real candidate, so health/cost scoring
   // can swap to a healthier/cheaper voice before dropping all the way to
   // Polly. Off (default), the chain stays exactly [preferred, aws_polly] so
   // the agent's voice identity never changes short of the Polly safety net.
-  const offer = (id: TTSProviderId): boolean =>
-    config.crossProvider ? true : preferred === id;
+  const offer = (id: TTSProviderId): boolean => {
+    if (config.crossProvider) return true;
+    if (preferred === id) return true;
+    if (hybridLocalClone && id === 'elevenlabs') return true;
+    return false;
+  };
 
   return {
     preferred,
@@ -193,7 +252,7 @@ export function buildTTSRouteContext(
       if (id === 'cartesia') return null;
       if (id === 'local_clone') {
         if (!offer('local_clone') || !agentConfig.localCloneVoiceId) return null;
-        if (!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()) return null;
+        if (!isLocalCloneLiveEnabled()) return null;
         return {
           text,
           voiceId: agentConfig.localCloneVoiceId,
@@ -262,7 +321,7 @@ export function buildBrowserTTSRouteContext(
   const preferred: TTSProviderId =
     agentConfig.ttsProvider === 'local_clone' &&
     agentConfig.localCloneVoiceId &&
-    !!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()
+    isLocalCloneBaseConfigured()
       ? 'local_clone'
       : agentConfig.ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId
         ? 'elevenlabs'
@@ -275,7 +334,7 @@ export function buildBrowserTTSRouteContext(
     buildRequest: (id: TTSProviderId): TTSRequest | null => {
       if (id === 'cartesia') return null;
       if (id === 'local_clone') {
-        if (!agentConfig.localCloneVoiceId || !process.env.LOCAL_CLONE_TTS_BASE_URL?.trim()) return null;
+        if (!agentConfig.localCloneVoiceId || !isLocalCloneBaseConfigured()) return null;
         return {
           text,
           voiceId: agentConfig.localCloneVoiceId,

@@ -63,6 +63,7 @@ import { getDomain } from "./utils/domain";
 import { createPublicRoutes } from "./routes/public-routes";
 import { createAuthRoutes } from "./routes/auth-routes";
 import { createAgentRoutes } from "./routes/agent-routes";
+import { createVoiceCloneRoutes } from "./routes/voice-clone-routes";
 import { createCampaignRoutes } from "./routes/campaign-routes";
 import { createQaRoutes } from "./routes/qa-routes";
 import { createOpsRoutes } from "./routes/ops-routes";
@@ -201,6 +202,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Register agent routes (agents CRUD, knowledge base, versions, voices)
   const agentRoutes = createAgentRoutes(routeContext);
   app.use(agentRoutes);
+
+  // Instant Clone profiles (consent + sample + local_clone profile IDs)
+  app.use(createVoiceCloneRoutes(routeContext));
 
   // Register campaign routes (campaigns CRUD, contacts, execution)
   const campaignRoutes = createCampaignRoutes(routeContext);

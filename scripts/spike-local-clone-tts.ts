@@ -9,7 +9,10 @@
  *
  * Optional:
  *   LOCAL_CLONE_TTS_API_KEY, LOCAL_CLONE_TTS_MODEL
+ *   LOCAL_CLONE_TTS_MAX_LATENCY_MS (default 400 gate in this script)
  *   ELEVENLABS_API_KEY + ELEVENLABS_VOICE_ID  (compare TTFB)
+ *
+ * Live telephony also requires LOCAL_CLONE_TTS_LIVE=1 (see ADR-001 Phase 2).
  */
 const BASE = (process.env.LOCAL_CLONE_TTS_BASE_URL || '').replace(/\/$/, '');
 const VOICE = process.env.LOCAL_CLONE_VOICE_ID || 'default';

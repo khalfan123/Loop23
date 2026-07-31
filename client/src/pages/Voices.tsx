@@ -25,6 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
+import { InstantClonePanel } from "@/components/InstantClonePanel";
 import { cn } from "@/lib/utils";
 
 interface AccountVoice {
@@ -253,7 +254,13 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("elevenlabs");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === "undefined") return "elevenlabs";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "clone" || tab === "local_clone" || tab === "instant-clone") return "clone";
+    if (tab === "openai" || tab === "elevenlabs") return tab;
+    return "elevenlabs";
+  });
   const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [selectedGender, setSelectedGender] = useState("all");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -262,8 +269,26 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
 
   const VOICES_PER_PAGE = 10;
 
-  const effectiveProvider = externalProvider || activeTab;
+  const effectiveProvider = hideProviderTabs ? (externalProvider || activeTab) : activeTab;
   const effectiveLanguage = externalLanguage || selectedLanguage;
+
+  useEffect(() => {
+    if (externalProvider && hideProviderTabs) {
+      setActiveTab(externalProvider === 'local_clone' ? 'clone' : externalProvider);
+    }
+  }, [externalProvider, hideProviderTabs]);
+
+  // Keep ?tab= in sync so Instant Clone is deep-linkable (/app/voices?tab=clone)
+  useEffect(() => {
+    if (hideProviderTabs || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (activeTab === "elevenlabs") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", activeTab);
+    }
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }, [activeTab, hideProviderTabs]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -389,11 +414,13 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
 
   const getFilteredCount = () => {
     if (effectiveProvider === "elevenlabs") return filteredVoices.length;
+    if (effectiveProvider === "clone" || effectiveProvider === "local_clone") return 0;
     return filteredOpenAIVoices.length;
   };
 
   const getTotalCount = () => {
     if (effectiveProvider === "elevenlabs") return accountVoices?.length || 0;
+    if (effectiveProvider === "clone" || effectiveProvider === "local_clone") return 0;
     return OPENAI_VOICES.length;
   };
 
@@ -855,10 +882,22 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
                   OpenAI
                   <span className="ml-1.5 text-[10px] text-muted-foreground">({OPENAI_VOICES.length})</span>
                 </TabsTrigger>
+                <TabsTrigger
+                  value="clone"
+                  className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none text-xs"
+                  data-testid="tab-instant-clone"
+                >
+                  Instant Clone
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="elevenlabs">{renderElevenLabsContent()}</TabsContent>
               <TabsContent value="openai">{renderOpenAIContent()}</TabsContent>
+              <TabsContent value="clone">
+                <InstantClonePanel />
+              </TabsContent>
             </Tabs>
+          ) : effectiveProvider === "clone" || effectiveProvider === "local_clone" ? (
+            <InstantClonePanel />
           ) : (
             effectiveProvider === "elevenlabs" ? renderElevenLabsContent() : renderOpenAIContent()
           )}

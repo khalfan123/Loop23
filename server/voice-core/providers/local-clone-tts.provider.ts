@@ -8,11 +8,17 @@
  *
  * Telephony: request pcm, resample to 8 kHz PCM16LE.
  * Browser: request mp3 when format=mp3.
+ * Phase 2: AbortSignal timeout fail-open so the router can fall to EL/Polly.
  * ============================================================
  */
 
 import { downsamplePcm16ByFactor } from '../audio/g711';
 import type { TTSProvider, TTSRequest, TTSResult } from '../types';
+import {
+  isLocalCloneBaseConfigured,
+  localCloneMaxLatencyMs,
+  normalizeLocalCloneBaseUrl,
+} from './local-clone-config';
 
 function stripWavPcm16(payload: Buffer): { pcm: Buffer; sampleRateHz: number } {
   if (payload.length < 44 || payload.toString('ascii', 0, 4) !== 'RIFF') {
@@ -40,16 +46,11 @@ function stripWavPcm16(payload: Buffer): { pcm: Buffer; sampleRateHz: number } {
   throw new Error('Local clone TTS WAV missing data chunk');
 }
 
-function normalizeBaseUrl(raw: string): string {
-  const trimmed = raw.replace(/\/+$/, '');
-  return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
-}
-
 export class LocalCloneTTSProvider implements TTSProvider {
   readonly id = 'local_clone' as const;
 
   isConfigured(): boolean {
-    return !!process.env.LOCAL_CLONE_TTS_BASE_URL?.trim();
+    return isLocalCloneBaseConfigured();
   }
 
   supportsLanguage(_language: string | undefined): boolean {
@@ -62,44 +63,76 @@ export class LocalCloneTTSProvider implements TTSProvider {
       throw new Error('LOCAL_CLONE_TTS_BASE_URL is not configured');
     }
 
-    const base = normalizeBaseUrl(baseRaw);
+    const base = normalizeLocalCloneBaseUrl(baseRaw);
     const apiKey =
       request.options?.apiKey || process.env.LOCAL_CLONE_TTS_API_KEY || 'none';
     const model =
       request.options?.modelId || process.env.LOCAL_CLONE_TTS_MODEL || 'tts-1';
     const isMp3 = request.format === 'mp3';
     const startedAt = Date.now();
+    const maxMs = localCloneMaxLatencyMs();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), maxMs);
 
     const responseFormat = isMp3 ? 'mp3' : 'pcm';
-    const response = await fetch(`${base}/audio/speech`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        Accept: isMp3 ? 'audio/mpeg' : 'application/octet-stream',
-      },
-      body: JSON.stringify({
-        model,
-        voice: request.voiceId,
-        input: request.text,
-        response_format: responseFormat,
-        speed: request.options?.speed ?? 1,
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${base}/audio/speech`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          Accept: isMp3 ? 'audio/mpeg' : 'application/octet-stream',
+        },
+        body: JSON.stringify({
+          model,
+          voice: request.voiceId,
+          input: request.text,
+          response_format: responseFormat,
+          speed: request.options?.speed ?? 1,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err?.name === 'AbortError') {
+        throw new Error(`Local clone TTS exceeded ${maxMs}ms latency budget (abort)`);
+      }
+      throw err;
+    }
 
     if (!response.ok) {
+      clearTimeout(timer);
       const errorText = await response.text();
       throw new Error(`Local clone TTS error ${response.status}: ${errorText.slice(0, 400)}`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
+    let arrayBuffer: ArrayBuffer;
+    try {
+      arrayBuffer = await response.arrayBuffer();
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err?.name === 'AbortError') {
+        throw new Error(`Local clone TTS exceeded ${maxMs}ms latency budget (body abort)`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const latencyMs = Date.now() - startedAt;
+    if (latencyMs > maxMs) {
+      // Race: body finished after abort window — still fail-open for barge-in SLO.
+      throw new Error(`Local clone TTS exceeded ${maxMs}ms latency budget (${latencyMs}ms)`);
+    }
+
     const payload = Buffer.from(arrayBuffer);
 
     if (isMp3) {
       return {
         audio: payload,
         providerId: this.id,
-        latencyMs: Date.now() - startedAt,
+        latencyMs,
         characters: request.text.length,
         encoding: 'mp3',
       };
@@ -126,7 +159,7 @@ export class LocalCloneTTSProvider implements TTSProvider {
     return {
       audio: pcm,
       providerId: this.id,
-      latencyMs: Date.now() - startedAt,
+      latencyMs,
       characters: request.text.length,
       encoding: 'pcm16le',
     };

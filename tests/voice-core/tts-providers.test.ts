@@ -241,6 +241,45 @@ describe('LocalCloneTTSProvider', () => {
       if (prev !== undefined) process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
     }
   });
+
+  it('aborts when synthesis exceeds LOCAL_CLONE_TTS_MAX_LATENCY_MS', async () => {
+    const { LocalCloneTTSProvider } = await import('../../server/voice-core/providers/local-clone-tts.provider');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        return new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) return;
+          if (signal.aborted) {
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            reject(err);
+            return;
+          }
+          signal.addEventListener('abort', () => {
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        });
+      }),
+    );
+    const prevUrl = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    const prevMax = process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS = '100';
+    try {
+      const provider = new LocalCloneTTSProvider();
+      await expect(
+        provider.synthesize({ text: 'slow', voiceId: 'v', sampleRateHz: 8000 }),
+      ).rejects.toThrow(/latency budget/);
+    } finally {
+      if (prevUrl === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prevUrl;
+      if (prevMax === undefined) delete process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS;
+      else process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS = prevMax;
+    }
+  });
 });
 
 describe('buildTTSRouteContext ElevenLabs options', () => {

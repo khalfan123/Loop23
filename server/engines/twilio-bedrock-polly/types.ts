@@ -217,6 +217,8 @@ export interface AgentConfig {
   behaviorConfig?: Record<string, any>;
   waitingMessages?: string[];
   dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
+  /** Optional call/agent ids for routing policy (cost takeover rollout). */
+  toolContext?: { userId?: string; agentId?: string; callId?: string };
 }
 
 /**

@@ -242,6 +242,11 @@ export interface AudioBridgeSession {
   activeResponseId: string | null;
   suppressResponseOutputUntilDone: boolean;
   suppressedResponseId: string | null;
+  /**
+   * Count of explicit response.create intents (waiting/tool/apology) awaiting
+   * response.created so FIFO marks are not consumed by automatic creates.
+   */
+  pendingExplicitOutboundCreates: number;
   runtimeInstructionBase?: string;
   lastSyncedSentimentMode?: 'neutral' | 'cautious' | 'deescalate' | null;
   speechGuardrailStrikes: number;

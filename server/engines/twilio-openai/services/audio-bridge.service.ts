@@ -41,6 +41,12 @@ import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { ConversationMemoryService } from '../../../services/conversation-memory';
 import { callErrorLogger } from '../../../services/call-error-logger';
+import {
+  buildOutboundMarkMetadata,
+  formatOutboundMediaLogMessage,
+  openaiOutboundMediaMetrics,
+  type OutboundMediaResponseKind,
+} from './openai-outbound-media-metrics';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
@@ -63,9 +69,6 @@ const KB_LOW_CONFIDENCE_ESCALATION_HINT =
 const UNRESOLVED_LOOP_ESCALATION_HINT =
   'Runtime policy: We have had repeated unresolved turns. Prioritize resolution now: offer transfer to a specialist or present one concrete escalation next step in <=2 short sentences.';
 const UNRESOLVED_LOOP_ESCALATION_THRESHOLD = 3;
-
-// Observability helpers (callSid-scoped; avoids FK dependencies).
-const firstAudioAtByResponse: Map<string, Map<string, number>> = new Map(); // callSid -> (responseId -> epoch ms)
 
 const EXPLICIT_HUMAN_REQUEST_PATTERNS: RegExp[] = [
   // English
@@ -140,6 +143,96 @@ function buildRingbackMulawFrame(frameIndex: number): Buffer {
 
 export class TwilioOpenAIAudioBridge {
   private static activeSessions: Map<string, AudioBridgeSession> = new Map();
+  /** Wall clock for session timeouts / Date fields — may jump. */
+  private static wallClockMs: () => number = () => Date.now();
+  /** Monotonic measurement clock for EOS/provider/enqueue timestamps. */
+  private static measureClockMs: () => number = () => {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+      return performance.now();
+    }
+    return Date.now();
+  };
+
+  /**
+   * Test clocks. Prefer setMeasureClockForTests for latency; wall clock stays
+   * independent so wall jumps do not corrupt EOS intervals.
+   */
+  static setClockForTests(fn: (() => number) | null): void {
+    // Back-compat: sets measurement clock only.
+    this.measureClockMs = fn || (() =>
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now());
+  }
+
+  static setMeasureClockForTests(fn: (() => number) | null): void {
+    this.setClockForTests(fn);
+  }
+
+  static setWallClockForTests(fn: (() => number) | null): void {
+    this.wallClockMs = fn || (() => Date.now());
+  }
+
+  /** Monotonic (or test) clock for outbound-media metrics. */
+  private static measureNow(): number {
+    return this.measureClockMs();
+  }
+
+  /** Wall clock for timeouts / lastUserSpeechTime epoch fields. */
+  private static wallNow(): number {
+    return this.wallClockMs();
+  }
+
+  /**
+   * Queue an explicit response.create intent. Embed mark id in
+   * response.metadata (Realtime official correlation). Abandon on send failure
+   * so rejected creates cannot leave stale FIFO labels.
+   */
+  private static beginExplicitOutboundCreate(
+    session: AudioBridgeSession,
+    kind: OutboundMediaResponseKind,
+    anchorAtMs: number,
+  ): string {
+    return openaiOutboundMediaMetrics
+      .getOrCreate(session.callSid)
+      .markNextResponse(kind, anchorAtMs);
+  }
+
+  private static abandonExplicitOutboundCreate(
+    session: AudioBridgeSession,
+    markId: string | null | undefined,
+  ): void {
+    openaiOutboundMediaMetrics.getOrCreate(session.callSid).abandonMark(markId);
+  }
+
+  /** True when the session object is still the live registry entry. */
+  private static isSessionLive(session: AudioBridgeSession): boolean {
+    if (session.status === 'disconnected' || session.status === 'error') {
+      return false;
+    }
+    return this.activeSessions.get(session.callSid) === session;
+  }
+
+  /**
+   * Test seam: deliver a provider JSON event to the real handler without a socket.
+   * Production path is openaiWs 'message' → handleOpenAIMessage.
+   */
+  static async handleOpenAIMessageForTests(
+    session: AudioBridgeSession,
+    data: string,
+  ): Promise<void> {
+    await this.handleOpenAIMessage(session, data);
+  }
+
+  /** Test seam: install a minimal live session into the registry. */
+  static installSessionForTests(session: AudioBridgeSession): void {
+    this.activeSessions.set(session.callSid, session);
+  }
+
+  static uninstallSessionForTests(callSid: string): void {
+    this.activeSessions.delete(callSid);
+  }
+
   private static readonly OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime';
   private static credentialByCallSid: Map<string, string> = new Map();
   private static readonly BARGE_IN_CANCEL_COOLDOWN_MS = 350;
@@ -191,6 +284,7 @@ export class TwilioOpenAIAudioBridge {
       activeResponseId: null,
       suppressResponseOutputUntilDone: false,
       suppressedResponseId: null,
+      pendingExplicitOutboundCreates: 0,
       runtimeInstructionBase: '',
       lastSyncedSentimentMode: null,
       speechGuardrailStrikes: 0,
@@ -834,21 +928,34 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     // (and handset ear→mic coupling) can trigger speech_started → clear/cancel
     // which leaves the caller in silence after Connect.
     session.greetingPlaybackActive = true;
+    const greetMark = openaiOutboundMediaMetrics
+      .getOrCreate(callSid)
+      .markNextResponse('greeting');
 
-    // Use response.create with instructions to speak the exact greeting
-    // This is the official way to have the agent say a specific first message
-    // After speaking this greeting, the agent MUST wait for user input before responding again
-    openaiWs.send(JSON.stringify({
-      type: 'response.create',
-      response: {
-        output_modalities: ['audio'],
-        instructions: `IMPORTANT: Say ONLY the following greeting message word-for-word, then STOP and WAIT for the user to respond. Do NOT add any follow-up questions or additional content. Do NOT assume the user has said anything until you actually hear them speak. Just say this exact message and wait: "${text}"`,
-      },
-    }));
+    try {
+      openaiWs.send(JSON.stringify({
+        type: 'response.create',
+        response: {
+          output_modalities: ['audio'],
+          metadata: buildOutboundMarkMetadata(greetMark, 'greeting'),
+          instructions: `IMPORTANT: Say ONLY the following greeting message word-for-word, then STOP and WAIT for the user to respond. Do NOT add any follow-up questions or additional content. Do NOT assume the user has said anything until you actually hear them speak. Just say this exact message and wait: "${text}"`,
+        },
+      }));
+    } catch (err: any) {
+      openaiOutboundMediaMetrics.getOrCreate(callSid).abandonMark(greetMark);
+      session.greetingPlaybackActive = false;
+      console.error(
+        `[TwilioOpenAI Bridge] Greeting response.create failed for ${callSid}: ${err?.message || err}`,
+      );
+    }
   }
 
   private static async handleOpenAIMessage(session: AudioBridgeSession, data: string): Promise<void> {
     try {
+      // Late provider events after endSession must not recreate trackers or forward audio.
+      if (!this.isSessionLive(session)) {
+        return;
+      }
       const message = JSON.parse(data);
       const { callSid } = session;
 
@@ -864,11 +971,15 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.output_audio.delta':
         case 'response.audio.delta':
-          // Stop ringback as soon as the agent starts speaking.
-          this.stopRingback(session);
-          this.clearLLMTimeouts(session);
           {
             const deltaResponseId = message.response_id || message.response?.id || null;
+            const tracker = openaiOutboundMediaMetrics.getOrCreate(callSid);
+
+            // Guard BEFORE stopRingback / clearLLMTimeouts / onAudioCallback / send
+            // so cancelled/done/unknown IDs cannot disrupt a newer turn.
+            if (tracker.shouldDropMedia(deltaResponseId)) {
+              break;
+            }
             if (session.suppressResponseOutputUntilDone) {
               if (
                 session.suppressedResponseId
@@ -881,8 +992,6 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
                 break;
               }
             }
-
-            // Ignore stale/out-of-order audio chunks from non-active responses.
             if (
               session.activeResponseId
               && deltaResponseId
@@ -890,48 +999,73 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
             ) {
               break;
             }
-          }
-          if (message.delta) {
-            const deltaResponseId = message.response_id || message.response?.id || null;
-            // Time-to-first-audio (TTFA): first audio chunk after user speech stopped.
-            if (deltaResponseId) {
-              let byResp = firstAudioAtByResponse.get(callSid);
-              if (!byResp) {
-                byResp = new Map();
-                firstAudioAtByResponse.set(callSid, byResp);
+
+            this.stopRingback(session);
+            this.clearLLMTimeouts(session);
+
+            if (message.delta) {
+              tracker.onProviderFirstByte(deltaResponseId, this.measureNow());
+
+              if (
+                session.pendingClearTimerId
+                && (!session.activeResponseId || !deltaResponseId || session.activeResponseId === deltaResponseId)
+              ) {
+                clearTimeout(session.pendingClearTimerId);
+                session.pendingClearTimerId = null;
               }
-              if (!byResp.has(deltaResponseId)) {
-                const now = Date.now();
-                byResp.set(deltaResponseId, now);
-                const ttfaMs = Math.max(0, now - (session.lastUserSpeechTime || now));
-                callErrorLogger.logCallError({
-                  engineType: 'twilio-openai',
-                  errorCategory: 'latency',
-                  severity: ttfaMs > 1000 ? 'warning' : 'info',
-                  message: `ttfa_ms=${ttfaMs}`,
-                  metadata: { callSid, responseId: deltaResponseId, ttfaMs, model: session.agentConfig.model },
-                }).catch(() => undefined);
+              if (session.onAudioCallback) {
+                session.onAudioCallback(message.delta);
               }
-            }
-            if (
-              session.pendingClearTimerId
-              && (!session.activeResponseId || !deltaResponseId || session.activeResponseId === deltaResponseId)
-            ) {
-              clearTimeout(session.pendingClearTimerId);
-              session.pendingClearTimerId = null;
-            }
-            if (session.onAudioCallback) {
-              session.onAudioCallback(message.delta);
-            }
-            
-            if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-              session.twilioWs.send(JSON.stringify({
-                event: 'media',
-                streamSid: session.streamSid,
-                media: {
-                  payload: message.delta,
-                },
-              }));
+
+              if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+                try {
+                  // ws.send returning is enqueue, not async delivery confirmation.
+                  session.twilioWs.send(JSON.stringify({
+                    event: 'media',
+                    streamSid: session.streamSid,
+                    media: {
+                      payload: message.delta,
+                    },
+                  }));
+                  const sample = tracker.onFirstOutboundMediaEnqueue(
+                    deltaResponseId,
+                    this.measureNow(),
+                  );
+                  if (sample) {
+                    callErrorLogger.logCallError({
+                      engineType: 'twilio-openai',
+                      errorCategory: 'latency',
+                      severity:
+                        sample.includeInUserTurnLatency &&
+                        sample.eosToFirstOutboundMediaMs != null &&
+                        sample.eosToFirstOutboundMediaMs > 1000
+                          ? 'warning'
+                          : 'info',
+                      message: formatOutboundMediaLogMessage(sample),
+                      metadata: {
+                        callSid,
+                        responseId: deltaResponseId,
+                        eosToFirstOutboundMediaMs: sample.eosToFirstOutboundMediaMs,
+                        eosToProviderFirstByteMs: sample.eosToProviderFirstByteMs,
+                        anchorToFirstOutboundMediaMs: sample.anchorToFirstOutboundMediaMs,
+                        kind: sample.kind,
+                        metricVersion: sample.metricVersion,
+                        metricOrigin: sample.metricOrigin,
+                        callerHeard: false,
+                        measurementPoint: sample.measurementPoint,
+                        includeInUserTurnLatency: sample.includeInUserTurnLatency,
+                        cancelled: sample.cancelled,
+                        provenanceUncertain: sample.provenanceUncertain === true,
+                        model: session.agentConfig.model,
+                      },
+                    }).catch(() => undefined);
+                  }
+                } catch (sendErr: any) {
+                  console.error(
+                    `[TwilioOpenAI Bridge] Twilio media enqueue failed for ${callSid}: ${sendErr?.message || sendErr}`,
+                  );
+                }
+              }
             }
           }
           break;
@@ -1039,7 +1173,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           break;
 
         case 'input_audio_buffer.speech_started':
-          session.lastUserSpeechTime = Date.now();
+          // Epoch wall clock for session timeout fields — not the measurement clock.
+          session.lastUserSpeechTime = this.wallNow();
+          openaiOutboundMediaMetrics.getOrCreate(callSid).onSpeechStarted(this.measureNow());
           console.log(`[TwilioOpenAI Bridge] User started speaking (barge-in detected)`);
           // During IVR warm-up ringback / opening greeting, acoustic echo from the
           // handset often falsely triggers barge-in which CLEARS the greeting audio
@@ -1062,6 +1198,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'input_audio_buffer.speech_stopped':
           console.log(`[TwilioOpenAI Bridge] User stopped speaking`);
+          openaiOutboundMediaMetrics.getOrCreate(callSid).onSpeechStopped(this.measureNow());
           this.startLLMTimeouts(session);
           break;
 
@@ -1077,6 +1214,11 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
             }
             session.isResponseActive = true;
             session.activeResponseId = responseId;
+
+            openaiOutboundMediaMetrics.getOrCreate(callSid).onResponseCreated(responseId, {
+              greetingPlaybackActive: Boolean(session.greetingPlaybackActive),
+              providerMetadata: message.response?.metadata ?? null,
+            });
           }
           console.log(`[TwilioOpenAI Bridge] Event: response.created`);
           break;
@@ -1107,6 +1249,8 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
               session.isResponseActive = false;
               session.activeResponseId = null;
             }
+
+            openaiOutboundMediaMetrics.getOrCreate(callSid).onResponseTerminal(doneResponseId);
 
             if (isSuppressedResponse) {
               break;
@@ -1553,15 +1697,26 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
       this.applyRuntimePoliciesFromToolResult(session, toolName, result);
 
+      // Deferred handlers may resolve after endSession / registry replace.
+      if (!this.isSessionLive(session)) {
+        console.log(
+          `[TwilioOpenAI Bridge] Dropping tool continuation — session not live for ${callSid} (${toolName})`,
+        );
+        return;
+      }
+
       this.sendToolResult(session, callId, result);
 
     } catch (error: any) {
       console.error(`[TwilioOpenAI Bridge] Tool ${toolName} error:`, error.message);
+      if (!this.isSessionLive(session)) return;
       this.sendToolResult(session, callId, { error: error.message });
     }
   }
 
   private static sendToolResult(session: AudioBridgeSession, callId: string, result: unknown): void {
+    if (!this.isSessionLive(session)) return;
+
     const { openaiWs } = session;
     if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) return;
 
@@ -1574,16 +1729,31 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       },
     }));
 
-    openaiWs.send(JSON.stringify({
-      type: 'response.create',
-      response: {
-        output_modalities: ['audio'],
-        instructions: this.buildEmotionAdaptiveInstruction(
-          session,
-          'Continue naturally. Keep it conversational and phone-friendly in 1-3 short sentences.'
-        ),
-      },
-    }));
+    const toolFinalAt = this.measureNow();
+    const toolMark = this.beginExplicitOutboundCreate(
+      session,
+      'tool_final_reply',
+      toolFinalAt,
+    );
+
+    try {
+      openaiWs.send(JSON.stringify({
+        type: 'response.create',
+        response: {
+          output_modalities: ['audio'],
+          metadata: buildOutboundMarkMetadata(toolMark, 'tool_final_reply'),
+          instructions: this.buildEmotionAdaptiveInstruction(
+            session,
+            'Continue naturally. Keep it conversational and phone-friendly in 1-3 short sentences.'
+          ),
+        },
+      }));
+    } catch (err: any) {
+      this.abandonExplicitOutboundCreate(session, toolMark);
+      console.error(
+        `[TwilioOpenAI Bridge] tool_final response.create failed for ${session.callSid}: ${err?.message || err}`,
+      );
+    }
   }
 
   /**
@@ -1784,7 +1954,14 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     }
 
     console.log(`[TwilioOpenAI Bridge] Interrupting response for ${callSid}`);
-    
+
+    // Match barge-in: mark metrics cancelled so late outbound media cannot join user-turn latency.
+    if (session.activeResponseId) {
+      openaiOutboundMediaMetrics.getOrCreate(callSid).onResponseCancelled(session.activeResponseId);
+    }
+    session.suppressResponseOutputUntilDone = true;
+    session.suppressedResponseId = session.activeResponseId;
+
     session.openaiWs.send(JSON.stringify({
       type: 'response.cancel',
     }));
@@ -1818,6 +1995,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     // Suppress stale output from the response being cancelled until we observe its done boundary.
     session.suppressResponseOutputUntilDone = true;
     session.suppressedResponseId = session.activeResponseId;
+    openaiOutboundMediaMetrics.getOrCreate(callSid).onResponseCancelled(session.activeResponseId);
     
     // 1. Cancel the current response from OpenAI
     // This tells OpenAI to stop generating more audio/text
@@ -2021,6 +2199,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     session.softTimeoutId = setTimeout(() => {
       session.softTimeoutId = null;
+      if (!this.isSessionLive(session)) return;
       if (session.status !== 'connected') return;
       if (!session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) return;
 
@@ -2032,17 +2211,33 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
       console.log(`[TwilioOpenAI Bridge] Soft timeout (${softTimeoutSec}s) reached for ${session.callSid}, sending waiting message: "${waitingMessage}"`);
 
-      session.openaiWs.send(JSON.stringify({
-        type: 'response.create',
-        response: {
-          output_modalities: ['audio'],
-          instructions: this.buildWaitingInstruction(session, preferredLang, waitingMessage),
-        },
-      }));
+      const waitingAt = this.measureNow();
+      const waitingMark = this.beginExplicitOutboundCreate(
+        session,
+        'waiting_filler',
+        waitingAt,
+      );
+
+      try {
+        session.openaiWs.send(JSON.stringify({
+          type: 'response.create',
+          response: {
+            output_modalities: ['audio'],
+            metadata: buildOutboundMarkMetadata(waitingMark, 'waiting_filler'),
+            instructions: this.buildWaitingInstruction(session, preferredLang, waitingMessage),
+          },
+        }));
+      } catch (err: any) {
+        this.abandonExplicitOutboundCreate(session, waitingMark);
+        console.error(
+          `[TwilioOpenAI Bridge] waiting_filler response.create failed for ${session.callSid}: ${err?.message || err}`,
+        );
+      }
     }, softTimeoutSec * 1000);
 
     session.hardTimeoutId = setTimeout(() => {
       session.hardTimeoutId = null;
+      if (!this.isSessionLive(session)) return;
       if (session.status !== 'connected') return;
 
       const preferredLang = this.inferPreferredLanguageFromContext(session);
@@ -2053,15 +2248,38 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       console.error(`[TwilioOpenAI Bridge] Hard timeout (${hardTimeoutSec}s) reached for ${session.callSid} — cancelling response`);
 
       if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
+        if (session.activeResponseId) {
+          openaiOutboundMediaMetrics
+            .getOrCreate(session.callSid)
+            .onResponseCancelled(session.activeResponseId);
+          // Suppress output — mark alone is not enough for races before response.done.
+          session.suppressResponseOutputUntilDone = true;
+          session.suppressedResponseId = session.activeResponseId;
+        }
         session.openaiWs.send(JSON.stringify({ type: 'response.cancel' }));
 
-        session.openaiWs.send(JSON.stringify({
-          type: 'response.create',
-          response: {
-            output_modalities: ['audio'],
-            instructions: `Say exactly this to the caller: "${errorMessage}"`,
-          },
-        }));
+        const apologyAt = this.measureNow();
+        const apologyMark = this.beginExplicitOutboundCreate(
+          session,
+          'hard_timeout_apology',
+          apologyAt,
+        );
+
+        try {
+          session.openaiWs.send(JSON.stringify({
+            type: 'response.create',
+            response: {
+              output_modalities: ['audio'],
+              metadata: buildOutboundMarkMetadata(apologyMark, 'hard_timeout_apology'),
+              instructions: `Say exactly this to the caller: "${errorMessage}"`,
+            },
+          }));
+        } catch (err: any) {
+          this.abandonExplicitOutboundCreate(session, apologyMark);
+          console.error(
+            `[TwilioOpenAI Bridge] hard_timeout_apology response.create failed for ${session.callSid}: ${err?.message || err}`,
+          );
+        }
       }
 
       this.scheduleTwilioClear(session);
@@ -2146,6 +2364,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     // Remove connection from the pool manager
     openaiPoolManager.removeConnection(callSid);
     this.credentialByCallSid.delete(callSid);
+    openaiOutboundMediaMetrics.clearCall(callSid);
 
     session.status = 'disconnected';
     session.endedAt = new Date();
@@ -2240,6 +2459,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.callSid = newCallSid;
     this.activeSessions.delete(oldCallSid);
     this.activeSessions.set(newCallSid, session);
+    openaiOutboundMediaMetrics.remapCall(oldCallSid, newCallSid);
     const credentialId = this.credentialByCallSid.get(oldCallSid);
     if (credentialId) {
       this.credentialByCallSid.delete(oldCallSid);

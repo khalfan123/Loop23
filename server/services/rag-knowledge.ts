@@ -46,6 +46,9 @@ import {
 } from "@shared/schema";
 import { eq, and, inArray, sql, or, ilike } from "drizzle-orm";
 import { awsBedrockService } from "./aws-bedrock";
+import { isRagSearchSemanticRerankEnabled } from "./rag-knowledge-flags";
+
+export { isRagSearchSemanticRerankEnabled } from "./rag-knowledge-flags";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 1536;
@@ -867,7 +870,12 @@ export class RAGKnowledgeService {
         return [];
       }
 
-      const cacheKey = `${query.toLowerCase().trim()}|${knowledgeBaseIds.sort().join(',')}|${userId}|${maxResults}`;
+      const semanticRerankEnabled = isRagSearchSemanticRerankEnabled();
+      const candidateLimit = semanticRerankEnabled
+        ? Math.max(maxResults * 3, maxResults)
+        : maxResults;
+
+      const cacheKey = `${query.toLowerCase().trim()}|${knowledgeBaseIds.sort().join(',')}|${userId}|${maxResults}|rr=${semanticRerankEnabled ? 1 : 0}`;
       const cachedResults = searchResultCache.get(cacheKey);
       if (cachedResults) {
         console.log(`[RAG] Search cache hit (${cachedResults.length} results)`);
@@ -973,7 +981,7 @@ export class RAGKnowledgeService {
               })
               .filter(r => r.score >= MIN_FALLBACK_RELEVANCE)
               .sort((a, b) => b.score - a.score)
-              .slice(0, maxResults);
+              .slice(0, candidateLimit);
 
             console.log(`[RAG] SQL hybrid search: ${chunkResults.length} results (vector: ${vectorScoreMap.size}, keyword: ${keywordChunks.length}, fused: ${fusedScores.size})`);
           }
@@ -1068,15 +1076,25 @@ export class RAGKnowledgeService {
             .sort((a, b) => b.score - a.score);
 
           const preFilterCount = allScoredChunks.length;
-          chunkResults = allScoredChunks.slice(0, maxResults);
+          chunkResults = allScoredChunks.slice(0, candidateLimit);
 
           console.log(`[RAG] JS hybrid search: ${chunkResults.length}/${preFilterCount} chunks above threshold (top: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, vector: ${vectorResults.length}, keyword: ${keywordResults.length}, expanded: ${expandedQueries ? 'yes' : 'no'})`);
         }
       }
       
       let combined = [...faqResults, ...chunkResults]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, maxResults);
+        .sort((a, b) => b.score - a.score);
+
+      // Optional post-hybrid semantic rerank (awesome-ai-apps RAG pattern).
+      if (semanticRerankEnabled && combined.length > maxResults) {
+        const candidates = combined.slice(0, candidateLimit);
+        console.log(
+          `[RAG] RAG_SEARCH_SEMANTIC_RERANK: reranking ${candidates.length} candidates → top ${maxResults}`,
+        );
+        combined = await this.semanticRerank(query, candidates, maxResults);
+      } else {
+        combined = combined.slice(0, maxResults);
+      }
       
       if (combined.length > 0 && isProductServiceQuery(query)) {
         const beforeFilter = combined.length;

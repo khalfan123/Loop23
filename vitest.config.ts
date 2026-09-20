@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  cacheDir: path.resolve(import.meta.dirname, '.vite-cache'),
   resolve: {
     alias: {
       '@shared': path.resolve(import.meta.dirname, 'shared'),

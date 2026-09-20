@@ -4,6 +4,8 @@ dist
 server/public
 uploads/
 vite.config.ts.*
+.vite-cache/
+.vitest-cache/
 *.tar.gz
 .env
 .env.*

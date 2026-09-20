@@ -368,6 +368,17 @@ export interface BedrockPollyBridgeSession {
   ttsProvider: TtsProvider;
   isOutbound: boolean;
   explicitEndCall: boolean;
+  /** Immutable outbound generation token for synthesis→send stale rejection. */
+  activeOutboundTurnToken?: number;
+  /**
+   * Live specialist supervisor (LOOP9_CALL_SUPERVISOR). Opaque bundle from
+   * call-supervisor.ts — kept optional so media path stays flag-gated.
+   */
+  callSupervisor?: {
+    supervisor: unknown;
+    state: unknown;
+    turn: number;
+  };
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
   _retryAttempted?: boolean;

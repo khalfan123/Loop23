@@ -57,9 +57,22 @@ export {
 } from './audio/plc';
 export type { PlcState, PlcOptions } from './audio/plc';
 export { splitSentences } from './text/sentence-split';
-export { sanitizeForTTS } from './text/tts-sanitize';
+export { sanitizeForTTS, decideSpeakableTtsText } from './text/tts-sanitize';
+export type { TtsSpeakableDecision } from './text/tts-sanitize';
 export {
+  normalizeCallerUtterance,
+  isDigitOnlyUtterance,
   isWhisperHallucination,
   isLikelyBackgroundSpeech,
   isLanguageMismatch,
+  collectLexicalSuspectSignals,
+  evaluateInboundTranscriptFilters,
+  decideInboundTranscriptGate,
+} from './stt/whisper-filters';
+export type {
+  InboundTranscriptFilterResult,
+  InboundTranscriptFilterStage,
+  InboundTranscriptGateDecision,
+  LexicalSuspectSignal,
+  LexicalSuspectKind,
 } from './stt/whisper-filters';

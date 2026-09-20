@@ -1973,6 +1973,27 @@ GREETING RULES: Your opening greeting must ONLY include the time-based greeting 
       console.log(`[Bedrock Agent Factory] Added dynamic form tools (list_available_forms, submit_dynamic_form)`);
     }
 
+    // MCP → AgentTool (LOOP9_MCP_SERVERS). Failures are non-fatal; voice path continues.
+    try {
+      const { loadMcpAgentToolsFromEnv } = await import(
+        '../../../services/agent-orchestration/mcp-tool-adapter'
+      );
+      const mcpTools = await loadMcpAgentToolsFromEnv();
+      if (mcpTools.length > 0) {
+        if (!config.tools) config.tools = [];
+        for (const tool of mcpTools) {
+          config.tools.push(tool);
+        }
+        console.log(
+          `[Bedrock Agent Factory] Registered ${mcpTools.length} MCP tool(s): ${mcpTools.map((t) => t.name).join(', ')}`,
+        );
+      }
+    } catch (mcpErr: any) {
+      console.warn(
+        `[Bedrock Agent Factory] MCP tool registration skipped: ${mcpErr?.message || mcpErr}`,
+      );
+    }
+
     console.log(`[Bedrock Agent Factory] Created config with ${config.tools?.length || 0} tools`);
     
     return config;

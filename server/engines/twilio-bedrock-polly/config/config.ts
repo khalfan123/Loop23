@@ -135,10 +135,11 @@ export function generateTwiML(options: {
  * @param phoneNumber - The destination phone number
  * @param callerId - The caller ID to display
  */
-export function generateTransferTwiML(phoneNumber: string, callerId: string): string {
+export function generateTransferTwiML(phoneNumber: string, callerId?: string): string {
+  const callerIdAttr = callerId ? ` callerId="${escapeXml(callerId)}"` : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial callerId="${escapeXml(callerId)}">
+  <Dial${callerIdAttr}>
     <Number>${escapeXml(phoneNumber)}</Number>
   </Dial>
 </Response>`;

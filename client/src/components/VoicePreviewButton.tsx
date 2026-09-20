@@ -28,6 +28,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Play, Pause, Square, Loader2, Volume2, Settings2, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { AuthStorage } from "@/lib/auth-storage";
 import { useTranslation } from "react-i18next";
@@ -36,6 +37,8 @@ interface VoiceSettings {
   stability: number;
   similarity_boost: number;
   speed: number;
+  style?: number;
+  use_speaker_boost?: boolean;
 }
 
 interface VoicePreviewButtonProps {
@@ -53,6 +56,8 @@ const defaultSettings: VoiceSettings = {
   stability: 0.5,
   similarity_boost: 0.75,
   speed: 1.0,
+  style: 0,
+  use_speaker_boost: true,
 };
 
 async function fetchVoicePreview(
@@ -347,6 +352,43 @@ export default function VoicePreviewButton({
                   data-testid="slider-speed"
                 />
                 <p className="text-xs text-muted-foreground">{t('voicePreview.speedHelp')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>{t('voicePreview.style', 'Style')}</Label>
+                  <span className="text-sm text-muted-foreground">{Math.round((localSettings.style ?? 0) * 100)}%</span>
+                </div>
+                <Slider
+                  value={[localSettings.style ?? 0]}
+                  onValueChange={([v]) => updateSetting("style", v)}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  data-testid="slider-style"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('voicePreview.styleHelp', 'Higher exaggerates the voice character. Keep low for natural phone agents.')}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                <div className="space-y-0.5">
+                  <Label htmlFor="speaker-boost">{t('voicePreview.speakerBoost', 'Speaker boost')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('voicePreview.speakerBoostHelp', 'Improves clarity and similarity to the original voice.')}
+                  </p>
+                </div>
+                <Switch
+                  id="speaker-boost"
+                  checked={localSettings.use_speaker_boost ?? true}
+                  onCheckedChange={(checked) => {
+                    const next = { ...localSettings, use_speaker_boost: checked };
+                    setLocalSettings(next);
+                    onSettingsChange?.(next);
+                  }}
+                  data-testid="switch-speaker-boost"
+                />
               </div>
             </div>
 

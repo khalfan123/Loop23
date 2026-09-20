@@ -108,12 +108,27 @@ export class BedrockPollyCallService {
       const rawModel = (agent.llmModel as BedrockModel) || 'claude-sonnet-4-6';
       const defaultModel: BedrockModel = BedrockAgentFactory.validateModel(rawModel, userTier);
 
-      const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : agent.voiceProvider === 'cartesia' ? 'cartesia' : 'aws_polly';
+      let ttsProvider: TtsProvider =
+        agent.voiceProvider === 'elevenlabs'
+          ? 'elevenlabs'
+          : agent.voiceProvider === 'cartesia'
+            ? 'cartesia'
+            : agent.voiceProvider === 'local_clone'
+              ? 'local_clone'
+              : 'aws_polly';
       let elevenLabsApiKey: string | undefined;
       const elevenLabsVoiceId = agent.elevenLabsVoiceId || undefined;
       const cartesiaVoiceId = ttsProvider === 'cartesia' ? (agent.openaiVoice || undefined) : undefined;
+      // Always surface clone id when present so Phase 4 soft takeover can prefer
+      // local_clone while keeping ElevenLabs credentials for hybrid fail-open.
+      const localCloneVoiceId =
+        (agent as { localCloneVoiceId?: string | null }).localCloneVoiceId ||
+        (agent.voiceProvider === 'local_clone' ? agent.openaiVoice || undefined : undefined) ||
+        undefined;
+      const localCloneApiKey = localCloneVoiceId ? process.env.LOCAL_CLONE_TTS_API_KEY : undefined;
+      const localCloneModelId = localCloneVoiceId ? process.env.LOCAL_CLONE_TTS_MODEL : undefined;
 
-      if (ttsProvider === 'elevenlabs') {
+      if (ttsProvider === 'elevenlabs' || (localCloneVoiceId && agent.elevenLabsVoiceId)) {
         if (agent.elevenLabsCredentialId) {
           const [cred] = await db
             .select()
@@ -127,7 +142,16 @@ export class BedrockPollyCallService {
         if (!elevenLabsApiKey) {
           elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
         }
-        logger.info(`Using ElevenLabs TTS for agent ${agentId}, voice: ${elevenLabsVoiceId}`, undefined, 'BedrockPollyCall');
+        if (ttsProvider === 'elevenlabs') {
+          logger.info(`Using ElevenLabs TTS for agent ${agentId}, voice: ${elevenLabsVoiceId}`, undefined, 'BedrockPollyCall');
+        }
+      }
+      if (ttsProvider === 'local_clone' || localCloneVoiceId) {
+        logger.info(
+          `local_clone voice available for agent ${agentId}: ${localCloneVoiceId || 'unset'} (provider=${ttsProvider}, base=${process.env.LOCAL_CLONE_TTS_BASE_URL ? 'set' : 'missing'})`,
+          undefined,
+          'BedrockPollyCall',
+        );
       }
       
       if (agent.type === 'flow' && effectiveFlowId) {
@@ -167,6 +191,15 @@ export class BedrockPollyCallService {
               ttsProvider,
               elevenLabsVoiceId,
               elevenLabsApiKey,
+              elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+              localCloneVoiceId,
+              localCloneApiKey,
+              localCloneModelId,
+              voiceStability: agent.voiceStability ?? 0.55,
+              voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
+              voiceSpeed: agent.voiceSpeed ?? 1.0,
+              voiceStyle: (agent as any).voiceStyle ?? 0,
+              voiceSpeakerBoost: (agent as any).voiceSpeakerBoost ?? true,
               cartesiaVoiceId,
             };
           } else {
@@ -214,6 +247,15 @@ export class BedrockPollyCallService {
               ttsProvider,
               elevenLabsVoiceId,
               elevenLabsApiKey,
+              elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+              localCloneVoiceId,
+              localCloneApiKey,
+              localCloneModelId,
+              voiceStability: agent.voiceStability ?? 0.55,
+              voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
+              voiceSpeed: agent.voiceSpeed ?? 1.0,
+              voiceStyle: (agent as any).voiceStyle ?? 0,
+              voiceSpeakerBoost: (agent as any).voiceSpeakerBoost ?? true,
               cartesiaVoiceId,
             };
           }
@@ -326,6 +368,15 @@ export class BedrockPollyCallService {
           ttsProvider,
           elevenLabsVoiceId,
           elevenLabsApiKey,
+          elevenLabsModelId: (agent as any).elevenLabsModelId || undefined,
+          localCloneVoiceId,
+          localCloneApiKey,
+          localCloneModelId,
+          voiceStability: agent.voiceStability ?? 0.55,
+          voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
+          voiceSpeed: agent.voiceSpeed ?? 1.0,
+          voiceStyle: (agent as any).voiceStyle ?? 0,
+          voiceSpeakerBoost: (agent as any).voiceSpeakerBoost ?? true,
           cartesiaVoiceId,
           language: agentLanguage,
           agentName: agent.name || undefined,
@@ -460,6 +511,15 @@ export class BedrockPollyCallService {
           ttsProvider,
           elevenLabsVoiceId: elevenLabsVoiceId || null,
           elevenLabsApiKey: elevenLabsApiKey || null,
+          elevenLabsModelId: (agent as any).elevenLabsModelId || null,
+          localCloneVoiceId: localCloneVoiceId || null,
+          localCloneApiKey: localCloneApiKey || null,
+          localCloneModelId: localCloneModelId || null,
+          voiceStability: agent.voiceStability ?? 0.55,
+          voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
+          voiceSpeed: agent.voiceSpeed ?? 1.0,
+          voiceStyle: (agent as any).voiceStyle ?? 0,
+          voiceSpeakerBoost: (agent as any).voiceSpeakerBoost ?? true,
           cartesiaVoiceId: cartesiaVoiceId || null,
         },
       });

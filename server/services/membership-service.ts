@@ -39,10 +39,15 @@ export interface PlanCapabilities {
 
 /**
  * Active subscription statuses that grant membership access.
- * 'active' - Subscription is active and payment is current
- * Note: Stripe's 'trialing', 'past_due' are mapped to 'active' in our webhook handlers
+ * 'active'    - Subscription is active and payment is current
+ * 'trialing'  - Stripe trial period, treated as active access
+ * 'past_due'  - Payment failed but Stripe is still retrying; keep access during the grace window
+ *
+ * Webhook handlers may normalize these to 'active' on write, but we also accept
+ * the raw values here so that any legacy/unnormalized rows do not lock users
+ * out of features they paid for.
  */
-const ACTIVE_SUBSCRIPTION_STATUSES = ['active'];
+const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due'];
 
 /**
  * Checks if a user has an active Pro membership.

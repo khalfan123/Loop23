@@ -5,6 +5,7 @@ import {
   linearToMulaw,
   pcmToMulaw,
   downsamplePcm16By2,
+  mulawToPcm16,
 } from '../../server/voice-core/audio/g711';
 
 function pcmBufferFrom(samples: number[]): Buffer {
@@ -76,6 +77,26 @@ describe('mulawEnergy', () => {
     }
     expect(mulawEnergy(silence)).toBeLessThan(10);
     expect(mulawEnergy(loud)).toBeGreaterThan(20000);
+  });
+});
+
+describe('mulawToPcm16', () => {
+  it('decodes each mulaw byte to its decode-table PCM16 sample', () => {
+    const mulaw = Buffer.from([0x00, 0x7f, 0xff, 0x80]);
+    const pcm = mulawToPcm16(mulaw);
+    expect(pcm.length).toBe(8);
+    for (let i = 0; i < mulaw.length; i++) {
+      expect(pcm.readInt16LE(i * 2)).toBe(MULAW_DECODE_TABLE[mulaw[i]]);
+    }
+  });
+
+  it('is consistent with mulawEnergy (same decode table)', () => {
+    const mulaw = Buffer.alloc(160);
+    for (let i = 0; i < mulaw.length; i++) mulaw[i] = (i * 7) & 0xff;
+    const pcm = mulawToPcm16(mulaw);
+    let sum = 0;
+    for (let i = 0; i < pcm.length; i += 2) { const v = pcm.readInt16LE(i); sum += v * v; }
+    expect(Math.sqrt(sum / mulaw.length)).toBeCloseTo(mulawEnergy(mulaw), 5);
   });
 });
 

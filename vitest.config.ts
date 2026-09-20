@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  cacheDir: path.resolve(import.meta.dirname, '.vite-cache'),
   resolve: {
     alias: {
       '@shared': path.resolve(import.meta.dirname, 'shared'),
@@ -11,5 +12,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Self-executing tsx scripts with their own npm scripts
+    // (test:uae-transfer etc.), not vitest suites.
+    exclude: ['tests/uae-*.test.ts', 'tests/relay-*.test.ts', '**/node_modules/**'],
   },
 });

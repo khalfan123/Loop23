@@ -212,12 +212,16 @@ export interface AudioBridgeSession {
   onEndCallback: ((sessionData: { transcript: string; duration: number; openaiSessionId: string }) => void) | null;
   endCallbackFired: boolean;
   firstMessageSent: boolean;
+  /** True while the opening greeting response is in flight; blocks echo barge-in clears. */
+  greetingPlaybackActive?: boolean;
   twilioStreamReady: boolean;
   lastUserSpeechTime: number;
   isResponseActive: boolean;
   fromNumber?: string;
   toNumber?: string;
   callDirection?: CallDirection;
+  /** Wizard-selected non-UAE outbound caller ID (E.164) from a Human Agent connection, if any. */
+  humanWizardCli?: string;
   pendingAudioQueue: PendingAudioRequest[];
   softTimeoutId: ReturnType<typeof setTimeout> | null;
   hardTimeoutId: ReturnType<typeof setTimeout> | null;
@@ -238,6 +242,11 @@ export interface AudioBridgeSession {
   activeResponseId: string | null;
   suppressResponseOutputUntilDone: boolean;
   suppressedResponseId: string | null;
+  /**
+   * Count of explicit response.create intents (waiting/tool/apology) awaiting
+   * response.created so FIFO marks are not consumed by automatic creates.
+   */
+  pendingExplicitOutboundCreates: number;
   runtimeInstructionBase?: string;
   lastSyncedSentimentMode?: 'neutral' | 'cautious' | 'deescalate' | null;
   speechGuardrailStrikes: number;
@@ -245,6 +254,11 @@ export interface AudioBridgeSession {
   unresolvedIntentStreak: number;
   escalationCheckpointArmed: boolean;
   userId?: string;
+  // IVR UX: play a ringback tone while the AI session warms up.
+  ivrRouted?: boolean;
+  ringbackIntervalId?: ReturnType<typeof setInterval> | null;
+  ringbackStartedAtMs?: number | null;
+  ringbackFrameIndex?: number;
 }
 
 export interface CreateSessionParams {
@@ -258,6 +272,7 @@ export interface CreateSessionParams {
   callDirection?: CallDirection;
   credentialId?: string;
   userId?: string;
+  humanWizardCli?: string;
 }
 
 export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string }[] = [

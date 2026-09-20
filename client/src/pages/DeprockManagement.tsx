@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
 import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
 import HumanAgentCanvas from "@/pages/HumanAgentCanvas";
 import DeprockCallSimulator from "@/pages/DeprockCallSimulator";
@@ -122,6 +122,12 @@ interface DepartmentAgent {
     name: string;
     type: string;
     language: string | null;
+    transferEnabled?: boolean | null;
+    transferPhoneNumber?: string | null;
+    config?: Record<string, unknown> | null;
+    detectLanguageEnabled?: boolean | null;
+    endConversationEnabled?: boolean | null;
+    appointmentBookingEnabled?: boolean | null;
   };
 }
 
@@ -176,10 +182,9 @@ interface NewAgentConfig {
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "zh", label: "Chinese" },
-  { code: "hi", label: "Hindi" },
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
+  { code: "de", label: "German" },
   { code: "ar", label: "Arabic" },
 ];
 
@@ -306,33 +311,9 @@ function mapApiVoicesToLocal(apiVoices: ElevenLabsApiVoice[]): typeof ELEVENLABS
 
 const ALL_IVR_VOICES = [...ELEVENLABS_VOICES];
 
-const CARTESIA_DEFAULT_VOICES = [
-  { id: "cartesia_a0e99841-438c-4a64-b679-ae501e7d6091", name: "Barbershop Man (Cartesia)", gender: "male", style: "warm", languages: ["en"] },
-  { id: "cartesia_79a125e8-cd45-4c13-8a67-188112f4dd22", name: "British Lady (Cartesia)", gender: "female", style: "professional", languages: ["en"] },
-  { id: "cartesia_87748186-23bb-4571-8b85-4d0e4e7e7196", name: "Calm Lady (Cartesia)", gender: "female", style: "calm", languages: ["en"] },
-  { id: "cartesia_ee7ea9f8-c0c1-498c-9f62-dc2627e1e3ef", name: "Confident Man (Cartesia)", gender: "male", style: "professional", languages: ["en"] },
-  { id: "cartesia_c2ac25f9-ecc4-4f56-9095-651354df60c0", name: "Customer Support (Cartesia)", gender: "female", style: "friendly", languages: ["en"] },
-  { id: "cartesia_41534e16-2966-4c6b-9670-111411def906", name: "Wise Man (Cartesia)", gender: "male", style: "deep", languages: ["en"] },
-  { id: "cartesia_248be419-c632-4f23-adf1-5324ed7dbf1d", name: "Pleasant Man (Cartesia)", gender: "male", style: "friendly", languages: ["en"] },
-  { id: "cartesia_bf991597-6c13-47e4-8411-91ec2de5c466", name: "Newsman (Cartesia)", gender: "male", style: "crisp", languages: ["en"] },
-  { id: "cartesia_b7d50908-b179-4d51-8d53-8b2a5d5e1bf3", name: "Friendly Sidekick (Cartesia)", gender: "male", style: "expressive", languages: ["en"] },
-  { id: "cartesia_00a77add-48d5-4ef6-8157-71e5437b282d", name: "Sarah (Cartesia)", gender: "female", style: "soft", languages: ["en", "es", "fr", "de", "it", "pt", "zh", "hi", "ar", "ja", "ko"] },
-  { id: "cartesia_f114a467-c40a-4db8-964d-aaba89cd08fa", name: "Friendly French Man (Cartesia)", gender: "male", style: "warm", languages: ["fr"] },
-  { id: "cartesia_a3520a8f-226a-428d-9fcd-b0a4711a6829", name: "French Narrator Lady (Cartesia)", gender: "female", style: "professional", languages: ["fr"] },
-  { id: "cartesia_ab7c61f5-3daa-47dd-a23b-4ac0aac5f5c3", name: "Spanish Narrator Lady (Cartesia)", gender: "female", style: "warm", languages: ["es"] },
-  { id: "cartesia_846d6cb0-2301-48b6-9683-48f5618ea2f6", name: "Spanish Narrator Man (Cartesia)", gender: "male", style: "professional", languages: ["es"] },
-  { id: "cartesia_5c42302c-f55f-481a-b895-80c1cda8c4e2", name: "Chinese Female Voice (Cartesia)", gender: "female", style: "clear", languages: ["zh"] },
-  { id: "cartesia_daf747c6-6bc2-4083-bd59-aa94dce23f5d", name: "Hindi Female Voice (Cartesia)", gender: "female", style: "warm", languages: ["hi"] },
-  { id: "cartesia_2b568345-1d48-4047-b25f-7baccf842eb0", name: "Arabic Male Voice (Cartesia)", gender: "male", style: "professional", languages: ["ar"] },
-];
-
-const isCartesiaVoice = (voiceId: string) => voiceId.startsWith("cartesia_");
-
-const getVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
+const getVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = []) => {
   const allElVoices = [...ALL_IVR_VOICES, ...dynamicVoices];
-  const allCartesiaVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
-  const allVoices = [...allElVoices, ...allCartesiaVoices];
-  return allVoices.filter(voice => voice.languages.includes(languageCode));
+  return allElVoices.filter(voice => voice.languages.includes(languageCode));
 };
 
 const DEFAULT_GREETINGS: Record<string, string> = {
@@ -503,28 +484,6 @@ export default function DeprockManagement() {
     select: (data) => mapApiVoicesToLocal(data || []),
     staleTime: 5 * 60 * 1000,
   });
-
-  const { data: dynamicCartesiaVoices = [] } = useQuery<any[], Error, typeof CARTESIA_DEFAULT_VOICES>({
-    queryKey: ["/api/deprock/cartesia-voices"],
-    select: (data) => {
-      if (!Array.isArray(data) || data.length === 0) return CARTESIA_DEFAULT_VOICES;
-      const seenIds = new Set<string>();
-      return data
-        .filter((v: any) => {
-          if (seenIds.has(v.id)) return false;
-          seenIds.add(v.id);
-          return true;
-        })
-        .map((v: any) => ({
-          id: `cartesia_${v.id}`,
-          name: `${v.name || "Unknown"} (Cartesia)`,
-          gender: (v.gender || "unknown") as string,
-          style: "professional",
-          languages: [(v.language || "en").toLowerCase().split('-')[0].split('_')[0]],
-        }));
-    },
-    staleTime: 10 * 60 * 1000,
-  });
   
   const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections" | "human-connections">("org-map");
   const [showSimulator, setShowSimulator] = useState(false);
@@ -672,6 +631,26 @@ export default function DeprockManagement() {
     enabled: !!selectedDepartment,
   });
 
+  useEffect(() => {
+    if (!showConfigSheet || !departmentAgents?.length) return;
+    const primary = departmentAgents.find((d) => d.isPrimary) || departmentAgents[0];
+    const ag = primary.agent;
+    const cfg =
+      ag.config && typeof ag.config === "object" && !Array.isArray(ag.config)
+        ? ag.config
+        : {};
+    const tm = typeof cfg.transferMessage === "string" ? cfg.transferMessage : "";
+    setDeptFeatures((prev) => ({
+      ...prev,
+      enableTransfer: !!ag.transferEnabled,
+      transferNumber: ag.transferPhoneNumber || "",
+      transferMessage: tm,
+      enableLanguageDetection: !!ag.detectLanguageEnabled,
+      enableEndConversation: !!ag.endConversationEnabled,
+      enableAppointmentBooking: !!ag.appointmentBookingEnabled,
+    }));
+  }, [showConfigSheet, departmentAgents]);
+
   const createDepartmentMutation = useMutation({
     mutationFn: async (data: typeof newDepartment) => {
       setCreatingDepartment(true);
@@ -725,6 +704,38 @@ export default function DeprockManagement() {
     },
     onError: () => {
       toast({ title: "Failed to update deprock department", variant: "destructive" });
+    },
+  });
+
+  const saveDepartmentConfigMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+      transfer,
+    }: {
+      id: string;
+      data: Partial<Department>;
+      transfer: { enableTransfer: boolean; transferNumber: string; transferMessage: string };
+    }) => {
+      await apiRequest("POST", `/api/deprock/${id}/sync-transfer`, {
+        transferEnabled: transfer.enableTransfer,
+        transferPhoneNumber: transfer.transferNumber,
+        transferMessage: transfer.transferMessage,
+      });
+      return apiRequest("PATCH", `/api/deprock/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      setShowConfigSheet(false);
+      setSelectedDepartment(null);
+      toast({ title: "Department configuration saved" });
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err instanceof ApiError ? err.message : "Failed to save configuration";
+      toast({ title: msg, variant: "destructive" });
     },
   });
 
@@ -960,7 +971,7 @@ export default function DeprockManagement() {
   const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting();
 
   const getDefaultVoiceForLanguage = (langCode: string) => {
-    const voices = getVoicesForLanguage(langCode, dynamicElVoices, dynamicCartesiaVoices);
+    const voices = getVoicesForLanguage(langCode, dynamicElVoices);
     return voices[0]?.id || "el_rachel";
   };
 
@@ -1969,14 +1980,14 @@ export default function DeprockManagement() {
                           <Label className="text-xs">Voice</Label>
                           <div className="flex items-center gap-1">
                             <Select value={agent.voiceId} onValueChange={(v) => {
-                              const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(voice => voice.id === v);
+                              const voice = [...ALL_IVR_VOICES, ...dynamicElVoices].find(voice => voice.id === v);
                               updateNewAgent(agent.id, { voiceId: v, voiceTone: voice?.style || "" });
                             }}>
                               <SelectTrigger className="flex-1" data-testid={`deprock-select-agent-voice-${idx}`}>
                                 <SelectValue placeholder="Select voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {getVoicesForLanguage(agent.language, dynamicElVoices, dynamicCartesiaVoices).map(voice => (
+                                {getVoicesForLanguage(agent.language, dynamicElVoices).map(voice => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}
                                   </SelectItem>
@@ -2039,7 +2050,7 @@ export default function DeprockManagement() {
                               size="sm"
                               onClick={() => {
                                 const lang = SUPPORTED_LANGUAGES.find(l => l.code === agent.language)?.label || "English";
-                                const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(v => v.id === agent.voiceId);
+                                const voice = [...ALL_IVR_VOICES, ...dynamicElVoices].find(v => v.id === agent.voiceId);
                                 const voiceStyle = voice?.style || agent.voiceTone || "professional";
                                 const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${newDepartment.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
                                 updateNewAgent(agent.id, { systemPrompt: autoPrompt });
@@ -2139,7 +2150,7 @@ export default function DeprockManagement() {
                 <Select
                   value={selectedAgent.voiceId}
                   onValueChange={(v) => {
-                    const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(voice => voice.id === v);
+                    const voice = [...ALL_IVR_VOICES, ...dynamicElVoices].find(voice => voice.id === v);
                     setSelectedAgent({ 
                       ...selectedAgent, 
                       voiceId: v,
@@ -2151,7 +2162,7 @@ export default function DeprockManagement() {
                     <SelectValue placeholder="Select a voice..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {getVoicesForLanguage(selectedAgent.language, dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
+                    {getVoicesForLanguage(selectedAgent.language, dynamicElVoices).map((voice) => (
                       <SelectItem key={voice.id} value={voice.id}>
                         {voice.name} - {voice.gender}, {voice.style}
                       </SelectItem>
@@ -2223,7 +2234,7 @@ export default function DeprockManagement() {
                   size="sm"
                   onClick={() => {
                     const lang = languages.find(l => l.value === selectedAgent.language)?.label || "English";
-                    const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(v => v.id === selectedAgent.voiceId);
+                    const voice = [...ALL_IVR_VOICES, ...dynamicElVoices].find(v => v.id === selectedAgent.voiceId);
                     const voiceStyle = voice?.style || "professional";
                     const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${selectedDepartment?.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
                     setSelectedAgent({ ...selectedAgent, systemPrompt: autoPrompt });
@@ -2535,7 +2546,7 @@ export default function DeprockManagement() {
                             <SelectValue placeholder="Select a voice..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
+                            {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices).map((voice) => (
                               <SelectItem key={voice.id} value={voice.id}>
                                 {voice.name} - {voice.gender}, {voice.style}
                               </SelectItem>
@@ -2633,10 +2644,13 @@ export default function DeprockManagement() {
                             <Input
                               value={deptFeatures.transferNumber}
                               onChange={(e) => setDeptFeatures({ ...deptFeatures, transferNumber: e.target.value })}
-                              placeholder="+1 (555) 123-4567"
+                              placeholder="+971501234567"
                               className="mt-1"
                               data-testid="deprock-input-transfer-number"
                             />
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              E.164 format (UAE +971…, international +country…). Applied to all agents in this department.
+                            </p>
                           </div>
                           <div>
                             <Label className="text-xs">Transfer Message</Label>
@@ -2726,16 +2740,20 @@ export default function DeprockManagement() {
                   <Button
                     className="flex-1"
                     onClick={() => {
-                      updateDepartmentMutation.mutate({
+                      saveDepartmentConfigMutation.mutate({
                         id: selectedDepartment.id,
                         data: newDepartment,
+                        transfer: {
+                          enableTransfer: deptFeatures.enableTransfer,
+                          transferNumber: deptFeatures.transferNumber,
+                          transferMessage: deptFeatures.transferMessage,
+                        },
                       });
-                      setShowConfigSheet(false);
                     }}
-                    disabled={updateDepartmentMutation.isPending}
+                    disabled={saveDepartmentConfigMutation.isPending}
                     data-testid="deprock-button-save-config"
                   >
-                    {updateDepartmentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {saveDepartmentConfigMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Save Changes
                   </Button>
                   <Button
@@ -2831,7 +2849,7 @@ export default function DeprockManagement() {
                                 <SelectValue placeholder="Select a voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {getVoicesForLanguage("en", dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
+                                {getVoicesForLanguage("en", dynamicElVoices).map((voice) => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}, {voice.style}
                                   </SelectItem>
@@ -2936,9 +2954,9 @@ export default function DeprockManagement() {
                                       <SelectValue placeholder="Select a voice..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {getVoicesForLanguage(opt.language, dynamicElVoices, dynamicCartesiaVoices).length > 0 ? (
+                                      {getVoicesForLanguage(opt.language, dynamicElVoices).length > 0 ? (
                                         <>
-                                          {getVoicesForLanguage(opt.language, dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
+                                          {getVoicesForLanguage(opt.language, dynamicElVoices).map((voice) => (
                                             <SelectItem key={voice.id} value={voice.id}>
                                               {voice.name} - {voice.gender}, {voice.style}
                                             </SelectItem>
@@ -3172,7 +3190,7 @@ export default function DeprockManagement() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      disabled={previewingVoice || !editAgentDetail.voiceId || ![...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].some(v => v.id === editAgentDetail.voiceId)}
+                      disabled={previewingVoice || !editAgentDetail.voiceId || ![...ALL_IVR_VOICES, ...dynamicElVoices].some(v => v.id === editAgentDetail.voiceId)}
                       onClick={async () => {
                         if (!editAgentDetail.voiceId) return;
                         setPreviewingVoice(true);
@@ -3181,7 +3199,7 @@ export default function DeprockManagement() {
                             previewAudioRef.current.pause();
                             previewAudioRef.current = null;
                           }
-                          const allVoicesList = [...ALL_IVR_VOICES, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)];
+                          const allVoicesList = [...ALL_IVR_VOICES, ...dynamicElVoices];
                           const voiceInfo = allVoicesList.find(v => v.id === editAgentDetail.voiceId);
                           const voiceName = voiceInfo?.name || editAgentDetail.voiceId;
                           const voiceLang = voiceInfo?.languages?.[0] || 'en';
@@ -3223,9 +3241,8 @@ export default function DeprockManagement() {
                   </div>
                   {(() => {
                     const currentVoiceId = editAgentDetail.voiceId;
-                    const allCartesia = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
-                    const isKnownVoice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...allCartesia].some(v => v.id === currentVoiceId);
-                    const filteredEL = getVoicesForLanguage(viewAgentDetail.language, dynamicElVoices, dynamicCartesiaVoices);
+                    const isKnownVoice = [...ALL_IVR_VOICES, ...dynamicElVoices].some(v => v.id === currentVoiceId);
+                    const filteredEL = getVoicesForLanguage(viewAgentDetail.language, dynamicElVoices);
                     const currentInFiltered = filteredEL.some(v => v.id === currentVoiceId);
                     return (
                       <Select
@@ -3242,7 +3259,7 @@ export default function DeprockManagement() {
                         <SelectContent>
                           {!currentInFiltered && isKnownVoice && currentVoiceId && (
                             <SelectItem key={currentVoiceId} value={currentVoiceId} data-testid={`deprock-agent-detail-voice-option-${currentVoiceId}`}>
-                              {[...ALL_IVR_VOICES, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
+                              {[...ALL_IVR_VOICES, ...dynamicElVoices].find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
                             </SelectItem>
                           )}
                           {filteredEL.map(voice => (

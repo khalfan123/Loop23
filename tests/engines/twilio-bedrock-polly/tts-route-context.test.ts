@@ -40,6 +40,7 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     expect(ctx.buildRequest('aws_polly')).toMatchObject({ text: 'hello', voiceId: 'Matthew', sampleRateHz: 8000 });
     expect(ctx.buildRequest('elevenlabs')).toBeNull();
     expect(ctx.buildRequest('cartesia')).toBeNull();
+    expect(ctx.buildRequest('local_clone')).toBeNull();
   });
 
   it('elevenlabs agent with per-agent key: preferred elevenlabs, key passed through, raw Polly fallback voice', () => {
@@ -72,19 +73,15 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     expect(ctx.buildRequest('elevenlabs')).toMatchObject({ options: { apiKey: 'env-key' } });
   });
 
-  it('cartesia agent with a vendor UUID in voice: speed 1.25 and UUID-guarded Polly fallback voice', () => {
+  it('cartesia agents route to Polly (Cartesia deprecated in production)', () => {
     const config = agent({
       voice: 'a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6', // 36-char vendor UUID
       cartesiaVoiceId: 'cart-voice-9',
       language: 'ar',
     });
     const ctx = buildTTSRouteContext(config, 'cartesia', 'مرحبا');
-    expect(ctx.preferred).toBe('cartesia');
-    expect(ctx.buildRequest('cartesia')).toMatchObject({
-      voiceId: 'cart-voice-9',
-      language: 'ar',
-      options: { speed: 1.25 },
-    });
+    expect(ctx.preferred).toBe('aws_polly');
+    expect(ctx.buildRequest('cartesia')).toBeNull();
     // UUID guard replaces the vendor UUID with the per-language Polly default
     expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Hala' });
   });
@@ -102,7 +99,7 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     expect(ctx2.preferred).toBe('aws_polly');
   });
 
-  it('never offers the OTHER premium provider as an alternate (strict [preferred, polly] chain)', () => {
+  it('never offers another premium provider as an alternate (strict [preferred, polly] chain)', () => {
     process.env.ELEVENLABS_API_KEY = 'env-key';
     // Agent switched providers but kept stale voice ids for both vendors
     const config = agent({
@@ -114,10 +111,6 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     const elCtx = buildTTSRouteContext(config, 'elevenlabs', 'hi');
     expect(elCtx.preferred).toBe('elevenlabs');
     expect(elCtx.buildRequest('cartesia')).toBeNull();
-
-    const cartCtx = buildTTSRouteContext(config, 'cartesia', 'hi');
-    expect(cartCtx.preferred).toBe('cartesia');
-    expect(cartCtx.buildRequest('elevenlabs')).toBeNull();
   });
 
   it('UUID-guards the Polly fallback voice on the elevenlabs path too (final fallback always synthesizable)', () => {
@@ -131,6 +124,50 @@ describe('buildTTSRouteContext — legacy agent shapes', () => {
     // Legacy passed the raw UUID to Polly, which fails every engine tier;
     // the router's final fallback must always be a real Polly voice.
     expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Hala' });
+  });
+
+  it('local_clone preferred when voice id + LOCAL_CLONE_TTS_BASE_URL set', () => {
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    try {
+      const config = agent({
+        voice: 'Joanna',
+        ttsProvider: 'local_clone',
+        localCloneVoiceId: 'clone-voice-1',
+        localCloneApiKey: 'clone-key',
+        localCloneModelId: 'omnivoice-1hd',
+      });
+      const ctx = buildTTSRouteContext(config, 'local_clone', 'hello');
+      expect(ctx.preferred).toBe('local_clone');
+      expect(ctx.finalFallback).toBe('aws_polly');
+      expect(ctx.buildRequest('local_clone')).toMatchObject({
+        text: 'hello',
+        voiceId: 'clone-voice-1',
+        sampleRateHz: 8000,
+        options: { apiKey: 'clone-key', modelId: 'omnivoice-1hd' },
+      });
+      expect(ctx.buildRequest('aws_polly')).toMatchObject({ voiceId: 'Joanna' });
+    } finally {
+      if (prev === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
+  });
+
+  it('local_clone demotes without base URL', () => {
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+    try {
+      const config = agent({
+        ttsProvider: 'local_clone',
+        localCloneVoiceId: 'clone-voice-1',
+      });
+      const ctx = buildTTSRouteContext(config, 'local_clone', 'hello');
+      expect(ctx.preferred).toBe('aws_polly');
+      expect(ctx.buildRequest('local_clone')).toBeNull();
+    } finally {
+      if (prev === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
   });
 });
 
@@ -170,5 +207,29 @@ describe('buildBrowserTTSRouteContext — browser test-call shapes', () => {
     const config = agent({ voice: 'Joanna', ttsProvider: 'elevenlabs', elevenLabsVoiceId: 'v-1' });
     const ctx = buildBrowserTTSRouteContext(config, 'Joanna', 'hi');
     expect(ctx.buildRequest('elevenlabs')).toBeNull();
+  });
+
+  it('local_clone agent builds mp3 preview request when base URL configured', () => {
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    try {
+      const config = agent({
+        ttsProvider: 'local_clone',
+        localCloneVoiceId: 'profile-1',
+        localCloneApiKey: 'k',
+        localCloneModelId: 'tts-1',
+      });
+      const ctx = buildBrowserTTSRouteContext(config, 'Joanna', 'hi');
+      expect(ctx.preferred).toBe('local_clone');
+      expect(ctx.buildRequest('local_clone')).toMatchObject({
+        voiceId: 'profile-1',
+        format: 'mp3',
+        sampleRateHz: 22050,
+        options: { apiKey: 'k', modelId: 'tts-1' },
+      });
+    } finally {
+      if (prev === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
   });
 });

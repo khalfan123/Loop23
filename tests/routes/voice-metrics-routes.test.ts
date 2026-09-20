@@ -34,7 +34,7 @@ describe('GET /api/voice-metrics', () => {
     expect(body).toHaveProperty('latency.streamTotalMs.p95');
     expect(Array.isArray(body.providers)).toBe(true);
     const ids = body.providers.map((p: any) => p.providerId).sort();
-    expect(ids).toEqual(['aws_polly', 'cartesia', 'elevenlabs']);
+    expect(ids).toEqual(['aws_polly', 'elevenlabs']);
     for (const p of body.providers) {
       expect(['closed', 'open', 'half_open']).toContain(p.breaker);
     }

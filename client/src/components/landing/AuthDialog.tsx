@@ -202,10 +202,13 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
     setIsLoading(true);
     
     try {
+      const email = loginForm.email.trim().toLowerCase();
+      const password = loginForm.password.trim();
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginForm),
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
       });
       
       const data = await response.json();
@@ -853,13 +856,27 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           
           {authView === "login" ? (
             <div className="flex flex-col items-center text-center space-y-3">
-              {currentLogo && (
-                <img
-                  src={currentLogo}
-                  alt={branding.app_name}
-                  className="h-10 w-auto max-w-[180px] object-contain"
-                  data-testid="img-auth-logo"
-                />
+              {(branding.favicon_url || currentLogo) && (
+                <div className="flex items-center justify-center gap-2.5">
+                  {branding.favicon_url && (
+                    <img
+                      src={branding.favicon_url}
+                      alt=""
+                      className="h-9 w-9 object-contain"
+                    />
+                  )}
+                  {currentLogo && currentLogo !== branding.favicon_url && (
+                    <img
+                      src={currentLogo}
+                      alt={branding.app_name}
+                      className="h-8 w-auto max-w-[160px] object-contain"
+                      data-testid="img-auth-logo"
+                    />
+                  )}
+                  {currentLogo && currentLogo === branding.favicon_url && (
+                    <span className="text-lg font-semibold tracking-tight">{branding.app_name}</span>
+                  )}
+                </div>
               )}
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
@@ -880,13 +897,22 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
-                {currentLogo && (
+                {branding.favicon_url && (
+                  <img
+                    src={branding.favicon_url}
+                    alt=""
+                    className="h-8 w-8 object-contain"
+                  />
+                )}
+                {currentLogo && currentLogo !== branding.favicon_url ? (
                   <img
                     src={currentLogo}
                     alt={branding.app_name}
-                    className="h-8 w-auto max-w-[140px] object-contain"
+                    className="h-7 w-auto max-w-[140px] object-contain"
                     data-testid="img-auth-logo"
                   />
+                ) : (
+                  <span className="text-base font-semibold tracking-tight">{branding.app_name}</span>
                 )}
               </div>
               <div>
@@ -920,6 +946,11 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                       <Input
                         id="dialog-login-email"
                         type="email"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        autoComplete="email"
+                        spellCheck={false}
                         placeholder="you@company.com"
                         value={loginForm.email}
                         onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}

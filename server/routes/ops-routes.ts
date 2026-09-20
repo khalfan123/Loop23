@@ -12,7 +12,7 @@ import { db } from '../db';
 const updateOpsTaskSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
-  taskType: z.enum(['refund', 'callback', 'followup', 'escalation', 'other']).optional(),
+  taskType: z.enum(['refund', 'callback', 'followup', 'escalation', 'appointment', 'dynamic_form', 'other']).optional(),
   priority: z.enum(['high', 'medium', 'low']).optional(),
   status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']).optional(),
   assignedTo: z.string().optional().nullable(),
@@ -23,7 +23,7 @@ const createOpsTaskSchema = z.object({
   callId: z.string().optional().nullable(),
   title: z.string().min(1),
   description: z.string().optional(),
-  taskType: z.enum(['refund', 'callback', 'followup', 'escalation', 'other']).default('other'),
+  taskType: z.enum(['refund', 'callback', 'followup', 'escalation', 'appointment', 'dynamic_form', 'other']).default('other'),
   priority: z.enum(['high', 'medium', 'low']).default('medium'),
   assignedTo: z.string().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
@@ -309,7 +309,13 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
       const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, callId);
       const created = await storage.createOpsTasks(insertData);
-      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length);
+      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length, {
+        outputLanguage: businessContext.language || null,
+        provider: result.provider,
+        modelUsed: result.modelUsed,
+        callSummary: result.callSummary,
+        callBrief: result.callBrief as unknown as Record<string, unknown>,
+      });
 
       res.json({
         message: `Extracted ${created.length} task(s) from call`,
@@ -364,7 +370,13 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
           const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, call.id);
           const created = await storage.createOpsTasks(insertData);
-          await storage.recordOpsAnalysisRun(req.userId!, call.id, created.length);
+          await storage.recordOpsAnalysisRun(req.userId!, call.id, created.length, {
+            outputLanguage: businessContext.language || null,
+            provider: result.provider,
+            modelUsed: result.modelUsed,
+            callSummary: result.callSummary,
+            callBrief: result.callBrief as unknown as Record<string, unknown>,
+          });
           results.push({ callId: call.id, tasksCreated: created.length, success: true, provider: result.provider });
         } catch (err: any) {
           results.push({ callId: call.id, tasksCreated: 0, success: false, error: err.message });
@@ -395,7 +407,7 @@ export function createOpsRoutes(ctx: RouteContext): Router {
       }
 
       const deletedCount = await storage.deleteOpsTasksByCallId(callId, req.userId!);
-      await storage.deleteOpsAnalysisRun(callId);
+      await storage.deleteOpsAnalysisRun(callId, req.userId!);
 
       logger.info(`[Ops] Re-analyzing call ${callId} — removed ${deletedCount} old task(s)`, undefined, 'Ops Routes');
 
@@ -411,7 +423,13 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
       const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, callId);
       const created = await storage.createOpsTasks(insertData);
-      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length);
+      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length, {
+        outputLanguage: businessContext.language || null,
+        provider: result.provider,
+        modelUsed: result.modelUsed,
+        callSummary: result.callSummary,
+        callBrief: result.callBrief as unknown as Record<string, unknown>,
+      });
 
       res.json({
         message: `Re-analyzed: removed ${deletedCount} old task(s), created ${created.length} new task(s)`,
@@ -452,7 +470,7 @@ export function createOpsRoutes(ctx: RouteContext): Router {
           }
 
           const deletedCount = await storage.deleteOpsTasksByCallId(callId, req.userId!);
-          await storage.deleteOpsAnalysisRun(callId);
+          await storage.deleteOpsAnalysisRun(callId, req.userId!);
 
           const businessContext = await fetchBusinessContext(call);
           const result = await CallpilotAI.extractTasksFromTranscript(call.transcript, {
@@ -465,7 +483,13 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
           const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, callId);
           const created = await storage.createOpsTasks(insertData);
-          await storage.recordOpsAnalysisRun(req.userId!, callId, created.length);
+          await storage.recordOpsAnalysisRun(req.userId!, callId, created.length, {
+            outputLanguage: businessContext.language || null,
+            provider: result.provider,
+            modelUsed: result.modelUsed,
+            callSummary: result.callSummary,
+            callBrief: result.callBrief as unknown as Record<string, unknown>,
+          });
 
           results.push({ callId, oldRemoved: deletedCount, newCreated: created.length, success: true });
         } catch (err: any) {

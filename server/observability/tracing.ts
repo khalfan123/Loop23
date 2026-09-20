@@ -17,7 +17,7 @@
  * ============================================================
  */
 
-import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 import {
   NodeTracerProvider,
   BatchSpanProcessor,
@@ -71,13 +71,22 @@ export function initVoiceTracing(): boolean {
 }
 
 /**
- * Emit one retroactive span for a completed conversation turn, with stage
- * events at the measured offsets. No-op when no SDK is registered.
+ * Emit a retroactive span TREE for a completed conversation turn: a parent
+ * `voice.turn` span with child `voice.stt`, `voice.llm`, and `voice.tts`
+ * spans placed at the measured stage offsets, so the STT→LLM→TTS pipeline is
+ * a real distributed trace (shared trace id, parent/child links) rather than
+ * a flat span with events. Stage events are retained on the parent for
+ * back-compat with anything keying off them. No-op when no SDK is registered.
+ *
+ * All metric fields are millisecond offsets from the turn start (`startMs`).
+ * A child span is emitted only for a stage with a positive, well-ordered
+ * span, so turns that skip a stage (e.g. a greeting with no STT) don't
+ * produce zero/negative-duration spans.
  */
 export function recordVoiceTurnSpan(metric: TurnLatencyMetric): void {
   const tracer = trace.getTracer(TRACER_NAME);
   const startMs = metric.at - metric.streamTotalMs;
-  const span = tracer.startSpan('voice.turn', {
+  const parent = tracer.startSpan('voice.turn', {
     startTime: new Date(startMs),
     attributes: {
       'voice.call_sid': metric.callSid,
@@ -91,10 +100,34 @@ export function recordVoiceTurnSpan(metric: TurnLatencyMetric): void {
       ...(metric.ttsFellBack !== undefined ? { 'voice.tts_fell_back': metric.ttsFellBack } : {}),
     },
   });
-  if (metric.sttMs > 0) span.addEvent('stt.completed', undefined, new Date(startMs + metric.sttMs));
-  if (metric.llmFirstMs > 0) span.addEvent('llm.first_token', undefined, new Date(startMs + metric.llmFirstMs));
-  if (metric.ttsStartMs > 0) span.addEvent('tts.first_audio_requested', undefined, new Date(startMs + metric.ttsStartMs));
-  span.end(new Date(metric.at));
+  if (metric.sttMs > 0) parent.addEvent('stt.completed', undefined, new Date(startMs + metric.sttMs));
+  if (metric.llmFirstMs > 0) parent.addEvent('llm.first_token', undefined, new Date(startMs + metric.llmFirstMs));
+  if (metric.ttsStartMs > 0) parent.addEvent('tts.first_audio_requested', undefined, new Date(startMs + metric.ttsStartMs));
+
+  const parentCtx = trace.setSpan(context.active(), parent);
+  const emitChild = (
+    name: string,
+    startOffset: number,
+    endOffset: number,
+    attributes: Record<string, string | number | boolean> = {}
+  ): void => {
+    if (!(endOffset > startOffset)) return; // skip zero/negative-duration stages
+    const child = tracer.startSpan(name, { startTime: new Date(startMs + startOffset), attributes }, parentCtx);
+    child.end(new Date(startMs + endOffset));
+  };
+
+  // STT: [0, sttMs]. LLM: [sttMs, llmFirstMs] (STT-complete → first token).
+  // TTS: [ttsStartMs, ttsAudioMs] (synthesis start → first audio ready).
+  emitChild('voice.stt', 0, metric.sttMs, { 'voice.stt_ms': metric.sttMs });
+  emitChild('voice.llm', metric.sttMs, metric.llmFirstMs, {
+    'voice.llm_first_token_ms': metric.llmFirstMs,
+  });
+  emitChild('voice.tts', metric.ttsStartMs, metric.ttsAudioMs, {
+    ...(metric.ttsProvider ? { 'voice.tts_provider': metric.ttsProvider } : {}),
+    ...(metric.ttsFellBack !== undefined ? { 'voice.tts_fell_back': metric.ttsFellBack } : {}),
+  });
+
+  parent.end(new Date(metric.at));
 }
 
 /**

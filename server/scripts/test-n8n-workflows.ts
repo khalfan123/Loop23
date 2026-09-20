@@ -116,7 +116,7 @@ async function createTestWorkflow(integration: typeof INTEGRATIONS[0]): Promise<
     const nodes = [
       {
         parameters: { path: webhookPath, httpMethod: 'POST', responseMode: 'onReceived', options: {} },
-        name: 'Loop9 Webhook',
+        name: 'Byan AI Webhook',
         type: 'n8n-nodes-base.webhook',
         typeVersion: 1,
         position: [250, 300],
@@ -131,13 +131,13 @@ async function createTestWorkflow(integration: typeof INTEGRATIONS[0]): Promise<
     ];
 
     const connections = {
-      'Loop9 Webhook': { main: [[{ node: integration.name, type: 'main', index: 0 }]] },
+      'Byan AI Webhook': { main: [[{ node: integration.name, type: 'main', index: 0 }]] },
     };
 
     const result = await n8nFetch('/workflows', {
       method: 'POST',
       body: JSON.stringify({
-        name: `[TEST] Loop9 → ${integration.name}`,
+        name: `[TEST] Byan AI → ${integration.name}`,
         nodes,
         connections,
         settings: { executionOrder: 'v1' },

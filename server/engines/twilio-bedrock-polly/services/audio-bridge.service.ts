@@ -19,9 +19,15 @@ import WebSocket from 'ws';
 import { awsBedrockService } from '../../../services/aws-bedrock';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/config';
+import { resolveHumanAgentBridgeCallerId } from '../../../utils/phone-e164';
 import { db } from '../../../db';
 import { eq } from 'drizzle-orm';
 import { callErrorLogger } from '../../../services/call-error-logger';
+import {
+  bedrockOutboundMediaMetrics,
+  formatBedrockOutboundLogMessage,
+  type BedrockOutboundPurpose,
+} from './bedrock-outbound-media-metrics';
 import type {
   AgentConfig,
   BedrockPollyBridgeSession,
@@ -32,26 +38,43 @@ import type {
 import { isOpenAIModel } from '../types';
 import { openaiInvokeStream, openaiInvoke, openaiInvokeStreamStructured } from './openai-llm.service';
 import { ToolRegistry, toBedrockToolSpecs, agentToolToDefinition } from '../../../services/agent-orchestration/tool-registry';
+import {
+  isCallSupervisorEnabled,
+  createDefaultCallSupervisor,
+  routeCallSupervisorTurn,
+  type CallSupervisorBundle,
+} from '../../../services/agent-orchestration/call-supervisor';
 import { converseStream, converseWithToolResults } from '../../../services/agent-orchestration/bedrock-converse';
 import type { LLMStreamEvent, StructuredToolCall, StructuredToolResult, ToolDefinition } from '../../../services/agent-orchestration/tool-registry';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
+import { sentimentLevelToEmotion } from '../../../services/conversation-signals';
+import { AdaptiveDialoguePolicy } from '../../../services/agent-orchestration/affective-dialogue';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
 import {
   mulawEnergy,
+  mulawToPcm16,
   pcmToMulaw as corePcmToMulaw,
 } from '../../../voice-core/audio/g711';
+import { NoiseSuppressor } from '../../../voice-core/audio/noise-suppression';
 import { splitSentences as coreSplitSentences } from '../../../voice-core/text/sentence-split';
-import { sanitizeForTTS as coreSanitizeForTTS } from '../../../voice-core/text/tts-sanitize';
 import {
-  isWhisperHallucination as coreIsWhisperHallucination,
-  isLikelyBackgroundSpeech as coreIsLikelyBackgroundSpeech,
-  isLanguageMismatch as coreIsLanguageMismatch,
+  sanitizeForTTS as coreSanitizeForTTS,
+  decideSpeakableTtsText as coreDecideSpeakableTtsText,
+} from '../../../voice-core/text/tts-sanitize';
+import {
+  decideInboundTranscriptGate,
 } from '../../../voice-core/stt/whisper-filters';
 import { defaultPollyVoiceForLanguage } from '../../../voice-core/providers/polly-tts.provider';
+import { ElevenLabsTTSProvider } from '../../../voice-core/providers/elevenlabs-tts.provider';
+import { LocalCloneTTSProvider } from '../../../voice-core/providers/local-clone-tts.provider';
+import {
+  isLocalCloneLiveEnabled,
+  warmLocalCloneSidecar,
+} from '../../../voice-core/providers/local-clone-config';
 import {
   getDeprockTTSRouter,
   getDeprockPollyProvider,
@@ -62,6 +85,16 @@ import {
 import { getDeprockSTTProvider } from './stt-provider';
 import { voiceMetrics } from '../../../voice-core';
 import { recordVoiceTurnSpan } from '../../../observability/tracing';
+
+/** Shared adapter for pre-warming cached ElevenLabs backchannel phrases. */
+const backchannelElevenLabs = new ElevenLabsTTSProvider();
+/** Shared adapter for local_clone backchannel warm (Phase 2 hybrid live). */
+const backchannelLocalClone = new LocalCloneTTSProvider();
+/** Dedupe process-wide sidecar warm so every call does not re-cold-start GPU. */
+let localCloneSidecarWarm: Promise<boolean> | null = null;
+
+/** Shared, stateless adaptive-dialogue policy (see VOICE_ADAPTIVE_DIALOGUE). */
+const ADAPTIVE_DIALOGUE_POLICY = new AdaptiveDialoguePolicy();
 
 /**
  * Silence detection timers keyed by callSid.
@@ -74,6 +107,18 @@ const silenceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
  * Each entry accumulates raw mulaw chunks until silence is detected.
  */
 const audioBuffers: Map<string, Buffer[]> = new Map();
+
+/**
+ * Per-call noise suppressors (see VOICE_NOISE_SUPPRESSION). Kept per call so
+ * the ambient-noise floor carries across turns rather than resetting each
+ * utterance. Created lazily and cleared on disconnect.
+ */
+const noiseSuppressors: Map<string, NoiseSuppressor> = new Map();
+
+/** Whether inbound neural/DSP noise suppression is enabled (default off). */
+function isNoiseSuppressionEnabled(): boolean {
+  return /^(1|true|on|yes)$/i.test(process.env.VOICE_NOISE_SUPPRESSION ?? '');
+}
 
 /**
  * Tracks the timestamp of the first audio chunk in the current buffer,
@@ -90,6 +135,8 @@ const noResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 const callerHasSpoken: Map<string, boolean> = new Map();
 const inboundHallucinationCount: Map<string, number> = new Map();
 const inboundNoResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+const consecutiveSilentTurns: Map<string, number> = new Map();
+const modelDowngradeUntil: Map<string, number> = new Map(); // callSid -> epoch ms
 
 const bargeInAccum: Map<string, number> = new Map();
 
@@ -122,6 +169,77 @@ const twilioStreamReady: Map<string, boolean> = new Map();
 
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
+  /** Monotonic (or test) clock for speech-end / turn-ready / enqueue metrics. */
+  private static measureClockMs: () => number = () => {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+      return performance.now();
+    }
+    return Date.now();
+  };
+
+  static setMeasureClockForTests(fn: (() => number) | null): void {
+    this.measureClockMs = fn || (() =>
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now());
+  }
+
+  /**
+   * Test seam: await between TTS completion and enqueue so deferred turn-A
+   * synthesis can resolve after turn-B begins.
+   */
+  private static preEnqueueHookForTests:
+    | ((ctx: {
+        callSid: string;
+        turnToken: number;
+        purpose: BedrockOutboundPurpose;
+      }) => Promise<void>)
+    | null = null;
+
+  static setPreEnqueueHookForTests(
+    fn: typeof BedrockPollyAudioBridge.preEnqueueHookForTests,
+  ): void {
+    this.preEnqueueHookForTests = fn;
+  }
+
+  static installSessionForTests(session: BedrockPollyBridgeSession): void {
+    this.activeSessions.set(session.callSid, session);
+  }
+
+  static uninstallSessionForTests(callSid: string): void {
+    this.activeSessions.delete(callSid);
+  }
+
+  private static measureNow(): number {
+    return this.measureClockMs();
+  }
+
+  private static isSessionLive(session: BedrockPollyBridgeSession): boolean {
+    if (session.status === 'disconnected' || session.status === 'error') {
+      return false;
+    }
+    return this.activeSessions.get(session.callSid) === session;
+  }
+
+  private static outboundOpts(
+    session: BedrockPollyBridgeSession,
+    purpose: BedrockOutboundPurpose,
+  ): { turnToken: number; purpose: BedrockOutboundPurpose } {
+    return {
+      turnToken: session.activeOutboundTurnToken || 0,
+      purpose,
+    };
+  }
+
+  private static canEnqueueOutbound(
+    session: BedrockPollyBridgeSession,
+    turnToken: number,
+  ): boolean {
+    if (!this.isSessionLive(session)) return false;
+    const tracker = bedrockOutboundMediaMetrics.get(session.callSid);
+    if (!tracker) return false;
+    return tracker.isTokenLive(turnToken);
+  }
 
   private static readonly SILENCE_SHORT_MS = 250;
   private static readonly SILENCE_MEDIUM_MS = 200;
@@ -203,10 +321,20 @@ export class BedrockPollyAudioBridge {
    * the session is immediately "connected" and ready to process audio.
    */
   static async createSession(params: CreateSessionParams): Promise<BedrockPollyBridgeSession> {
-    const { callSid, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
+    const { callSid, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection, humanWizardCli } = params;
 
-    const ttsLabel = agentConfig.ttsProvider === 'elevenlabs' ? 'ElevenLabs' : agentConfig.ttsProvider === 'cartesia' ? 'Cartesia Sonic' : 'AWS Polly';
-    const ttsVoiceId = agentConfig.ttsProvider === 'elevenlabs' ? agentConfig.elevenLabsVoiceId : agentConfig.ttsProvider === 'cartesia' ? agentConfig.cartesiaVoiceId : agentConfig.voice;
+    const ttsLabel =
+      agentConfig.ttsProvider === 'elevenlabs'
+        ? 'ElevenLabs'
+        : agentConfig.ttsProvider === 'local_clone'
+          ? 'LocalClone'
+          : 'AWS Polly';
+    const ttsVoiceId =
+      agentConfig.ttsProvider === 'elevenlabs'
+        ? agentConfig.elevenLabsVoiceId
+        : agentConfig.ttsProvider === 'local_clone'
+          ? agentConfig.localCloneVoiceId
+          : agentConfig.voice;
     console.log(`[BedrockPolly Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
     console.log(`[BedrockPolly Bridge] TTS: ${ttsLabel}, Voice: ${ttsVoiceId}, Model: ${agentConfig.model}`);
 
@@ -230,6 +358,7 @@ export class BedrockPollyAudioBridge {
       fromNumber,
       toNumber,
       callDirection,
+      humanWizardCli,
       pendingAudioQueue: [],
       isProcessing: false,
       pollyEngine: 'neural',
@@ -252,6 +381,9 @@ export class BedrockPollyAudioBridge {
 
     awsBedrockService.warmConnection().catch(() => {});
 
+    // Best-effort: warm same-voice backchannels so the first response feels instant.
+    this.warmElevenLabsBackchannels(session).catch(() => undefined);
+    this.warmLocalCloneForSession(session).catch(() => undefined);
 
     console.log(`[BedrockPolly Bridge] Session created for ${callSid} — ready for Twilio stream`);
     return session;
@@ -466,6 +598,7 @@ export class BedrockPollyAudioBridge {
               bargeInAccum.set(callSid, accum);
               if (accum >= this.BARGE_IN_MIN_BYTES && !bargeInFlags.get(callSid)) {
                 bargeInFlags.set(callSid, true);
+                bedrockOutboundMediaMetrics.getOrCreate(callSid).onInterrupted();
                 console.log(`[BedrockPolly Bridge] Barge-in activated for ${callSid} (accum=${accum}b, energy=${Math.round(energy)})`);
                 if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
                   session.twilioWs.send(JSON.stringify({
@@ -498,6 +631,9 @@ export class BedrockPollyAudioBridge {
 
           if (isSpeech) {
             buf.push(audioChunk);
+            bedrockOutboundMediaMetrics
+              .getOrCreate(callSid)
+              .onSpeechFrameAccepted(this.measureNow());
 
             if (!bufferStartTimes.has(callSid)) {
               bufferStartTimes.set(callSid, Date.now());
@@ -661,6 +797,11 @@ export class BedrockPollyAudioBridge {
     session.isProcessing = true;
     bargeInFlags.set(callSid, false);
     bargeInAccum.set(callSid, 0);
+    // Silence-timer fire = endpointDetected (includes VAD debounce), not bare acoustic EOS.
+    const turnToken = bedrockOutboundMediaMetrics
+      .getOrCreate(callSid)
+      .beginUserTurn(this.measureNow());
+    session.activeOutboundTurnToken = turnToken;
 
     this.processUserTurn(session).catch((err) => {
       console.error(`[BedrockPolly Bridge] Error processing user turn for ${callSid}:`, err);
@@ -687,6 +828,18 @@ export class BedrockPollyAudioBridge {
     hi: ['तो,', 'हम्म,', 'देखो,', 'अच्छा,', 'ओके,', 'एक सेकंड,'],
   };
 
+  // Same-voice (<1s feel) backchannels using ElevenLabs, cached per voice+language.
+  // Stored as mu-law buffers ready to stream to Twilio.
+  private static readonly BACKCHANNEL_PHRASES: Record<string, string[]> = {
+    ar: ['تمام.', 'أكيد.', 'لحظة.', 'حاضر.', 'طيب.', 'تمام فهمت.'],
+    en: ['Okay.', 'Got it.', 'One moment.', 'Sure.', 'Right.'],
+  };
+
+  private static readonly backchannelCache: Map<
+    string,
+    { mulawByPhrase: Map<string, Buffer>; warming?: Promise<void> }
+  > = new Map();
+
   private static getPollyFallbackVoice(language?: string): string {
     return defaultPollyVoiceForLanguage(language);
   }
@@ -695,24 +848,197 @@ export class BedrockPollyAudioBridge {
     return fillers[Math.floor(Math.random() * fillers.length)];
   }
 
+  private static getBackchannelCacheKey(session: BedrockPollyBridgeSession): string | null {
+    const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+    if (session.agentConfig.ttsProvider === 'local_clone' && session.agentConfig.localCloneVoiceId) {
+      return `local_clone:${lang}:${session.agentConfig.localCloneVoiceId}`;
+    }
+    const voiceId = session.agentConfig.elevenLabsVoiceId;
+    if (!voiceId) return null;
+    return `${lang}:${voiceId}`;
+  }
+
+  private static async warmLocalCloneForSession(session: BedrockPollyBridgeSession): Promise<void> {
+    if (session.agentConfig.ttsProvider !== 'local_clone' || !isLocalCloneLiveEnabled()) return;
+    if (!session.agentConfig.localCloneVoiceId) return;
+
+    if (!localCloneSidecarWarm) {
+      localCloneSidecarWarm = warmLocalCloneSidecar().then((ok) => {
+        console.log(`[BedrockPolly Bridge] local_clone sidecar warm ${ok ? 'ok' : 'failed'}`);
+        return ok;
+      });
+    }
+    await localCloneSidecarWarm;
+
+    const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+    const phrases = this.BACKCHANNEL_PHRASES[lang] || this.BACKCHANNEL_PHRASES['en'];
+    const key = this.getBackchannelCacheKey(session);
+    if (!key) return;
+
+    const existing = this.backchannelCache.get(key);
+    if (existing?.mulawByPhrase?.size) return;
+    if (existing?.warming) return existing.warming;
+
+    const entry = existing || { mulawByPhrase: new Map<string, Buffer>() };
+    entry.warming = (async () => {
+      for (const phrase of phrases) {
+        if (entry.mulawByPhrase.has(phrase)) continue;
+        try {
+          const result = await backchannelLocalClone.synthesize({
+            text: phrase,
+            voiceId: session.agentConfig.localCloneVoiceId!,
+            sampleRateHz: 8000,
+            options: {
+              apiKey: session.agentConfig.localCloneApiKey || process.env.LOCAL_CLONE_TTS_API_KEY,
+              modelId: session.agentConfig.localCloneModelId || process.env.LOCAL_CLONE_TTS_MODEL,
+              speed: session.agentConfig.voiceSpeed ?? 1.0,
+            },
+          });
+          const mulaw =
+            result.encoding === 'mulaw' ? result.audio : this.pcmToMulaw(result.audio);
+          entry.mulawByPhrase.set(phrase, mulaw);
+        } catch {
+          // Best-effort; skip failures.
+        }
+      }
+    })().finally(() => {
+      entry.warming = undefined;
+    });
+
+    this.backchannelCache.set(key, entry);
+    await entry.warming;
+  }
+
+  private static async warmElevenLabsBackchannels(session: BedrockPollyBridgeSession): Promise<void> {
+    if (session.agentConfig.ttsProvider !== 'elevenlabs' || !session.agentConfig.elevenLabsVoiceId) return;
+    const apiKey = session.agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) return;
+
+    const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+    const phrases = this.BACKCHANNEL_PHRASES[lang] || this.BACKCHANNEL_PHRASES['en'];
+    const key = this.getBackchannelCacheKey(session);
+    if (!key) return;
+
+    const existing = this.backchannelCache.get(key);
+    if (existing?.mulawByPhrase?.size) return;
+    if (existing?.warming) return existing.warming;
+
+    const entry = existing || { mulawByPhrase: new Map<string, Buffer>() };
+    entry.warming = (async () => {
+      for (const phrase of phrases) {
+        if (entry.mulawByPhrase.has(phrase)) continue;
+        try {
+          const result = await backchannelElevenLabs.synthesize({
+            text: phrase,
+            voiceId: session.agentConfig.elevenLabsVoiceId!,
+            sampleRateHz: 8000,
+            options: {
+              apiKey,
+              modelId: session.agentConfig.elevenLabsModelId || 'eleven_flash_v2_5',
+              stability: session.agentConfig.voiceStability ?? 0.55,
+              similarityBoost: session.agentConfig.voiceSimilarityBoost ?? 0.85,
+              speed: session.agentConfig.voiceSpeed ?? 1.0,
+              style: session.agentConfig.voiceStyle ?? 0,
+              useSpeakerBoost: session.agentConfig.voiceSpeakerBoost ?? true,
+              optimizeStreamingLatency: 2,
+            },
+          });
+          const mulaw =
+            result.encoding === 'mulaw' ? result.audio : this.pcmToMulaw(result.audio);
+          entry.mulawByPhrase.set(phrase, mulaw);
+        } catch {
+          // Best-effort; skip failures.
+        }
+      }
+    })().finally(() => {
+      entry.warming = undefined;
+    });
+
+    this.backchannelCache.set(key, entry);
+    await entry.warming;
+  }
+
+  private static playCachedElevenLabsBackchannel(
+    session: BedrockPollyBridgeSession,
+    phrase: string,
+    turnToken: number,
+  ): boolean {
+    if (
+      session.agentConfig.ttsProvider !== 'elevenlabs' &&
+      session.agentConfig.ttsProvider !== 'local_clone'
+    ) {
+      return false;
+    }
+    const key = this.getBackchannelCacheKey(session);
+    if (!key) return false;
+    const entry = this.backchannelCache.get(key);
+    const mulaw = entry?.mulawByPhrase.get(phrase);
+    if (!mulaw) return false;
+
+    this.sendMulawToTwilio(session, mulaw, {
+      turnToken,
+      purpose: 'filler',
+    });
+    callErrorLogger.logCallError({
+      engineType: 'bedrock-polly',
+      errorCategory: 'latency',
+      severity: 'info',
+      message: `backchannel_cache_hit phrase="${phrase}"`,
+      metadata: {
+        callSid: session.callSid,
+        phrase,
+        usedProvider: session.agentConfig.ttsProvider || 'elevenlabs',
+        cacheHit: true,
+      },
+    }).catch(() => undefined);
+    return true;
+  }
+
   private static async playFillerAudio(session: BedrockPollyBridgeSession, filler: string): Promise<void> {
+    const turnToken = session.activeOutboundTurnToken || 0;
     try {
+      if (
+        session.agentConfig.ttsProvider === 'elevenlabs' ||
+        session.agentConfig.ttsProvider === 'local_clone'
+      ) {
+        const played = this.playCachedElevenLabsBackchannel(session, filler, turnToken);
+        if (played) return;
+        callErrorLogger.logCallError({
+          engineType: 'bedrock-polly',
+          errorCategory: 'latency',
+          severity: 'info',
+          message: `backchannel_cache_miss phrase="${filler}"`,
+          metadata: {
+            callSid: session.callSid,
+            phrase: filler,
+            usedProvider: session.agentConfig.ttsProvider || 'elevenlabs',
+            cacheHit: false,
+          },
+        }).catch(() => undefined);
+        if (session.agentConfig.ttsProvider === 'elevenlabs') {
+          this.warmElevenLabsBackchannels(session).catch(() => undefined);
+        } else {
+          this.warmLocalCloneForSession(session).catch(() => undefined);
+        }
+        return;
+      }
+
       const rawVoice = session.agentConfig.voice || 'Joanna';
       const voiceId = rawVoice.match(/^[0-9a-f-]{36}$/i) ? this.getPollyFallbackVoice(session.agentConfig.language) : rawVoice;
       const audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
-      const mulawAudio = this.pcmToMulaw(audioBuffer);
-      const chunkSize = 640;
-      for (let offset = 0; offset < mulawAudio.length; offset += chunkSize) {
-        if (bargeInFlags.get(session.callSid)) break;
-        const chunk = mulawAudio.subarray(offset, offset + chunkSize);
-        if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-          session.twilioWs.send(JSON.stringify({
-            event: 'media',
-            streamSid: session.streamSid,
-            media: { payload: chunk.toString('base64') },
-          }));
-        }
+      if (this.preEnqueueHookForTests) {
+        await this.preEnqueueHookForTests({
+          callSid: session.callSid,
+          turnToken,
+          purpose: 'filler',
+        });
       }
+      if (!this.canEnqueueOutbound(session, turnToken)) return;
+      const mulawAudio = this.pcmToMulaw(audioBuffer);
+      this.sendMulawToTwilio(session, mulawAudio, {
+        turnToken,
+        purpose: 'filler',
+      });
     } catch (e: any) {
       console.warn(`[BedrockPolly Bridge] Filler audio failed: ${e.message}`);
     }
@@ -740,7 +1066,25 @@ export class BedrockPollyAudioBridge {
       const buf = audioBuffers.get(callSid) || [];
       audioBuffers.set(callSid, []);
 
-      const audioBuffer = Buffer.concat(buf);
+      let audioBuffer = Buffer.concat(buf);
+
+      // Inbound noise suppression (flag-gated, default off): μ-law → PCM16,
+      // suppress steady ambient noise, back to μ-law, so the downstream energy
+      // gates and STT see a cleaner signal. The per-call suppressor's noise
+      // floor persists across turns. Never let it break the turn.
+      if (isNoiseSuppressionEnabled() && audioBuffer.length > 0) {
+        try {
+          let ns = noiseSuppressors.get(callSid);
+          if (!ns) {
+            ns = new NoiseSuppressor();
+            noiseSuppressors.set(callSid, ns);
+          }
+          audioBuffer = corePcmToMulaw(ns.processBuffer(mulawToPcm16(audioBuffer)));
+        } catch (nsErr: any) {
+          console.warn(`[BedrockPolly Bridge] Noise suppression failed for ${callSid}: ${nsErr.message}`);
+        }
+      }
+
       const bufferEnergy = this.calculateMulawEnergy(audioBuffer);
       const speechThresh = this.getSpeechThreshold(callSid);
       console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b, avgEnergy=${Math.round(bufferEnergy)}, threshold=${Math.round(speechThresh)}`);
@@ -793,15 +1137,19 @@ export class BedrockPollyAudioBridge {
       }
 
       const turnCount = session.messages.filter(m => m.role === 'user').length;
-      const isLongUtterance = audioBuffer.length > 16000;
+      const isLongUtterance = audioBuffer.length > 8000;
 
       const isStreamReady = session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid;
-      if (turnCount >= 1 && isLongUtterance && isStreamReady && !playingGreeting.get(callSid) && !bargeInFlags.get(callSid)) {
-        const lang = session.agentConfig.language || 'en';
-        const ackFillers = this.ACKNOWLEDGMENT_FILLERS[lang] || this.ACKNOWLEDGMENT_FILLERS['en'];
+      // Play a short acknowledgment ASAP (including first caller turn) so there is never dead air,
+      // but do NOT block STT/LLM on it.
+      if (isLongUtterance && isStreamReady && !playingGreeting.get(callSid) && !bargeInFlags.get(callSid)) {
+        const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+        const ackFillers = session.agentConfig.ttsProvider === 'elevenlabs'
+          ? (this.BACKCHANNEL_PHRASES[lang] || this.BACKCHANNEL_PHRASES['en'])
+          : (this.ACKNOWLEDGMENT_FILLERS[lang] || this.ACKNOWLEDGMENT_FILLERS['en']);
         const filler = this.getRandomFiller(ackFillers);
-        console.log(`[BedrockPolly Bridge] Playing acknowledgment filler for ${callSid}: "${filler}"`);
-        await this.playFillerAudio(session, filler);
+        console.log(`[BedrockPolly Bridge] Scheduling acknowledgment filler for ${callSid}: "${filler}" (turn=${turnCount})`);
+        this.playFillerAudio(session, filler).catch(() => undefined);
       }
 
       const turnStart = Date.now();
@@ -811,13 +1159,67 @@ export class BedrockPollyAudioBridge {
       const sttMs = Date.now() - sttStart;
 
       if (!transcription || transcription.trim().length === 0) {
+        const silentCount = (consecutiveSilentTurns.get(callSid) || 0) + 1;
+        consecutiveSilentTurns.set(callSid, silentCount);
         console.log(`[BedrockPolly Bridge] Empty transcription, skipping turn for ${callSid}`);
+        if (silentCount >= 2) {
+          const lang = session.agentConfig.language || 'en';
+          const fallbackMsg = lang === 'ar'
+            ? "عذرًا، لا يصلني صوتك حاليًا. سأُنهي المكالمة حفاظًا على وقتك—يرجى معاودة الاتصال."
+            : "Sorry, I can’t hear you clearly right now. I’ll end the call so you can try again.";
+
+          callErrorLogger.logCallError({
+            callId: (session.agentConfig as any)?.toolContext?.callId,
+            userId: (session.agentConfig as any)?.toolContext?.userId,
+            engineType: 'bedrock-polly',
+            errorCategory: 'timeout',
+            severity: 'error',
+            message: `Consecutive silent turns reached ${silentCount}; played fallback and ended call`,
+            metadata: { callSid, silentTurns: silentCount, lang },
+          });
+
+          try {
+            await this.synthesizeAndSend(session, fallbackMsg);
+            lastTtsEndTime.set(callSid, Date.now());
+          } catch (ttsErr: any) {
+            console.error(`[BedrockPolly Bridge] Failed to play silent-turn fallback for ${callSid}:`, ttsErr?.message || ttsErr);
+          }
+
+          consecutiveSilentTurns.set(callSid, 0);
+          this.executeEndCall(session, 'Silent STT turns').catch((err) => {
+            console.error(`[BedrockPolly Bridge] Error executing silent-turn end_call:`, err);
+          });
+        }
         session.isProcessing = false;
         return;
       }
 
-      if (this.isWhisperHallucination(transcription)) {
-        console.log(`[BedrockPolly Bridge] Filtered Whisper hallucination for ${callSid}: "${transcription.substring(0, 100)}"`);
+      consecutiveSilentTurns.set(callSid, 0);
+
+      const expectedLang = session.agentConfig.language || 'en';
+      const backgroundNoiseRejection =
+        session.agentConfig?.behaviorConfig?.backgroundNoiseRejection !== false;
+      const gate = decideInboundTranscriptGate(transcription, {
+        expectedLang,
+        conversationMessages: session.messages,
+        backgroundNoiseRejection,
+        // No invented acoustic evidence — energy/VAD checks already ran above.
+        validatedBackgroundAcousticEvidence: false,
+        isOutbound: !!session.isOutbound,
+        inboundHallucinationCount: inboundHallucinationCount.get(callSid) || 0,
+      });
+
+      if (gate.signals.length > 0) {
+        const kinds = Array.from(new Set(gate.signals.map((s) => s.kind))).join(',');
+        console.log(
+          `[BedrockPolly Bridge] Lexical suspect signals for ${callSid}: ${kinds} (non-dropping)`
+        );
+      }
+
+      if (gate.action === 'reject_nonspeech') {
+        console.log(
+          `[BedrockPolly Bridge] Filtered nonspeech transcript for ${callSid}`
+        );
         session.isProcessing = false;
 
         if (!session.isOutbound) {
@@ -825,13 +1227,14 @@ export class BedrockPollyAudioBridge {
           if (existingInbTimer) {
             clearTimeout(existingInbTimer);
             inboundNoResponseTimers.delete(callSid);
-            console.log(`[BedrockPolly Bridge] Cleared inbound no-response timer on hallucination filter for ${callSid}`);
+            console.log(
+              `[BedrockPolly Bridge] Cleared inbound no-response timer on nonspeech filter for ${callSid}`
+            );
           }
 
-          const count = (inboundHallucinationCount.get(callSid) || 0) + 1;
-          inboundHallucinationCount.set(callSid, count);
+          inboundHallucinationCount.set(callSid, gate.nextHallucinationCount);
 
-          if (count <= 2) {
+          if (gate.shouldReprompt) {
             const lang = session.agentConfig.language || 'en';
             const reprompts: Record<string, string> = {
               en: "I'm here. Please go ahead.",
@@ -841,31 +1244,38 @@ export class BedrockPollyAudioBridge {
               hi: "मैं यहाँ हूँ। कृपया बताइए।",
             };
             const reprompt = reprompts[lang] || reprompts['en'];
-            console.log(`[BedrockPolly Bridge] Inbound hallucination re-prompt #${count} for ${callSid}: "${reprompt}"`);
-            this.synthesizeAndSend(session, reprompt).then(() => {
-              lastTtsEndTime.set(callSid, Date.now());
-            }).catch(err => {
-              console.error(`[BedrockPolly Bridge] Error sending hallucination re-prompt for ${callSid}:`, err);
-            });
+            console.log(
+              `[BedrockPolly Bridge] Inbound nonspeech re-prompt #${gate.nextHallucinationCount} for ${callSid}`
+            );
+            this.synthesizeAndSend(session, reprompt, this.outboundOpts(session, 'rejection_reprompt'))
+              .then(() => {
+                lastTtsEndTime.set(callSid, Date.now());
+              })
+              .catch((err) => {
+                console.error(
+                  `[BedrockPolly Bridge] Error sending nonspeech re-prompt for ${callSid}:`,
+                  err
+                );
+              });
           }
         }
 
         return;
       }
 
-      const expectedLang = session.agentConfig.language || 'en';
-      if (this.isLanguageMismatch(transcription, expectedLang)) {
-        console.log(`[BedrockPolly Bridge] Language mismatch filtered for ${callSid} (expected=${expectedLang}): "${transcription.substring(0, 100)}"`);
+      if (gate.action === 'reject_silent') {
+        console.log(
+          `[BedrockPolly Bridge] Transcript rejected (${gate.rejectedBy}) for ${callSid}`
+        );
         session.isProcessing = false;
         return;
       }
 
-      const backgroundNoiseRejection = session.agentConfig?.behaviorConfig?.backgroundNoiseRejection !== false;
-      if (backgroundNoiseRejection && this.isLikelyBackgroundSpeech(transcription, session.messages)) {
-        console.log(`[VAD] Skipped likely background speech for ${callSid}: "${transcription.substring(0, 100)}"`);
-        session.isProcessing = false;
-        return;
-      }
+      // gate.action === 'accept' — proceed with turn
+      // Turn-ready is post-accept (not endpoint-detected / not STT-complete-as-EOS).
+      bedrockOutboundMediaMetrics
+        .getOrCreate(callSid)
+        .onTurnReady(this.measureNow(), session.activeOutboundTurnToken || 0);
 
       if (voiceIsolationEnabled && !isEnrolled(callSid)) {
         enrollSpeaker(callSid, audioBuffer);
@@ -918,6 +1328,36 @@ export class BedrockPollyAudioBridge {
         timestamp: new Date(),
       });
 
+      // Specialist handoff (awesome-ai-apps pattern) — flag-gated; Twilio media unchanged.
+      if (isCallSupervisorEnabled()) {
+        try {
+          if (!session.callSupervisor) {
+            session.callSupervisor = createDefaultCallSupervisor(
+              callSid,
+              session.agentConfig.language || 'en',
+            ) as CallSupervisorBundle;
+          }
+          const routing = await routeCallSupervisorTurn(
+            session.callSupervisor as CallSupervisorBundle,
+            transcription,
+          );
+          if (routing.handedOff) {
+            session.messages.push({
+              role: 'user',
+              content: routing.specialistPromptHint,
+              timestamp: new Date(),
+            });
+            console.log(
+              `[BedrockPolly Bridge] Supervisor handoff → ${routing.specialist.id} (${routing.decision.reason}) for ${callSid}`,
+            );
+          }
+        } catch (supErr: any) {
+          console.warn(
+            `[BedrockPolly Bridge] Call supervisor skipped for ${callSid}: ${supErr?.message || supErr}`,
+          );
+        }
+      }
+
       if (session.status === 'disconnected') {
         console.log(`[BedrockPolly Bridge] Session disconnected before Bedrock call for ${callSid}`);
         return;
@@ -933,20 +1373,22 @@ export class BedrockPollyAudioBridge {
 
       const kbTool = hasKBTools ? session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base') : null;
 
-      const parallelTasks: Promise<any>[] = [];
-
-      if (isComplex && !bargeInFlags.get(callSid)) {
-        const lang = session.agentConfig.language || 'en';
-        const thinkFillers = this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'];
+      // Never block on filler audio. It's purely to mask model latency.
+      if (isComplex && !bargeInFlags.get(callSid) && isStreamReady) {
+        const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+        const thinkFillers = session.agentConfig.ttsProvider === 'elevenlabs'
+          ? (this.BACKCHANNEL_PHRASES[lang] || this.BACKCHANNEL_PHRASES['en'])
+          : (this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en']);
         const thinkFiller = this.getRandomFiller(thinkFillers);
-        console.log(`[BedrockPolly Bridge] Playing thinking filler for ${callSid}: "${thinkFiller}"`);
-        parallelTasks.push(this.playFillerAudio(session, thinkFiller));
+        console.log(`[BedrockPolly Bridge] Scheduling thinking filler for ${callSid}: "${thinkFiller}"`);
+        this.playFillerAudio(session, thinkFiller).catch(() => undefined);
       }
 
       let kbResultHolder: any = null;
       if (kbTool?.handler) {
         const kbStartMs = Date.now();
-        const kbPromise = Promise.race([
+        // KB prefetch helps quality but must NOT add latency.
+        const kbPromise: Promise<any> = Promise.race([
           kbTool.handler({ query: transcription }),
           new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PREFETCH_TIMEOUT_MS)),
         ]).then((kbResult: any) => {
@@ -963,11 +1405,8 @@ export class BedrockPollyAudioBridge {
           console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
           return null;
         });
-        parallelTasks.push(kbPromise);
-      }
-
-      if (parallelTasks.length > 0) {
-        await Promise.all(parallelTasks);
+        // Fire-and-forget: never block the turn on KB. If it completes in time, we inject below.
+        kbPromise.catch(() => undefined);
       }
 
       if (kbResultHolder) {
@@ -997,8 +1436,98 @@ export class BedrockPollyAudioBridge {
       const llmProvider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
       console.log(`[BedrockPolly Bridge] Calling ${llmProvider} for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
+      // If Bedrock premium model times out, downgrade subsequent turns for a short window.
+      const downgradeUntil = modelDowngradeUntil.get(callSid) || 0;
+      if (Date.now() < downgradeUntil && !isOpenAIModel(session.agentConfig.model)) {
+        const quickModel = awsBedrockService.selectModelForTask('quick');
+        if (session.agentConfig.model !== quickModel) {
+          console.log(`[BedrockPolly Bridge] Model downgrade active for ${callSid}: ${session.agentConfig.model} -> ${quickModel}`);
+          session.agentConfig = { ...session.agentConfig, model: quickModel, tools: [] };
+        }
+      }
+
       const bedrockStart = Date.now();
-      const responseText = await this.streamBedrockAndSpeak(session, sttMs);
+      const LLM_HARD_TIMEOUT_MS = 20000;
+      let responseText = '';
+      try {
+        responseText = await Promise.race([
+          this.streamBedrockAndSpeak(session, sttMs),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error(`LLM timeout after ${LLM_HARD_TIMEOUT_MS}ms`)), LLM_HARD_TIMEOUT_MS)
+          ),
+        ]);
+      } catch (e: any) {
+        const msg = e?.message || String(e);
+        const bedrockMs = Date.now() - bedrockStart;
+        callErrorLogger.logCallError({
+          callId: (session.agentConfig as any)?.toolContext?.callId,
+          userId: (session.agentConfig as any)?.toolContext?.userId,
+          engineType: 'bedrock-polly',
+          errorCategory: 'timeout',
+          severity: 'error',
+          message: `LLM failed/timeout: ${msg.substring(0, 300)}`,
+          metadata: { callSid, bedrockMs, sttMs, model: agentConfig.model },
+        });
+
+        // Downgrade future turns for 2 minutes to keep responses fast.
+        modelDowngradeUntil.set(callSid, Date.now() + 2 * 60 * 1000);
+
+        // 1) Immediate human-like bridge line (same voice)
+        const lang = (session.agentConfig.language || 'en').split('-')[0].toLowerCase();
+        const apology =
+          lang === 'ar'
+            ? 'تمام… لحظة واحدة بس.'
+            : "Got it — one moment.";
+        this.synthesizeAndSend(session, apology, this.outboundOpts(session, 'apology')).catch(() => undefined);
+
+        // 2) Fast fallback model response (best effort) so we still answer the caller
+        try {
+          const quickModel = awsBedrockService.selectModelForTask('quick'); // typically Claude Haiku
+          const quickSession: BedrockPollyBridgeSession = {
+            ...session,
+            agentConfig: {
+              ...session.agentConfig,
+              model: quickModel,
+              temperature: Math.min(0.4, session.agentConfig.temperature ?? 0.4),
+              // Tools add latency; for fallback we prioritize speed and a helpful reply.
+              tools: [],
+            },
+          };
+          const fallbackText = await Promise.race([
+            this.getBedrockResponse(quickSession),
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error('quick_fallback_timeout')), 6000)
+            ),
+          ]);
+          if (fallbackText && fallbackText.trim().length > 0) {
+            await this.synthesizeAndSend(session, fallbackText.trim());
+          }
+        } catch (fallbackErr: any) {
+          callErrorLogger.logCallError({
+            engineType: 'bedrock-polly',
+            errorCategory: 'bedrock_error',
+            severity: 'warning',
+            message: `Quick fallback failed: ${String(fallbackErr?.message || fallbackErr).substring(0, 200)}`,
+            metadata: { callSid, model: agentConfig.model },
+          }).catch(() => undefined);
+        }
+
+        session.isProcessing = false;
+        return;
+      }
+
+      const bedrockMs = Date.now() - bedrockStart;
+      if (bedrockMs > 8000) {
+        callErrorLogger.logCallError({
+          callId: (session.agentConfig as any)?.toolContext?.callId,
+          userId: (session.agentConfig as any)?.toolContext?.userId,
+          engineType: 'bedrock-polly',
+          errorCategory: 'timeout',
+          severity: 'warning',
+          message: `Slow model response: bedrockMs=${bedrockMs}ms sttMs=${sttMs}ms`,
+          metadata: { callSid, bedrockMs, sttMs, model: agentConfig.model },
+        });
+      }
 
       if (kbPreFetched) {
         session._kbPreFetched = false;
@@ -1019,6 +1548,17 @@ export class BedrockPollyAudioBridge {
       const totalMs = Date.now() - turnStart;
       console.log(`[BedrockPolly Bridge] Agent (full): "${responseText.substring(0, 200)}"`);
       console.log(`[LATENCY] call=${callSid} stt=${sttMs}ms total=${totalMs}ms`);
+      // Persist per-turn latency so we can debug "slow answer" even when there are no hard errors.
+      // Use callSid for correlation; callId may be null if we can't resolve it.
+      await callErrorLogger.logCallError({
+        callId: (session.agentConfig as any)?.toolContext?.callId,
+        userId: (session.agentConfig as any)?.toolContext?.userId,
+        engineType: 'bedrock-polly',
+        errorCategory: 'latency',
+        severity: totalMs > 8000 ? 'warning' : 'info',
+        message: `Turn latency: totalMs=${totalMs} sttMs=${sttMs}`,
+        metadata: { callSid, totalMs, sttMs, model: agentConfig.model },
+      });
 
       session.transcriptParts.push({
         role: 'assistant',
@@ -1042,21 +1582,6 @@ export class BedrockPollyAudioBridge {
       lastTtsEndTime.set(callSid, Date.now());
       bargeInAccum.set(callSid, 0);
     }
-  }
-
-  private static isWhisperHallucination(text: string): boolean {
-    return coreIsWhisperHallucination(text);
-  }
-
-  private static isLikelyBackgroundSpeech(
-    text: string,
-    conversationMessages: { role: string; content: string }[]
-  ): boolean {
-    return coreIsLikelyBackgroundSpeech(text, conversationMessages);
-  }
-
-  private static isLanguageMismatch(text: string, expectedLang: string): boolean {
-    return coreIsLanguageMismatch(text, expectedLang);
   }
 
   private static async transcribeAudio(audioBuffer: Buffer, language?: string, conversationContext?: string[], callSid?: string): Promise<string> {
@@ -1169,7 +1694,7 @@ CONVERSATION STYLE:
 - If something is unclear, ask ONE specific clarifying question.
 - Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.
 - CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say something brief like "Hello, are you there?" Do NOT respond as if the user said something negative (e.g., "I understand you don't have...") unless you clearly heard them say that.
-- LANGUAGE CONSISTENCY: You MUST maintain the SAME language throughout the ENTIRE call — greeting, conversation, AND farewell/goodbye. ${agentLang !== 'en' ? `You are configured for ${agentLang} — every single word including your closing/goodbye message when ending the call MUST be in the same language. NEVER switch to English.` : ''}${behaviorPromptAdditions}`;
+- LANGUAGE CONSISTENCY: You MUST maintain the SAME language throughout the ENTIRE call — greeting, conversation, AND farewell/goodbye. ${agentLang !== 'en' ? `You are configured for ${agentLang} — every single word including your closing/goodbye message when ending the call MUST be in the same language. NEVER switch to English.` : `You are configured for English — every single word including your closing/goodbye message when ending the call MUST be in English. Do NOT switch to Arabic unless the caller explicitly asks.`}${behaviorPromptAdditions}`;
 
     const backgroundNoiseInstruction = `\n\nBACKGROUND NOISE HANDLING:\n- If you hear what seems like background conversation not directed at you, ignore it and wait for the caller to address you directly.\n- Do NOT respond to ambient noise, TV audio, or other people talking nearby.\n- Only respond when you are confident the caller is speaking directly to you.`;
 
@@ -1184,13 +1709,28 @@ CONVERSATION STYLE:
     }
 
     let languageReminder = '';
-    if (agentLang !== 'en') {
-      const langNames: Record<string, string> = { ar: 'Arabic', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', hi: 'Hindi', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', tr: 'Turkish', nl: 'Dutch' };
-      const langName = langNames[agentLang.split('-')[0]] || agentLang;
-      languageReminder = `\n\nREMINDER: Respond ONLY in fluent ${langName}. Do NOT use any English.`;
+    {
+      const langNames: Record<string, string> = { ar: 'Arabic', en: 'English', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', hi: 'Hindi', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', tr: 'Turkish', nl: 'Dutch' };
+      const langKey = agentLang.split('-')[0].toLowerCase();
+      const langName = langNames[langKey] || agentLang;
+      languageReminder = langKey === 'en'
+        ? `\n\nREMINDER: Respond ONLY in fluent English. Do NOT reply in Arabic unless the caller explicitly asks for Arabic.`
+        : `\n\nREMINDER: Respond ONLY in fluent ${langName}. Do NOT use any English.`;
     }
 
-    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + toolBehaviorInstructions + languageReminder;
+    // Adaptive delivery: when enabled, tune tone/pace/empathy this turn from
+    // the caller's live sentiment. Flag-gated (default off) so the live prompt
+    // is byte-for-byte unchanged unless an operator opts in.
+    let adaptiveDirective = '';
+    if (/^(1|true|on|yes)$/i.test(process.env.VOICE_ADAPTIVE_DIALOGUE ?? '')) {
+      try {
+        const level = RealtimeSentimentService.getCurrentLevel(session.callSid);
+        const directive = ADAPTIVE_DIALOGUE_POLICY.decide(sentimentLevelToEmotion(level)).styleDirective;
+        if (directive) adaptiveDirective = `\n\nADAPTIVE DELIVERY (this caller, right now):\n${directive}`;
+      } catch { /* never let adaptive tuning break prompt assembly */ }
+    }
+
+    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + adaptiveDirective + toolBehaviorInstructions + languageReminder;
   }
 
   private static getActiveToolsForSession(session: BedrockPollyBridgeSession): Array<{ name: string; description: string; parameters: Record<string, unknown>; handler?: (params: Record<string, unknown>) => Promise<unknown> }> {
@@ -1247,7 +1787,8 @@ CONVERSATION STYLE:
       let primaryModel = agentConfig.model;
 
       const synthesizeSentenceFragment = async (sentence: string) => {
-        if (sentence.length < 3) return;
+        // Speakable-content gate (not char-length): allow No / OK / لا.
+        if (!coreDecideSpeakableTtsText(sentence).shouldSpeak) return;
         if (pendingSynthesis) {
           await pendingSynthesis;
           pendingSynthesis = null;
@@ -1478,7 +2019,7 @@ CONVERSATION STYLE:
 
         if (sentencesSent === 0 && !usedLegacyToolCallDetection) {
           const apologyMsg = session.agentConfig?.language?.startsWith('ar') ? 'عذراً، لم أتمكن من فهم ذلك. هل يمكنك إعادة المحاولة؟' : 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
-          await this.synthesizeAndSend(session, apologyMsg);
+          await this.synthesizeAndSend(session, apologyMsg, this.outboundOpts(session, 'apology'));
           session.messages.push({ role: 'assistant', content: apologyMsg });
           session.transcriptParts.push({ role: 'assistant', text: apologyMsg, timestamp: new Date() });
           return apologyMsg;
@@ -2076,29 +2617,110 @@ CONVERSATION STYLE:
    * the resulting audio back to the Twilio WebSocket as mulaw chunks.
    * Routes to ElevenLabs or AWS Polly based on session ttsProvider.
    */
+  /** Test seam: first μ-law enqueue path (guarded by turn token + purpose). */
+  static sendMulawToTwilioForTests(
+    session: BedrockPollyBridgeSession,
+    mulawBuffer: Buffer,
+    opts: { turnToken: number; purpose: BedrockOutboundPurpose },
+  ): void {
+    this.sendMulawToTwilio(session, mulawBuffer, opts);
+  }
+
+  /** Test seam: synthesis→enqueue with deferred hook support. */
+  static async synthesizeAndSendForTests(
+    session: BedrockPollyBridgeSession,
+    text: string,
+    opts: { turnToken: number; purpose: BedrockOutboundPurpose },
+  ): Promise<TTSSynthesisOutcome | undefined> {
+    return this.synthesizeAndSend(session, text, opts);
+  }
+
   private static sendMulawToTwilio(
     session: BedrockPollyBridgeSession,
-    mulawBuffer: Buffer
+    mulawBuffer: Buffer,
+    opts: { turnToken: number; purpose: BedrockOutboundPurpose },
   ): void {
     const { callSid, twilioWs, streamSid } = session;
     if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN || !streamSid) return;
+    if (!this.canEnqueueOutbound(session, opts.turnToken)) return;
+
+    const tracker = bedrockOutboundMediaMetrics.getOrCreate(callSid);
+    if (tracker.shouldDropOutbound(opts.turnToken)) return;
 
     let chunksSent = 0;
     for (let offset = 0; offset < mulawBuffer.length; offset += this.AUDIO_CHUNK_SIZE) {
       if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+      if (!tracker.isTokenLive(opts.turnToken)) break;
 
       const chunk = mulawBuffer.slice(
         offset,
         Math.min(offset + this.AUDIO_CHUNK_SIZE, mulawBuffer.length)
       );
 
-      twilioWs.send(JSON.stringify({
-        event: 'media',
-        streamSid,
-        media: {
-          payload: chunk.toString('base64'),
-        },
-      }));
+      try {
+        twilioWs.send(JSON.stringify({
+          event: 'media',
+          streamSid,
+          media: {
+            payload: chunk.toString('base64'),
+          },
+        }));
+        if (chunksSent === 0) {
+          const sample = tracker.onFirstOutboundMediaEnqueue(
+            this.measureNow(),
+            opts.purpose,
+            opts.turnToken,
+          );
+          if (sample) {
+            callErrorLogger.logCallError({
+              engineType: 'bedrock-polly',
+              errorCategory: 'latency',
+              severity:
+                sample.includeInUserTurnLatency &&
+                (
+                  (sample.lastSpeechFrameToFirstOutboundMediaMs != null &&
+                    sample.lastSpeechFrameToFirstOutboundMediaMs > 1000) ||
+                  (sample.endpointDetectedToFirstOutboundMediaMs != null &&
+                    sample.endpointDetectedToFirstOutboundMediaMs > 1000)
+                )
+                  ? 'warning'
+                  : 'info',
+              message: formatBedrockOutboundLogMessage(sample),
+              metadata: {
+                callSid,
+                turnToken: sample.turnToken,
+                lastSpeechFrameToFirstOutboundMediaMs:
+                  sample.lastSpeechFrameToFirstOutboundMediaMs,
+                endpointDetectedToFirstOutboundMediaMs:
+                  sample.endpointDetectedToFirstOutboundMediaMs,
+                lastSpeechFrameToTurnReadyMs: sample.lastSpeechFrameToTurnReadyMs,
+                endpointDetectedToTurnReadyMs: sample.endpointDetectedToTurnReadyMs,
+                turnReadyToFirstOutboundMediaMs: sample.turnReadyToFirstOutboundMediaMs,
+                acousticEosKnown: sample.acousticEosKnown,
+                kind: sample.kind,
+                metricVersion: sample.metricVersion,
+                metricOrigin: sample.metricOrigin,
+                callerHeard: false,
+                measurementPoint: sample.measurementPoint,
+                includeInUserTurnLatency: sample.includeInUserTurnLatency,
+                interrupted: sample.interrupted,
+              },
+            }).catch(() => undefined);
+          }
+        }
+      } catch (e: any) {
+        const msg = e?.message || String(e);
+        console.error(`[BedrockPolly Bridge] Failed sending media chunk for ${callSid}: ${msg}`);
+        session.status = 'disconnected';
+        callErrorLogger.logCallError({
+          engineType: 'bedrock-polly',
+          errorCategory: 'stream_abort',
+          severity: 'error',
+          message: `Twilio WS enqueue failed: ${msg.substring(0, 300)}`,
+          metadata: { callSid, streamSid, chunksSent },
+        });
+        break;
+      }
 
       chunksSent++;
     }
@@ -2106,27 +2728,38 @@ CONVERSATION STYLE:
 
   private static async synthesizeAndSend(
     session: BedrockPollyBridgeSession,
-    text: string
+    text: string,
+    opts?: { turnToken?: number; purpose?: BedrockOutboundPurpose },
   ): Promise<TTSSynthesisOutcome | undefined> {
     const { callSid, agentConfig, twilioWs, streamSid, ttsProvider } = session;
+    const purpose = opts?.purpose ?? 'user_turn_reply';
+    const turnToken = opts?.turnToken ?? session.activeOutboundTurnToken ?? 0;
 
     if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN || !streamSid) {
       console.warn(`[BedrockPolly Bridge] Cannot send audio — stream not ready for ${callSid}`);
       return undefined;
     }
+    if (!this.canEnqueueOutbound(session, turnToken)) {
+      console.log(
+        `[BedrockPolly Bridge] Skipping synthesis enqueue — stale/dead turn token=${turnToken} for ${callSid}`,
+      );
+      return undefined;
+    }
+
+    const ttsStart = Date.now();
+    let usedProvider: string = 'aws_polly';
+    let cacheHit: boolean | null = null;
 
     try {
-      let trimmedText = text.trim();
-      if (!trimmedText || trimmedText.length < 3) {
-        console.log(`[BedrockPolly Bridge] Text too short (${trimmedText.length} chars), skipping synthesis for ${callSid}: "${trimmedText}"`);
+      const speakable = coreDecideSpeakableTtsText(text);
+      if (!speakable.shouldSpeak) {
+        console.log(
+          `[BedrockPolly Bridge] Skipping synthesis for ${callSid} (reason=${speakable.reason})`
+        );
         return undefined;
       }
 
-      trimmedText = this.sanitizeForTTS(trimmedText);
-      if (!trimmedText || trimmedText.length < 3) {
-        console.log(`[BedrockPolly Bridge] Text too short after TTS sanitization, skipping for ${callSid}`);
-        return undefined;
-      }
+      const trimmedText = speakable.speakableText;
 
       const MAX_CHARS = 3000;
       const synthesisText = trimmedText.length > MAX_CHARS
@@ -2136,10 +2769,26 @@ CONVERSATION STYLE:
       const routeContext = buildTTSRouteContext(agentConfig, ttsProvider, synthesisText);
       const { result, attempts } = await getDeprockTTSRouter().synthesize(routeContext);
       const outcome = outcomeFromAttempts(routeContext.preferred, attempts);
-      const pcmBuffer: Buffer = result.audio;
+      usedProvider = outcome?.provider ?? routeContext.preferred;
+      const mulawBuffer =
+        result.encoding === 'mulaw' ? result.audio : this.pcmToMulaw(result.audio);
 
-      const mulawBuffer = this.pcmToMulaw(pcmBuffer);
-      this.sendMulawToTwilio(session, mulawBuffer);
+      if (this.preEnqueueHookForTests) {
+        await this.preEnqueueHookForTests({ callSid, turnToken, purpose });
+      }
+      // Re-check after async TTS — turn A must not enqueue after B starts.
+      if (!this.canEnqueueOutbound(session, turnToken)) {
+        console.log(
+          `[BedrockPolly Bridge] Dropping stale TTS after synth for ${callSid} token=${turnToken}`,
+        );
+        return undefined;
+      }
+
+      this.sendMulawToTwilio(session, mulawBuffer, { turnToken, purpose });
+
+      if (!this.canEnqueueOutbound(session, turnToken)) {
+        return outcome;
+      }
 
       const markName = `tts_segment_${++markCounter}_${Date.now()}`;
       let marks = pendingMarks.get(callSid);
@@ -2149,15 +2798,27 @@ CONVERSATION STYLE:
       }
       marks.add(markName);
 
-      twilioWs.send(JSON.stringify({
-        event: 'mark',
-        streamSid,
-        mark: {
-          name: markName,
-        },
-      }));
+      try {
+        twilioWs.send(JSON.stringify({
+          event: 'mark',
+          streamSid,
+          mark: {
+            name: markName,
+          },
+        }));
+      } catch (e: any) {
+        const msg = e?.message || String(e);
+        console.error(`[BedrockPolly Bridge] Failed sending mark for ${callSid}: ${msg}`);
+        callErrorLogger.logCallError({
+          engineType: 'bedrock-polly',
+          errorCategory: 'stream_abort',
+          severity: 'error',
+          message: `Twilio WS mark send failed: ${msg.substring(0, 300)}`,
+          metadata: { callSid, streamSid, markName },
+        });
+      }
 
-      if (session.onAudioCallback) {
+      if (session.onAudioCallback && this.canEnqueueOutbound(session, turnToken)) {
         session.onAudioCallback(mulawBuffer.toString('base64'));
       }
 
@@ -2171,6 +2832,16 @@ CONVERSATION STYLE:
         metadata: { callSid },
       });
       return undefined;
+    } finally {
+      const ttsMs = Date.now() - ttsStart;
+      // Best-effort latency breadcrumb for every synthesis call.
+      callErrorLogger.logCallError({
+        engineType: 'bedrock-polly',
+        errorCategory: 'latency',
+        severity: ttsMs > 2000 ? 'warning' : 'info',
+        message: `tts_ms=${ttsMs}`,
+        metadata: { callSid, ttsMs, usedProvider, cacheHit },
+      }).catch(() => undefined);
     }
   }
 
@@ -2351,7 +3022,56 @@ CONVERSATION STYLE:
   ): Promise<void> {
     try {
       const client = await getTwilioClient();
-      const callerId = session.fromNumber || '';
+
+      // Twilio-owned inbound DID for UAE-safety check:
+      // - Inbound: toNumber (what customer dialed TO).
+      // - Outbound: fromNumber (what we dialed FROM).
+      const inboundDid = session.callDirection === 'inbound' ? session.toNumber : session.fromNumber;
+
+      // Resolve <Dial callerId>: wizard non-UAE pick → TWILIO_TRANSFER_CALLER_ID env →
+      // inbound DID (omitted when UAE toll-free or otherwise UAE-only).
+      const callerId = resolveHumanAgentBridgeCallerId({
+        wizardOutboundPhoneE164: session.humanWizardCli,
+        inboundDid,
+      });
+
+      let source: 'wizard' | 'env' | 'inbound' | 'omitted';
+      if (callerId && session.humanWizardCli && callerId === session.humanWizardCli) source = 'wizard';
+      else if (callerId && callerId === process.env.TWILIO_TRANSFER_CALLER_ID?.trim().replace(/[\s\-().]/g, '')) source = 'env';
+      else if (callerId) source = 'inbound';
+      else source = 'omitted';
+
+      console.log(
+        `[Transfer] engine=twilio-bedrock-polly callSid=${session.callSid} target=${targetNumber} callerId=${callerId ?? '(omitted)'} source=${source} direction=${session.callDirection ?? 'unknown'} inboundDid=${inboundDid ?? '(none)'}`
+      );
+
+      // Persist the resolved CLI + source against the matching `calls`
+      // row (bedrock-polly writes its lifecycle into `calls`, not
+      // `twilio_openai_calls`). Best-effort: log and continue if the
+      // row hasn't been created yet.
+      try {
+        await db
+          .update(calls)
+          .set({
+            wasTransferred: true,
+            transferredTo: targetNumber,
+            transferredAt: new Date(),
+            transferCallerId: callerId ?? null,
+            transferCallerIdSource: source,
+          })
+          .where(eq(calls.twilioSid, session.callSid));
+      } catch (persistErr: any) {
+        console.error(`[BedrockPolly Bridge] Failed to persist transfer audit for ${session.callSid}:`, persistErr.message);
+      }
+
+      // Surface on Live Monitoring.
+      liveCallRegistry.updateCallByTwilioSid(session.callSid, {
+        wasTransferred: true,
+        transferredTo: targetNumber,
+        transferCallerId: callerId ?? null,
+        transferCallerIdSource: source,
+      });
+
       const twiml = generateTransferTwiML(targetNumber, callerId);
 
       await client.calls(session.callSid).update({
@@ -2403,7 +3123,16 @@ CONVERSATION STYLE:
       session.onTranscriptCallback(agentConfig.firstMessage, true);
     }
 
-    await this.synthesizeAndSend(session, agentConfig.firstMessage);
+    {
+      const greetToken = bedrockOutboundMediaMetrics
+        .getOrCreate(callSid)
+        .beginStandaloneOutbound(this.measureNow());
+      session.activeOutboundTurnToken = greetToken;
+      await this.synthesizeAndSend(session, agentConfig.firstMessage, {
+        turnToken: greetToken,
+        purpose: 'greeting',
+      });
+    }
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
       session.twilioWs.send(JSON.stringify({
@@ -2584,7 +3313,16 @@ CONVERSATION STYLE:
       session.onTranscriptCallback(agentConfig.firstMessage, true);
     }
 
-    await this.synthesizeAndSend(session, agentConfig.firstMessage);
+    {
+      const greetToken = bedrockOutboundMediaMetrics
+        .getOrCreate(callSid)
+        .beginStandaloneOutbound(this.measureNow());
+      session.activeOutboundTurnToken = greetToken;
+      await this.synthesizeAndSend(session, agentConfig.firstMessage, {
+        turnToken: greetToken,
+        purpose: 'greeting',
+      });
+    }
 
     await new Promise(resolve => setTimeout(resolve, 400));
 
@@ -2716,6 +3454,7 @@ CONVERSATION STYLE:
 
     session.status = 'disconnected';
     session.endedAt = new Date();
+    bedrockOutboundMediaMetrics.clearCall(callSid);
 
     const durationMs = session.endedAt.getTime() - session.startedAt.getTime();
     const duration = Math.max(0, Math.floor(durationMs / 1000));
@@ -2744,6 +3483,7 @@ CONVERSATION STYLE:
       calibrationStartTime.delete(callSid);
       pendingMarks.delete(callSid);
       peakEnergy.delete(callSid);
+      noiseSuppressors.delete(callSid);
       whisperAbortControllers.get(callSid)?.abort();
       whisperAbortControllers.delete(callSid);
 
@@ -2755,6 +3495,7 @@ CONVERSATION STYLE:
       callerHasSpoken.delete(callSid);
       lastTtsEndTime.delete(callSid);
       inboundHallucinationCount.delete(callSid);
+      consecutiveSilentTurns.delete(callSid);
       const inboundNrTimer = inboundNoResponseTimers.get(callSid);
       if (inboundNrTimer) {
         clearTimeout(inboundNrTimer);

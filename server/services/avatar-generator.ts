@@ -224,6 +224,59 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+function hashStringToInt(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function getInitials(name: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function generateFallbackSvg(name: string): string {
+  const safeName = name.trim() || "Agent";
+  const initials = getInitials(safeName);
+  const hash = hashStringToInt(safeName.toLowerCase());
+  const hueA = hash % 360;
+  const hueB = (hueA + 42) % 360;
+
+  // Keep it readable on both light/dark backgrounds.
+  const bgA = `hsl(${hueA} 70% 45%)`;
+  const bgB = `hsl(${hueB} 75% 40%)`;
+
+  // Basic XML escaping for initials (very small surface, but keep correct).
+  const escapedInitials = initials.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">`,
+    `  <defs>`,
+    `    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">`,
+    `      <stop offset="0" stop-color="${bgA}"/>`,
+    `      <stop offset="1" stop-color="${bgB}"/>`,
+    `    </linearGradient>`,
+    `  </defs>`,
+    `  <rect width="1024" height="1024" rx="512" ry="512" fill="url(#g)"/>`,
+    `  <circle cx="512" cy="512" r="430" fill="rgba(255,255,255,0.10)"/>`,
+    `  <text x="50%" y="53%" text-anchor="middle" dominant-baseline="middle"`,
+    `        font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"`,
+    `        font-size="320" font-weight="700" fill="white" letter-spacing="8">`,
+    `    ${escapedInitials}`,
+    `  </text>`,
+    `</svg>`,
+  ].join("\n");
+}
+
 export async function generateAgentAvatar(
   agentName: string, 
   specialist?: string
@@ -249,7 +302,23 @@ export async function generateAgentAvatar(
     return `/avatars/${filename}`;
   } catch (error) {
     console.error('[AvatarGenerator] Failed to generate avatar:', error);
-    // Return empty string on failure - agent will use fallback icon
-    return '';
+    // Fallback: generate a local SVG avatar so the UI still shows an image.
+    try {
+      const avatarsDir = join(process.cwd(), 'public', 'avatars');
+      await mkdir(avatarsDir, { recursive: true });
+
+      const slug = slugify(agentName || "agent");
+      const timestamp = Date.now();
+      const filename = `${slug}-${timestamp}.svg`;
+      const filepath = join(avatarsDir, filename);
+
+      const svg = generateFallbackSvg(agentName || "Agent");
+      await writeFile(filepath, svg, { encoding: "utf8" });
+
+      return `/avatars/${filename}`;
+    } catch (fallbackError) {
+      console.error('[AvatarGenerator] Failed to generate fallback avatar:', fallbackError);
+      return '';
+    }
   }
 }

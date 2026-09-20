@@ -86,6 +86,7 @@ export default function AppointmentsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsData, setSettingsData] = useState<Partial<AppointmentSettings>>(defaultSettings);
+  const [calendarWizardOpen, setCalendarWizardOpen] = useState(false);
 
   const { data: appointments = [], isLoading } = useQuery<Appointment[]>({
     queryKey: ["/api/flow-automation/appointments"],
@@ -127,6 +128,30 @@ export default function AppointmentsPage() {
         variant: "destructive",
       });
     },
+  });
+
+  // Listen for OAuth popup completion
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data: any = event.data;
+      if (!data || typeof data !== "object") return;
+      if (data.ok === true && (data.provider === "google" || data.provider === "microsoft")) {
+        queryClient.invalidateQueries({ queryKey: ["/api/calendar/connections"] });
+        toast({ title: "Calendar connected", description: data.provider === "google" ? "Google Calendar connected." : "Outlook connected." });
+      } else if (data.ok === false && data.provider) {
+        toast({ title: "Calendar connection failed", description: data.error || "OAuth failed", variant: "destructive" });
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [toast]);
+
+  const { data: calendarConnections } = useQuery<{
+    google: { connected: boolean; updatedAt: string | null };
+    outlook: { connected: boolean; updatedAt: string | null };
+  }>({
+    queryKey: ["/api/calendar/connections"],
   });
 
   const getAppointmentsForDate = (date: Date) => {
@@ -212,6 +237,55 @@ export default function AppointmentsPage() {
           <Settings className="h-4 w-4 mr-1.5" />
           {t("common.settings")}
         </Button>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Calendar sync (Google / Outlook)</p>
+            <p className="text-xs text-muted-foreground font-light mt-1">
+              This app does not push directly to Google Calendar / Outlook. Instead, use an n8n workflow triggered by the
+              <span className="font-medium text-foreground"> appointment.booked </span>
+              webhook event.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const popup = window.open(
+                  "/api/calendar/google/start",
+                  "calendar_oauth_google",
+                  "width=520,height=700,menubar=no,toolbar=no,location=no,status=no"
+                );
+                if (!popup) {
+                  toast({ title: "Popup blocked", description: "Please allow popups to connect Google.", variant: "destructive" });
+                }
+              }}
+              data-testid="button-connect-google-calendar"
+            >
+              {calendarConnections?.google?.connected ? "Google Connected" : "Connect Google"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const popup = window.open(
+                  "/api/calendar/microsoft/start",
+                  "calendar_oauth_ms",
+                  "width=520,height=700,menubar=no,toolbar=no,location=no,status=no"
+                );
+                if (!popup) {
+                  toast({ title: "Popup blocked", description: "Please allow popups to connect Outlook.", variant: "destructive" });
+                }
+              }}
+              data-testid="button-connect-outlook-calendar"
+            >
+              {calendarConnections?.outlook?.connected ? "Outlook Connected" : "Connect Outlook"}
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -577,6 +651,22 @@ export default function AppointmentsPage() {
             </Button>
             <Button onClick={() => saveSettingsMutation.mutate()} disabled={saveSettingsMutation.isPending} data-testid="button-save-settings">
               {t("appointments.settings.saveSettings")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={calendarWizardOpen} onOpenChange={setCalendarWizardOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Calendar sync</DialogTitle>
+            <DialogDescription className="font-light">
+              Calendar events are created automatically for booked appointments when you connect Google or Outlook.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCalendarWizardOpen(false)} data-testid="button-close-calendar-info">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

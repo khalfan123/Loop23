@@ -15,7 +15,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { getTwilioClient, getTwilioAccountSid } from "./twilio-connector";
+import { getTwilioClient, getWorkspaceTwilioClient, getTwilioAccountSid } from "./twilio-connector";
 import { getDomain } from "../utils/domain";
 import { withServiceErrorHandling } from '../utils/service-error-wrapper';
 
@@ -91,14 +91,18 @@ export class TwilioService {
     this.shouldMock = SHOULD_MOCK_TWILIO;
   }
 
-  private async getTwilioClientInstance() {
+  private async getTwilioClientInstance(params?: { workspaceId?: string }) {
     if (this.shouldMock) {
       throw new Error("Mock mode - no Twilio client available");
+    }
+    if (params?.workspaceId) {
+      return await getWorkspaceTwilioClient(params.workspaceId);
     }
     return await getTwilioClient();
   }
 
   async searchAvailableNumbers(params: {
+    workspaceId?: string;
     country?: string;
     areaCode?: string;
     contains?: string;
@@ -146,7 +150,7 @@ export class TwilioService {
       ];
     }
     
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: params.workspaceId });
     const country = params.country || "US";
     const numberType = params.numberType || 'local';
     
@@ -267,7 +271,7 @@ export class TwilioService {
     }
     
     // Use real Twilio connector
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: (options as any).workspaceId });
     
     // SECURITY: Do NOT set any webhook URL on purchase
     // Numbers start with no incoming call handling - calls will be rejected by Twilio
@@ -310,7 +314,7 @@ export class TwilioService {
     };
   }
 
-  async listOwnedNumbers(): Promise<TwilioPhoneNumber[]> {
+  async listOwnedNumbers(params?: { workspaceId?: string }): Promise<TwilioPhoneNumber[]> {
     // Return mock owned numbers in mock mode
     if (this.shouldMock) {
       console.log("Mock mode: Returning mock owned numbers");
@@ -325,7 +329,7 @@ export class TwilioService {
     }
     
     // Use real Twilio connector
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: params?.workspaceId });
     
     const numbers = await client.incomingPhoneNumbers.list();
 
@@ -345,7 +349,7 @@ export class TwilioService {
     }));
   }
 
-  async releasePhoneNumber(sid: string): Promise<void> {
+  async releasePhoneNumber(sid: string, params?: { workspaceId?: string }): Promise<void> {
     // Handle mock release in mock mode
     if (this.shouldMock) {
       console.log("Mock mode: Simulating phone number release");
@@ -357,19 +361,31 @@ export class TwilioService {
     }
     
     // Use real Twilio connector
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: params?.workspaceId });
     
     await client.incomingPhoneNumbers(sid).remove();
   }
 
-  async updatePhoneNumber(sid: string, params: { friendlyName?: string; voiceUrl?: string }): Promise<void> {
+  async updatePhoneNumber(
+    sid: string,
+    params: {
+      friendlyName?: string;
+      voiceUrl?: string;
+      voiceMethod?: string;
+      voiceFallbackUrl?: string;
+      voiceFallbackMethod?: string;
+      statusCallback?: string;
+      statusCallbackMethod?: string;
+    },
+    ctx?: { workspaceId?: string },
+  ): Promise<void> {
     if (this.shouldMock) {
       console.log("Mock mode: Simulating phone number update");
       return;
     }
-    
-    const client = await this.getTwilioClientInstance();
-    
+
+    const client = await this.getTwilioClientInstance({ workspaceId: ctx?.workspaceId });
+
     await client.incomingPhoneNumbers(sid).update(params);
   }
 
@@ -637,7 +653,7 @@ export class TwilioService {
    * Configure voice webhook for an existing phone number
    * This is useful for fixing phone numbers that were purchased without webhook configuration
    */
-  async configurePhoneWebhook(sid: string): Promise<void> {
+  async configurePhoneWebhook(sid: string, ctx?: { workspaceId?: string }): Promise<void> {
     if (this.shouldMock) {
       console.log("Mock mode: Simulating webhook configuration");
       return;
@@ -651,7 +667,7 @@ export class TwilioService {
     const maskedSid = `***${sid.slice(-8)}`;
     console.log(`📞 [Webhook Config] Configuring webhook for SID ${maskedSid}: ${voiceWebhookUrl}`);
     
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: ctx?.workspaceId });
     
     await client.incomingPhoneNumbers(sid).update({
       voiceUrl: voiceWebhookUrl,
@@ -667,7 +683,7 @@ export class TwilioService {
    * Configure phone number to route incoming calls to ElevenLabs native integration
    * This is used when a phone number is assigned to an incoming agent
    */
-  async configurePhoneWebhookForElevenLabs(sid: string, phoneNumber: string, agentId?: string): Promise<void> {
+  async configurePhoneWebhookForElevenLabs(sid: string, phoneNumber: string, agentId?: string, ctx?: { workspaceId?: string }): Promise<void> {
     if (this.shouldMock) {
       console.log("Mock mode: Simulating ElevenLabs webhook configuration");
       return;
@@ -688,7 +704,7 @@ export class TwilioService {
       console.log(`   ElevenLabs Agent: ${agentId}`);
     }
     
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: ctx?.workspaceId });
     
     const statusCallbackUrl = `${domain}/api/webhooks/twilio/status`;
     
@@ -708,7 +724,7 @@ export class TwilioService {
    * Clear webhook configuration from phone number
    * This is used when an incoming connection is deleted - the number goes back to having no call handling
    */
-  async clearPhoneWebhook(sid: string): Promise<void> {
+  async clearPhoneWebhook(sid: string, ctx?: { workspaceId?: string }): Promise<void> {
     if (this.shouldMock) {
       console.log("Mock mode: Simulating webhook removal");
       return;
@@ -718,7 +734,7 @@ export class TwilioService {
     const maskedSid = `***${sid.slice(-8)}`;
     console.log(`📞 [Twilio Config] Clearing webhook for SID ${maskedSid}`);
     
-    const client = await this.getTwilioClientInstance();
+    const client = await this.getTwilioClientInstance({ workspaceId: ctx?.workspaceId });
     
     // Set voice URL to empty string to clear the webhook
     await client.incomingPhoneNumbers(sid).update({

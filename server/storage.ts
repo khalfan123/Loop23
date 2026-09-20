@@ -443,7 +443,13 @@ export class DbStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const normalized = String(email || "").trim().toLowerCase();
+    if (!normalized) return undefined;
+    // Case-insensitive: mobile keyboards often capitalize the first letter
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.email}) = ${normalized}`);
     return user;
   }
 
@@ -854,6 +860,10 @@ export class DbStorage implements IStorage {
         wasTransferred: r.call.wasTransferred,
         transferredTo: r.call.transferredTo,
         transferredAt: r.call.transferredAt,
+        transferCallerId: r.call.transferCallerId,
+        transferCallerIdSource: r.call.transferCallerIdSource,
+        transferRelayPhoneNumber: r.call.transferRelayPhoneNumber,
+        transferAgentStatus: r.call.transferAgentStatus,
         startedAt: r.call.startedAt,
         endedAt: r.call.endedAt,
         createdAt: r.call.createdAt,
@@ -982,10 +992,15 @@ export class DbStorage implements IStorage {
       recordingUrl: r.call.recordingUrl,
       transcript: r.call.transcript,
       aiSummary: r.call.aiSummary,
+      classification: r.call.classification,
       sentiment: r.call.sentiment,
       wasTransferred: r.call.wasTransferred,
       transferredTo: r.call.transferredTo,
       transferredAt: r.call.transferredAt,
+      transferCallerId: r.call.transferCallerId,
+      transferCallerIdSource: r.call.transferCallerIdSource,
+      transferRelayPhoneNumber: r.call.transferRelayPhoneNumber,
+      transferAgentStatus: r.call.transferAgentStatus,
       startedAt: r.call.startedAt,
       endedAt: r.call.endedAt,
       createdAt: r.call.createdAt,
@@ -2620,7 +2635,16 @@ export class DbStorage implements IStorage {
     return task;
   }
 
-  async getUserOpsTasks(userId: string, filters?: { status?: string; taskType?: string; priority?: string; startDate?: Date; endDate?: Date }): Promise<OpsTask[]> {
+  async getUserOpsTasks(
+    userId: string,
+    filters?: {
+      status?: OpsTask['status'];
+      taskType?: OpsTask['taskType'];
+      priority?: OpsTask['priority'];
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<OpsTask[]> {
     const conditions = [eq(opsTasks.userId, userId), eq(opsTasks.isDeleted, false)];
     if (filters?.status) conditions.push(eq(opsTasks.status, filters.status));
     if (filters?.taskType) conditions.push(eq(opsTasks.taskType, filters.taskType));
@@ -2674,10 +2698,40 @@ export class DbStorage implements IStorage {
       .limit(limit);
   }
 
-  async recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number): Promise<void> {
+  async recordOpsAnalysisRun(
+    userId: string,
+    callId: string,
+    tasksCreated: number,
+    analysis?: {
+      outputLanguage?: string | null;
+      provider?: string | null;
+      modelUsed?: string | null;
+      callSummary?: string | null;
+      callBrief?: Record<string, unknown> | null;
+    }
+  ): Promise<void> {
     await db.insert(opsAnalysisRuns)
-      .values({ userId, callId, tasksCreated })
-      .onConflictDoNothing();
+      .values({
+        userId,
+        callId,
+        tasksCreated,
+        outputLanguage: analysis?.outputLanguage ?? null,
+        provider: analysis?.provider ?? null,
+        modelUsed: analysis?.modelUsed ?? null,
+        callSummary: analysis?.callSummary ?? null,
+        callBrief: analysis?.callBrief ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [opsAnalysisRuns.userId, opsAnalysisRuns.callId],
+        set: {
+          tasksCreated,
+          outputLanguage: analysis?.outputLanguage ?? null,
+          provider: analysis?.provider ?? null,
+          modelUsed: analysis?.modelUsed ?? null,
+          callSummary: analysis?.callSummary ?? null,
+          callBrief: analysis?.callBrief ?? null,
+        },
+      });
   }
 
   async createOpsTask(data: InsertOpsTask): Promise<OpsTask> {
@@ -2707,8 +2761,10 @@ export class DbStorage implements IStorage {
     return deleted.length;
   }
 
-  async deleteOpsAnalysisRun(callId: string): Promise<void> {
-    await db.delete(opsAnalysisRuns).where(eq(opsAnalysisRuns.callId, callId));
+  async deleteOpsAnalysisRun(callId: string, userId?: string): Promise<void> {
+    await db.delete(opsAnalysisRuns).where(
+      userId ? and(eq(opsAnalysisRuns.callId, callId), eq(opsAnalysisRuns.userId, userId)) : eq(opsAnalysisRuns.callId, callId)
+    );
   }
 
   async getOpsTaskStats(userId: string): Promise<{ pending: number; in_progress: number; completed: number; cancelled: number; total: number }> {

@@ -238,11 +238,13 @@ async function checkIntegrations(result: HealthCheckResult): Promise<void> {
     const twilioSid = await storage.getGlobalSetting('twilio_account_sid');
     const twilioToken = await storage.getGlobalSetting('twilio_auth_token');
     const dbConfigured = !!(twilioSid?.value && twilioToken?.value);
-    const envConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+    const { isTwilioEnvConfigured } = await import('./twilio-connector');
+    const envConfigured = isTwilioEnvConfigured();
     details.twilio = dbConfigured || envConfigured;
   } catch (error) {
     // Fallback to env vars if storage check fails
-    details.twilio = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+    const { isTwilioEnvConfigured } = await import('./twilio-connector');
+    details.twilio = isTwilioEnvConfigured();
   }
   
   // OpenAI: Check database settings first (production), fallback to env vars (development)

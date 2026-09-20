@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { PollyTTSProvider } from '../../server/voice-core/providers/polly-tts.provider';
 import { ElevenLabsTTSProvider } from '../../server/voice-core/providers/elevenlabs-tts.provider';
 import { awsPollyService } from '../../server/services/aws-polly';
+import { buildTTSRouteContext } from '../../server/engines/twilio-bedrock-polly/services/tts-router';
+import type { AgentConfig } from '../../server/engines/twilio-bedrock-polly/types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -57,22 +59,74 @@ describe('PollyTTSProvider', () => {
 });
 
 describe('ElevenLabsTTSProvider', () => {
-  function stubFetch(payload: Buffer) {
+  function stubFetch(payload: Buffer, opts?: { ok?: boolean; status?: number }) {
     const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
+      ok: opts?.ok ?? true,
+      status: opts?.status ?? 200,
       arrayBuffer: async () => payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength),
-      text: async () => '',
+      text: async () => (opts?.ok === false ? 'error' : ''),
     }));
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
   }
 
-  it('requests pcm_16000 and decimates to 8kHz for telephony', async () => {
-    // 4 samples at 16kHz -> 2 samples at 8kHz
+  it('requests ulaw_8000 for telephony and returns mulaw encoding', async () => {
+    const ulaw = Buffer.from([0x7f, 0x80, 0x81]);
+    const fetchMock = stubFetch(ulaw);
+
+    const provider = new ElevenLabsTTSProvider();
+    const result = await provider.synthesize({
+      text: 'hi',
+      voiceId: 'v1',
+      sampleRateHz: 8000,
+      options: {
+        apiKey: 'k',
+        stability: 0.4,
+        similarityBoost: 0.9,
+        speed: 1.1,
+        style: 0.2,
+        useSpeakerBoost: true,
+        modelId: 'eleven_flash_v2_5',
+        optimizeStreamingLatency: 2,
+      },
+    });
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('output_format=ulaw_8000');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('optimize_streaming_latency=2');
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.model_id).toBe('eleven_flash_v2_5');
+    expect(body.voice_settings).toEqual({
+      stability: 0.4,
+      similarity_boost: 0.9,
+      speed: 1.1,
+      style: 0.2,
+      use_speaker_boost: true,
+    });
+    expect(result.encoding).toBe('mulaw');
+    expect(result.audio.equals(ulaw)).toBe(true);
+  });
+
+  it('falls back to pcm_16000 and decimates when ulaw_8000 fails', async () => {
     const pcm16k = Buffer.alloc(8);
     [100, 200, 300, 400].forEach((v, i) => pcm16k.writeInt16LE(v, i * 2));
-    const fetchMock = stubFetch(pcm16k);
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('ulaw_8000')) {
+        return {
+          ok: false,
+          status: 400,
+          arrayBuffer: async () => new ArrayBuffer(0),
+          text: async () => 'ulaw unsupported',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => pcm16k.buffer.slice(pcm16k.byteOffset, pcm16k.byteOffset + pcm16k.byteLength),
+        text: async () => '',
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     const provider = new ElevenLabsTTSProvider();
     const result = await provider.synthesize({
@@ -81,7 +135,10 @@ describe('ElevenLabsTTSProvider', () => {
       sampleRateHz: 8000,
       options: { apiKey: 'k' },
     });
-    expect(String(fetchMock.mock.calls[0][0])).toContain('output_format=pcm_16000');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain('output_format=pcm_16000');
+    expect(result.encoding).toBe('pcm16le');
     expect(result.audio.length).toBe(4);
     expect(result.audio.readInt16LE(0)).toBe(100);
     expect(result.audio.readInt16LE(2)).toBe(300);
@@ -97,13 +154,17 @@ describe('ElevenLabsTTSProvider', () => {
       voiceId: 'v1',
       sampleRateHz: 22050,
       format: 'mp3',
-      options: { apiKey: 'k' },
+      options: { apiKey: 'k', useSpeakerBoost: false, style: 0 },
     });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(String(url)).not.toContain('output_format=');
     expect((init.headers as Record<string, string>).Accept).toBe('audio/mpeg');
-    expect(JSON.parse(String(init.body)).output_format).toBe('mp3_22050_32');
+    const body = JSON.parse(String(init.body));
+    expect(body.output_format).toBe('mp3_22050_32');
+    expect(body.model_id).toBe('eleven_multilingual_v2');
+    expect(body.voice_settings.use_speaker_boost).toBe(false);
     expect(result.audio.equals(mp3)).toBe(true);
+    expect(result.encoding).toBe('mp3');
   });
 
   it('throws without an API key', async () => {
@@ -116,5 +177,141 @@ describe('ElevenLabsTTSProvider', () => {
     } finally {
       if (saved !== undefined) process.env.ELEVENLABS_API_KEY = saved;
     }
+  });
+});
+
+describe('LocalCloneTTSProvider', () => {
+  it('posts OpenAI-compatible speech and downsamples PCM to 8kHz', async () => {
+    const { LocalCloneTTSProvider } = await import('../../server/voice-core/providers/local-clone-tts.provider');
+    const pcm24k = Buffer.alloc(4800); // 100ms @ 24kHz mono s16le
+    for (let i = 0; i < pcm24k.length / 2; i++) pcm24k.writeInt16LE(i % 100, i * 2);
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => pcm24k.buffer.slice(pcm24k.byteOffset, pcm24k.byteOffset + pcm24k.byteLength),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const prevUrl = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    const prevRate = process.env.LOCAL_CLONE_TTS_SAMPLE_RATE;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    process.env.LOCAL_CLONE_TTS_SAMPLE_RATE = '24000';
+    try {
+      const provider = new LocalCloneTTSProvider();
+      const result = await provider.synthesize({
+        text: 'hello clone',
+        voiceId: 'voice-a',
+        sampleRateHz: 8000,
+        format: 'pcm',
+        options: { apiKey: 'k1', modelId: 'm1' },
+      });
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(String(url)).toBe('http://127.0.0.1:3900/v1/audio/speech');
+      expect((init.headers as Record<string, string>).Authorization).toBe('Bearer k1');
+      const body = JSON.parse(String(init.body));
+      expect(body).toMatchObject({
+        model: 'm1',
+        input: 'hello clone',
+        voice: 'voice-a',
+        response_format: 'pcm',
+      });
+      // 24k -> 8k is factor 3
+      expect(result.audio.length).toBe(Math.floor(pcm24k.length / 2 / 3) * 2);
+      expect(result.encoding).toBe('pcm16le');
+      expect(result.providerId).toBe('local_clone');
+    } finally {
+      if (prevUrl === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prevUrl;
+      if (prevRate === undefined) delete process.env.LOCAL_CLONE_TTS_SAMPLE_RATE;
+      else process.env.LOCAL_CLONE_TTS_SAMPLE_RATE = prevRate;
+    }
+  });
+
+  it('throws when LOCAL_CLONE_TTS_BASE_URL missing', async () => {
+    const { LocalCloneTTSProvider } = await import('../../server/voice-core/providers/local-clone-tts.provider');
+    const prev = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+    try {
+      const provider = new LocalCloneTTSProvider();
+      await expect(
+        provider.synthesize({ text: 'hi', voiceId: 'v', sampleRateHz: 8000 }),
+      ).rejects.toThrow(/LOCAL_CLONE_TTS_BASE_URL/);
+    } finally {
+      if (prev !== undefined) process.env.LOCAL_CLONE_TTS_BASE_URL = prev;
+    }
+  });
+
+  it('aborts when synthesis exceeds LOCAL_CLONE_TTS_MAX_LATENCY_MS', async () => {
+    const { LocalCloneTTSProvider } = await import('../../server/voice-core/providers/local-clone-tts.provider');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        return new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) return;
+          if (signal.aborted) {
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            reject(err);
+            return;
+          }
+          signal.addEventListener('abort', () => {
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        });
+      }),
+    );
+    const prevUrl = process.env.LOCAL_CLONE_TTS_BASE_URL;
+    const prevMax = process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS;
+    process.env.LOCAL_CLONE_TTS_BASE_URL = 'http://127.0.0.1:3900';
+    process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS = '100';
+    try {
+      const provider = new LocalCloneTTSProvider();
+      await expect(
+        provider.synthesize({ text: 'slow', voiceId: 'v', sampleRateHz: 8000 }),
+      ).rejects.toThrow(/latency budget/);
+    } finally {
+      if (prevUrl === undefined) delete process.env.LOCAL_CLONE_TTS_BASE_URL;
+      else process.env.LOCAL_CLONE_TTS_BASE_URL = prevUrl;
+      if (prevMax === undefined) delete process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS;
+      else process.env.LOCAL_CLONE_TTS_MAX_LATENCY_MS = prevMax;
+    }
+  });
+});
+
+describe('buildTTSRouteContext ElevenLabs options', () => {
+  it('forwards agent voice settings into TTSRequest.options', () => {
+    const agentConfig: AgentConfig = {
+      voice: 'Joanna',
+      model: 'claude-sonnet-4-6',
+      systemPrompt: 'hi',
+      ttsProvider: 'elevenlabs',
+      elevenLabsVoiceId: 'el-voice-1',
+      elevenLabsApiKey: 'key-1',
+      elevenLabsModelId: 'eleven_multilingual_v2',
+      voiceStability: 0.61,
+      voiceSimilarityBoost: 0.72,
+      voiceSpeed: 1.05,
+      voiceStyle: 0.15,
+      voiceSpeakerBoost: false,
+      language: 'en',
+    };
+
+    const ctx = buildTTSRouteContext(agentConfig, 'elevenlabs', 'Hello there');
+    const req = ctx.buildRequest('elevenlabs');
+    expect(req).not.toBeNull();
+    expect(req!.options).toMatchObject({
+      apiKey: 'key-1',
+      modelId: 'eleven_multilingual_v2',
+      stability: 0.61,
+      similarityBoost: 0.72,
+      speed: 1.05,
+      style: 0.15,
+      useSpeakerBoost: false,
+      optimizeStreamingLatency: 2,
+    });
   });
 });

@@ -1,113 +1,167 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import {
   isWhisperHallucination,
   isLikelyBackgroundSpeech,
   isLanguageMismatch,
+  normalizeCallerUtterance,
+  isDigitOnlyUtterance,
+  evaluateInboundTranscriptFilters,
+  decideInboundTranscriptGate,
+  collectLexicalSuspectSignals,
 } from '../../server/voice-core/stt/whisper-filters';
+import {
+  baselineIsWhisperHallucination,
+  baselineIsLanguageMismatch,
+  baselineIsLikelyBackgroundSpeech,
+} from './fixtures/whisper-filters-baseline';
 
-describe('isWhisperHallucination', () => {
-  it('rejects very short transcripts', () => {
-    expect(isWhisperHallucination('ab')).toBe(true);
-    expect(isWhisperHallucination('  a ')).toBe(true);
+const PRESERVE_VS_BASELINE_HALLUCINATION = [
+  'no',
+  'No',
+  'لا',
+  'لَا',
+  'ok',
+  'hi',
+  'you',
+  'AB',
+  'Thanks',
+  'thank you',
+  'bye',
+  '1',
+  '١٢٣٤',
+  '是',
+  'إن شاء الله',
+  'بسم الله الرحمن الرحيم',
+  'خالد',
+  'subscribe',
+  'the end',
+  'thank you for watching my channel help',
+] as const;
+
+const BUSINESS_REQUESTS_ONCE_DROPPED_AS_BACKGROUND = [
+  'please turn the volume up on the hold music',
+  'can you help me change the channel on my TV package',
+  'I need help with my child homework school portal login',
+  'schedule a test appointment for the driving exam',
+] as const;
+
+describe('normalizeCallerUtterance / digits', () => {
+  it('strips case, punctuation, and Arabic diacritics', () => {
+    expect(normalizeCallerUtterance('  No! ')).toBe('no');
+    expect(normalizeCallerUtterance('لَا.')).toBe('لا');
   });
 
-  it('rejects exact-list hallucinations (English and Arabic)', () => {
-    expect(isWhisperHallucination('thank you for watching')).toBe(true);
-    expect(isWhisperHallucination('Thanks')).toBe(true);
-    expect(isWhisperHallucination('شكراً على المشاهدة')).toBe(true);
-  });
-
-  it('rejects contains-list hallucinations embedded in text', () => {
-    expect(isWhisperHallucination('and remember to like and subscribe folks')).toBe(true);
-    expect(isWhisperHallucination('subtitles by the community')).toBe(true);
-  });
-
-  it('rejects symbol-only and ellipsis-only output', () => {
-    expect(isWhisperHallucination('♪♪ ..')).toBe(true);
-    expect(isWhisperHallucination('.....')).toBe(true);
-  });
-
-  it('rejects exact phrase repetition', () => {
-    expect(isWhisperHallucination('thank you thank you thank you thank you')).toBe(true);
-    expect(isWhisperHallucination('okay sure okay sure okay sure okay sure')).toBe(true);
-  });
-
-  it('accepts valid short Arabic openers', () => {
-    expect(isWhisperHallucination('ألو')).toBe(false);
-    expect(isWhisperHallucination('مرحبا')).toBe(false);
-  });
-
-  it('rejects short religious-phrase noise on Arabic calls', () => {
-    expect(isWhisperHallucination('سبحان الله وبحمده')).toBe(true);
-  });
-
-  it('accepts substantive Arabic requests', () => {
-    expect(isWhisperHallucination('أريد مساعدة في حسابي من فضلك اليوم')).toBe(false);
-  });
-
-  it('accepts normal English utterances', () => {
-    expect(isWhisperHallucination('I would like to check my order status please')).toBe(false);
-    expect(isWhisperHallucination('Can you tell me your opening hours?')).toBe(false);
-  });
-});
-
-describe('isLikelyBackgroundSpeech', () => {
-  it('flags known household/TV phrases', () => {
-    expect(isLikelyBackgroundSpeech('pass me the salt', [])).toBe(true);
-    expect(isLikelyBackgroundSpeech('hey siri set a timer', [])).toBe(true);
-    expect(isLikelyBackgroundSpeech('الأكل جاهز', [])).toBe(true);
-  });
-
-  it('flags off-topic pattern matches with no conversation overlap', () => {
-    expect(isLikelyBackgroundSpeech('add two cups of flour to the oven dish', [
-      { role: 'user', content: 'I need help with my invoice' },
-    ])).toBe(true);
-  });
-
-  it('allows topic matches that overlap the conversation context', () => {
-    const ctx = [
-      { role: 'user', content: 'I want to order chicken recipe ingredient boxes' },
-      { role: 'assistant', content: 'Sure, which recipe ingredient plan?' },
-    ];
-    expect(isLikelyBackgroundSpeech('the recipe ingredient plan please', ctx)).toBe(false);
-  });
-
-  it('passes normal on-topic speech', () => {
-    expect(isLikelyBackgroundSpeech('I want to upgrade my subscription', [])).toBe(false);
+  it('recognizes Western and Arabic-Indic digits', () => {
+    expect(isDigitOnlyUtterance('42')).toBe(true);
+    expect(isDigitOnlyUtterance('١٢٣٤')).toBe(true);
   });
 });
 
-describe('isLanguageMismatch', () => {
-  it('ignores very short transcripts', () => {
-    expect(isLanguageMismatch('hi', 'ar')).toBe(false);
+describe('baseline vs current — prior hard rejects must accept', () => {
+  for (const text of PRESERVE_VS_BASELINE_HALLUCINATION) {
+    it(`baseline rejected ${JSON.stringify(text)}; current preserves`, () => {
+      expect(baselineIsWhisperHallucination(text)).toBe(true);
+      expect(isWhisperHallucination(text)).toBe(false);
+    });
+  }
+});
+
+describe('isWhisperHallucination — empty / non-speech only', () => {
+  it('rejects empty and punctuation/music-only', () => {
+    expect(isWhisperHallucination('')).toBe(true);
+    expect(isWhisperHallucination('   ')).toBe(true);
+    expect(isWhisperHallucination('♪♪')).toBe(true);
+    expect(isWhisperHallucination('...')).toBe(true);
+    expect(isWhisperHallucination('؟؟')).toBe(true);
+    expect(isWhisperHallucination('!!!')).toBe(true);
   });
 
-  it('flags Latin-only text on an Arabic call', () => {
-    expect(isLanguageMismatch('hello can you hear me', 'ar')).toBe(true);
+  it('does not drop watermark-like or subscription speech on text alone', () => {
+    expect(isWhisperHallucination('subscribe')).toBe(false);
+    expect(isWhisperHallucination('the end')).toBe(false);
+    expect(isWhisperHallucination('thank you for watching')).toBe(false);
+    expect(isWhisperHallucination('I need to manage my subscription billing')).toBe(false);
+  });
+});
+
+describe('background / language — no text-only drops', () => {
+  for (const text of BUSINESS_REQUESTS_ONCE_DROPPED_AS_BACKGROUND) {
+    it(`does not drop business request ${JSON.stringify(text)}`, () => {
+      expect(baselineIsLikelyBackgroundSpeech(text, [])).toBe(true);
+      expect(isLikelyBackgroundSpeech(text, [])).toBe(false);
+    });
+  }
+
+  it('only drops background when validated acoustic evidence is supplied', () => {
+    expect(isLikelyBackgroundSpeech('volume up', [], false)).toBe(false);
+    expect(isLikelyBackgroundSpeech('volume up', [], true)).toBe(true);
   });
 
-  it('accepts Arabic text on an Arabic call', () => {
-    expect(isLanguageMismatch('أريد مساعدة في الفاتورة', 'ar')).toBe(false);
+  it('never hard-rejects French/Spanish phrases by text alone', () => {
+    const fr = 'je suis désolé mais nous ne pouvons pas vous aider aujourd\'hui';
+    const es = 'está usted seguro porque necesito ayuda con mi cuenta bancaria';
+    expect(baselineIsLanguageMismatch(fr, 'en')).toBe(true);
+    expect(baselineIsLanguageMismatch(es, 'en')).toBe(true);
+    expect(isLanguageMismatch(fr, 'en')).toBe(false);
+    expect(isLanguageMismatch(es, 'en')).toBe(false);
   });
 
-  it('flags Arabic-dominant text on an English call', () => {
-    expect(isLanguageMismatch('أريد مساعدة في الفاتورة من فضلك', 'en')).toBe(true);
+  it('emits non-dropping lexical signals for suspects', () => {
+    const signals = collectLexicalSuspectSignals('please turn the volume up');
+    expect(signals.some((s) => s.kind === 'background_phrase_suspect')).toBe(true);
+    expect(isLikelyBackgroundSpeech('please turn the volume up', [])).toBe(false);
+  });
+});
+
+describe('decideInboundTranscriptGate — bridge decision helper', () => {
+  const baseOpts = {
+    expectedLang: 'ar' as const,
+    conversationMessages: [] as { role: string; content: string }[],
+    isOutbound: false,
+    inboundHallucinationCount: 0,
+  };
+
+  it('accepts subscription / TV / school business requests with optional signals', () => {
+    for (const text of [
+      'I want to cancel my subscription please',
+      'help me change the channel on my TV package',
+      'I need school homework portal support',
+      ...BUSINESS_REQUESTS_ONCE_DROPPED_AS_BACKGROUND,
+    ]) {
+      const gate = decideInboundTranscriptGate(text, baseOpts);
+      expect(gate.action, text).toBe('accept');
+    }
   });
 
-  it('flags CJK text on an English call', () => {
-    expect(isLanguageMismatch('こんにちは元気ですかお元気で', 'en')).toBe(true);
+  it('rejects nonspeech and offers inbound re-prompt policy', () => {
+    const gate = decideInboundTranscriptGate('♪♪', baseOpts);
+    expect(gate.action).toBe('reject_nonspeech');
+    if (gate.action === 'reject_nonspeech') {
+      expect(gate.shouldReprompt).toBe(true);
+      expect(gate.nextHallucinationCount).toBe(1);
+    }
   });
 
-  it('flags French/Spanish patterns on an English call', () => {
-    expect(isLanguageMismatch('je suis désolé mais nous ne pouvons pas', 'en')).toBe(true);
-    expect(isLanguageMismatch('está usted seguro porque necesito ayuda', 'en')).toBe(true);
+  it('does not re-prompt outbound nonspeech', () => {
+    const gate = decideInboundTranscriptGate('...', {
+      ...baseOpts,
+      isOutbound: true,
+    });
+    expect(gate.action).toBe('reject_nonspeech');
+    if (gate.action === 'reject_nonspeech') {
+      expect(gate.shouldReprompt).toBe(false);
+    }
   });
 
-  it('accepts English on an English call', () => {
-    expect(isLanguageMismatch('I need help with my bill today', 'en')).toBe(false);
-  });
-
-  it('does not flag unrelated expected languages', () => {
-    expect(isLanguageMismatch('hello can you hear me', 'es')).toBe(false);
+  it('evaluateInboundTranscriptFilters stages stay ordered', () => {
+    const result = evaluateInboundTranscriptFilters('hello', { expectedLang: 'en' });
+    expect(result.accept).toBe(true);
+    expect(result.stages.map((s) => s.stage)).toEqual([
+      'nonspeech',
+      'language_mismatch',
+      'background_speech',
+    ]);
   });
 });

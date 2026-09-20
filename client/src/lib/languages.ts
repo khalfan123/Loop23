@@ -8,10 +8,9 @@ export interface LanguageOption {
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { value: "en", label: "English", providers: "both" },
-  { value: "zh", label: "Chinese", providers: "both" },
-  { value: "hi", label: "Hindi", providers: "both" },
   { value: "es", label: "Spanish", providers: "both" },
   { value: "fr", label: "French", providers: "both" },
+  { value: "de", label: "German", providers: "both" },
   { value: "ar", label: "Arabic", providers: "both" },
 ];
 

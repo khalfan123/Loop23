@@ -62,3 +62,30 @@ export async function checkAdmin(req: AdminRequest, res: Response, next: NextFun
   }
 }
 
+/**
+ * Same as checkAdmin, but also accepts service calls using:
+ *   X-Internal-API-Key: <INTERNAL_API_SECRET>
+ *
+ * Must match the secret enforced by `/api/internal/*`.
+ */
+export async function checkAdminOrInternal(req: AdminRequest, res: Response, next: NextFunction) {
+  const internalSecret = process.env.INTERNAL_API_SECRET;
+  const provided = req.headers["x-internal-api-key"];
+  const providedStr = typeof provided === "string" ? provided : Array.isArray(provided) ? provided[0] : undefined;
+
+  if (providedStr) {
+    if (!internalSecret || providedStr !== internalSecret) {
+      return res.status(401).json({ error: "Invalid API key" });
+    }
+    req.userRole = "admin";
+    req.isAdmin = true;
+    const uid = req.headers["x-user-id"];
+    if (typeof uid === "string" && uid.length > 0) {
+      req.userId = uid;
+    }
+    return next();
+  }
+
+  return checkAdmin(req, res, next);
+}
+

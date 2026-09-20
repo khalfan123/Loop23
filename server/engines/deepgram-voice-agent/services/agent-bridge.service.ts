@@ -18,9 +18,72 @@
  */
 
 import WebSocket from 'ws';
-import { DEEPGRAM_AGENT_URL, type DeepgramAgentSettings } from '../config/settings';
+import { DEEPGRAM_AGENT_URL, KB_FUNCTION_NAME, type DeepgramAgentSettings } from '../config/settings';
 
 const KEEPALIVE_INTERVAL_MS = 8000;
+
+/**
+ * Answers one knowledge-base query, returning text for the agent to speak.
+ * Injected so the bridge stays testable without a DB (production default
+ * wires to RAGKnowledgeService in the composition root).
+ */
+export type KBLookupFn = (query: string) => Promise<string>;
+
+export interface FunctionCallResponseFrame {
+  type: 'FunctionCallResponse';
+  id: unknown;
+  name: unknown;
+  content: string;
+}
+
+/**
+ * Pure resolver for a Deepgram FunctionCallRequest event. Deepgram sends one
+ * request that may carry several functions (each with id, name, and a
+ * JSON-string `arguments`); this returns a FunctionCallResponse frame per
+ * function. Kept side-effect-free (no socket) so it is unit-testable.
+ */
+export async function buildFunctionCallResponses(
+  event: any,
+  kbLookup: KBLookupFn | undefined
+): Promise<FunctionCallResponseFrame[]> {
+  const functions: any[] = Array.isArray(event.functions)
+    ? event.functions
+    : (event.function_call_id || event.name)
+      ? [event]
+      : [];
+
+  const frames: FunctionCallResponseFrame[] = [];
+  for (const fn of functions) {
+    const id = fn.id ?? fn.function_call_id;
+    const name = fn.name;
+    let content: string;
+
+    if (name === KB_FUNCTION_NAME && kbLookup) {
+      let query = '';
+      try {
+        const args = typeof fn.arguments === 'string' ? JSON.parse(fn.arguments || '{}') : (fn.arguments ?? {});
+        query = String(args.query ?? '').trim();
+      } catch {
+        query = '';
+      }
+      if (!query) {
+        content = 'No search query was provided.';
+      } else {
+        try {
+          content = await kbLookup(query);
+        } catch (err: any) {
+          console.error(`[DeepgramAgent] KB lookup failed: ${err?.message}`);
+          content = 'The knowledge base could not be reached right now.';
+        }
+      }
+    } else {
+      content = `Unsupported function: ${name}`;
+    }
+
+    frames.push({ type: 'FunctionCallResponse', id, name, content });
+  }
+  return frames;
+}
 
 export interface DeepgramAgentSessionParams {
   callSid: string;
@@ -28,6 +91,8 @@ export interface DeepgramAgentSessionParams {
   streamSid: string;
   settings: DeepgramAgentSettings;
   apiKey: string;
+  /** Present when the agent has knowledge bases; answers FunctionCallRequests. */
+  kbLookup?: KBLookupFn;
   /** Receives each ConversationText event (role + content). */
   onTranscript?: (role: 'user' | 'assistant', content: string) => void;
   onClose?: () => void;
@@ -40,6 +105,7 @@ interface DeepgramAgentSession {
   dgWs: WebSocket;
   keepAlive: ReturnType<typeof setInterval>;
   transcript: { role: string; content: string; at: number }[];
+  kbLookup?: KBLookupFn;
 }
 
 const sessions: Map<string, DeepgramAgentSession> = new Map();
@@ -63,6 +129,7 @@ export class DeepgramAgentBridge {
         }
       }, KEEPALIVE_INTERVAL_MS),
       transcript: [],
+      kbLookup: params.kbLookup,
     };
     sessions.set(callSid, session);
 
@@ -162,6 +229,11 @@ export class DeepgramAgentBridge {
       case 'AgentStartedSpeaking':
       case 'AgentAudioDone':
         break;
+      case 'FunctionCallRequest':
+        // Client-side function calls (KB lookup). Fire-and-forget: each is
+        // answered asynchronously with its own FunctionCallResponse frame.
+        void this.handleFunctionCalls(session, event);
+        break;
       case 'Warning':
         console.warn(`[DeepgramAgent] Warning for ${session.callSid}: ${event.description ?? raw}`);
         break;
@@ -170,6 +242,19 @@ export class DeepgramAgentBridge {
         break;
       default:
         console.log(`[DeepgramAgent] Unhandled event ${event.type} for ${session.callSid}`);
+    }
+  }
+
+  /**
+   * Answer client-side function calls from the think model and send each
+   * FunctionCallResponse back over the Deepgram socket.
+   */
+  private static async handleFunctionCalls(session: DeepgramAgentSession, event: any): Promise<void> {
+    const frames = await buildFunctionCallResponses(event, session.kbLookup);
+    for (const frame of frames) {
+      if (session.dgWs.readyState === WebSocket.OPEN) {
+        session.dgWs.send(JSON.stringify(frame));
+      }
     }
   }
 }

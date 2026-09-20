@@ -29,6 +29,7 @@ import { GLOBAL_SETTINGS_SEED_DATA } from "./seed-global-settings";
 import { SEO_SETTINGS_SEED_DATA } from "./seed-seo-settings";
 import { TWILIO_COUNTRIES_SEED_DATA, seedTwilioCountries } from "./seed-twilio-countries";
 import { LANGUAGES_SEED_DATA } from "./seed-languages";
+import { SMS_COUNTRY_RATES_SEED_DATA, seedSmsCountryRates } from "./seed-sms-rates";
 import { flowTemplates } from "./services/flow-templates";
 
 const SYSTEM_USER_ID = "system";
@@ -381,61 +382,6 @@ async function updateSeedVersion() {
   console.log(`   ✅ Seed version: ${SEED_VERSION}`);
 }
 
-export async function runAllSeedsForInstaller(): Promise<{
-  success: boolean;
-  summary: Record<string, number>;
-  error?: string;
-}> {
-  console.log("🌱 [Installer] Running database seeds...");
-  
-  const summary: Record<string, number> = {};
-  
-  try {
-    await seedLlmModels();
-    summary.llmModels = MODELS_SEED_DATA.length;
-    
-    await seedPlans();
-    summary.plans = PLANS_SEED_DATA.length;
-    
-    await seedCreditPackages();
-    summary.creditPackages = CREDIT_PACKAGES_SEED_DATA.length;
-    
-    await seedPromptTemplates();
-    summary.promptTemplates = PROMPT_TEMPLATES_SEED_DATA.length;
-    
-    await seedAgentTemplates();
-    summary.agentTemplates = AGENT_TEMPLATES_SEED_DATA.length;
-    
-    await seedFlowTemplates();
-    summary.flowTemplates = flowTemplates.length;
-    
-    await seedEmailTemplates();
-    summary.emailTemplates = EMAIL_TEMPLATES_SEED_DATA.length;
-    
-    await seedGlobalSettings();
-    summary.globalSettings = GLOBAL_SETTINGS_SEED_DATA.length;
-    
-    await seedSeoSettings();
-    summary.seoSettings = SEO_SETTINGS_SEED_DATA.length;
-    
-    await seedLanguages();
-    summary.languages = LANGUAGES_SEED_DATA.length;
-    
-    await seedTwilioCountries();
-    summary.twilioCountries = TWILIO_COUNTRIES_SEED_DATA.length;
-    
-    await updateSeedVersion();
-    
-    console.log("✅ [Installer] All seeds completed successfully");
-    console.log(`   Summary: ${JSON.stringify(summary)}`);
-    
-    return { success: true, summary };
-  } catch (error: any) {
-    console.error("❌ [Installer] Seeding failed:", error);
-    return { success: false, summary, error: error.message };
-  }
-}
-
 async function runAllSeeds() {
   console.log("╔════════════════════════════════════════════════════════════╗");
   console.log("║           🌱 Platform Database Seeder                      ║");
@@ -454,6 +400,7 @@ async function runAllSeeds() {
     await seedSeoSettings();
     await seedLanguages();
     await seedTwilioCountries();
+    await seedSmsCountryRates();
     await updateSeedVersion();
     
     console.log("\n╔════════════════════════════════════════════════════════════╗");
@@ -471,6 +418,7 @@ async function runAllSeeds() {
     console.log("   - SEO Settings: Meta tags & analytics");
     console.log(`   - Supported Languages: ${LANGUAGES_SEED_DATA.length} languages with provider support`);
     console.log(`   - Twilio Countries: ${TWILIO_COUNTRIES_SEED_DATA.length} countries for phone number purchasing`);
+    console.log(`   - SMS Country Rates: ${SMS_COUNTRY_RATES_SEED_DATA.length} per-country credit rates (incl. '*' fallback)`);
     console.log(`   - Seed Version: ${SEED_VERSION}\n`);
     
   } catch (error) {

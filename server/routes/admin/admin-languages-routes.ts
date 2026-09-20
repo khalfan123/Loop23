@@ -16,13 +16,18 @@ router.get("/languages", async (_req: Request, res: Response) => {
 
 router.post("/languages", async (req: Request, res: Response) => {
   try {
-    const { code, name, nativeName, direction, isActive, sortOrder } = req.body;
+    const { code, name, nativeName, direction, isEnabled, isDefault, sortOrder, flag, translations } = req.body;
     if (!code || !name) return res.status(400).json({ error: "code and name are required" });
     const [created] = await db.insert(platformLanguages).values({
       code, name, nativeName: nativeName || name,
       direction: direction || "ltr",
-      isActive: isActive !== undefined ? isActive : true,
+      isEnabled: isEnabled !== undefined ? isEnabled : true,
+      isDefault: isDefault !== undefined ? isDefault : false,
       sortOrder: sortOrder || 0,
+      flag: flag || null,
+      translations: translations && typeof translations === 'object' ? translations : {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }).returning();
     res.status(201).json(created);
   } catch (error: any) {
@@ -35,7 +40,7 @@ router.patch("/languages/:id", async (req: Request, res: Response) => {
     const [existing] = await db.select().from(platformLanguages).where(eq(platformLanguages.id, req.params.id));
     if (!existing) return res.status(404).json({ error: "Language not found" });
     const updates: any = { updatedAt: new Date() };
-    const fields = ["code", "name", "nativeName", "direction", "isActive", "sortOrder"];
+    const fields = ["code", "name", "nativeName", "direction", "isEnabled", "isDefault", "sortOrder", "flag", "translations"];
     for (const f of fields) {
       if (req.body[f] !== undefined) updates[f] = req.body[f];
     }

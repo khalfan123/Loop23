@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useLocation } from 'wouter';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -30,13 +31,14 @@ interface OpsTask {
   trackingSerial: string | null;
   title: string;
   description: string | null;
-  taskType: 'refund' | 'callback' | 'followup' | 'escalation' | 'other';
+  taskType: 'refund' | 'callback' | 'followup' | 'escalation' | 'appointment' | 'dynamic_form' | 'other';
   priority: 'high' | 'medium' | 'low';
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   assignedTo: string | null;
   dueDate: string | null;
   intent: string | null;
   entities: Record<string, string | string[] | null> | null;
+  actionTarget: Record<string, any> | null;
   sourceExcerpt: string | null;
   callerPhone: string | null;
   createdAt: string;
@@ -78,7 +80,10 @@ const STATUS_BADGE: Record<OpsTask['status'], string> = {
 
 const TYPE_LABELS: Record<OpsTask['taskType'], string> = {
   refund: 'Refund', callback: 'Callback', followup: 'Follow-up',
-  escalation: 'Escalation', other: 'Other',
+  escalation: 'Escalation',
+  appointment: 'Appointment',
+  dynamic_form: 'Dynamic Form',
+  other: 'Other',
 };
 
 const STATUS_LABELS: Record<OpsTask['status'], string> = {
@@ -86,7 +91,13 @@ const STATUS_LABELS: Record<OpsTask['status'], string> = {
 };
 
 const TYPE_ICON: Record<OpsTask['taskType'], string> = {
-  refund: '💰', callback: '📞', followup: '📋', escalation: '🚨', other: '📌',
+  refund: '💰',
+  callback: '📞',
+  followup: '📋',
+  escalation: '🚨',
+  appointment: '🗓️',
+  dynamic_form: '🧾',
+  other: '📌',
 };
 
 function TaskCard({
@@ -220,6 +231,19 @@ function TaskDetailDialog({
   reanalyzing?: boolean;
 }) {
   if (!task) return null;
+  const [, setLocation] = useLocation();
+
+  const openAppointments = () => {
+    const params = new URLSearchParams();
+    if (task.callId) params.set('callId', task.callId);
+    setLocation(`/appointments?${params.toString()}`);
+  };
+
+  const openForms = () => {
+    const params = new URLSearchParams();
+    if (task.callId) params.set('callId', task.callId);
+    setLocation(`/forms?${params.toString()}`);
+  };
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-xl">
@@ -275,6 +299,27 @@ function TaskDetailDialog({
               <blockquote className="text-sm text-muted-foreground italic border-l-2 border-primary/40 pl-3">
                 {task.sourceExcerpt}
               </blockquote>
+            </div>
+          )}
+
+          {(task.taskType === 'appointment' || task.taskType === 'dynamic_form') && (
+            <div className="pt-2 border-t">
+              <p className="text-sm font-medium mb-2">Next step</p>
+              <div className="flex gap-2 flex-wrap">
+                {task.taskType === 'appointment' && (
+                  <Button size="sm" variant="default" onClick={openAppointments} data-testid="button-open-appointments">
+                    Open Appointments
+                  </Button>
+                )}
+                {task.taskType === 'dynamic_form' && (
+                  <Button size="sm" variant="default" onClick={openForms} data-testid="button-open-forms">
+                    Open Forms
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                This is a suggested action point based on the call transcript. Review and create the record in the destination page.
+              </p>
             </div>
           )}
 

@@ -26,10 +26,12 @@ import {
   mlCommonIssues,
   mlTrainingSamples,
   mlTrainingStats,
-  calls
+  calls,
+  campaigns,
+  incomingConnections,
 } from "@shared/schema";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
-import { eq, and, desc, sql, count } from "drizzle-orm";
+import { eq, and, desc, sql, count, or, isNotNull, gte, lte, type SQL } from "drizzle-orm";
 import { createCrawler } from "../services/knowledge-crawler";
 import { createContentProcessor } from "../services/content-processor";
 import { createKnowledgeAIAnalyzer } from "../services/knowledge-ai-analyzer";
@@ -42,6 +44,56 @@ interface AuthRequest extends Request {
 }
 
 const router = Router();
+
+const ML_ANALYZE_CALL_LIMIT = 100;
+
+/** Same ownership rules as Calls list: direct userId, or via campaign / incoming connection. */
+function userOwnedCallsCondition(userId: string): SQL {
+  return or(
+    eq(calls.userId, userId),
+    and(isNotNull(calls.campaignId), eq(campaigns.userId, userId)),
+    and(isNotNull(calls.incomingConnectionId), eq(incomingConnections.userId, userId)),
+  )!;
+}
+
+const nonEmptyTranscriptCondition = sql`length(trim(coalesce(${calls.transcript}, ''))) > 0`;
+
+/** Normalize stored transcripts (plain text or JSON message arrays) for LLM analysis. */
+function normalizeCallTranscript(raw: unknown): string {
+  if (raw == null) return "";
+  const text = String(raw).trim();
+  if (!text) return "";
+  if (text.startsWith("[") || text.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((entry) => {
+            if (typeof entry === "string") return entry;
+            if (!entry || typeof entry !== "object") return "";
+            const role = (entry as any).role || (entry as any).speaker || "unknown";
+            const content =
+              (entry as any).content ||
+              (entry as any).text ||
+              (entry as any).message ||
+              "";
+            const contentText =
+              typeof content === "string"
+                ? content
+                : Array.isArray(content)
+                  ? content.map((c: any) => (typeof c === "string" ? c : c?.text || "")).join(" ")
+                  : "";
+            return contentText.trim() ? `${role}: ${contentText.trim()}` : "";
+          })
+          .filter(Boolean)
+          .join("\n");
+      }
+    } catch {
+      // Not JSON — use as plain transcript
+    }
+  }
+  return text;
+}
 
 // ============================================================
 // CRAWL MANAGEMENT
@@ -1296,12 +1348,14 @@ router.get("/ml-conversations/stats", async (req: AuthRequest, res: Response) =>
         eq(mlTrainingSamples.status, "approved")
       ));
 
-    // Get available calls with transcripts
+    // Match Calls page ownership (direct + campaign + incoming connection)
     const [callsWithTranscripts] = await db.select({ count: count() })
       .from(calls)
+      .leftJoin(campaigns, eq(calls.campaignId, campaigns.id))
+      .leftJoin(incomingConnections, eq(calls.incomingConnectionId, incomingConnections.id))
       .where(and(
-        eq(calls.userId, req.userId),
-        sql`${calls.transcript} IS NOT NULL AND ${calls.transcript} != ''`
+        userOwnedCallsCondition(req.userId),
+        nonEmptyTranscriptCondition,
       ));
 
     res.json({
@@ -1345,24 +1399,45 @@ router.post("/ml-conversations/analyze", async (req: AuthRequest, res: Response)
 
     const { name, dateRangeStart, dateRangeEnd } = req.body;
 
-    // Get calls with transcripts in date range
-    let callsQuery = db.select().from(calls)
-      .where(and(
-        eq(calls.userId, req.userId),
-        sql`${calls.transcript} IS NOT NULL AND ${calls.transcript} != ''`
-      ));
+    const conditions: SQL[] = [
+      userOwnedCallsCondition(req.userId),
+      nonEmptyTranscriptCondition,
+    ];
 
-    const callsToAnalyze = await callsQuery.orderBy(desc(calls.createdAt));
+    if (dateRangeStart) {
+      const start = new Date(dateRangeStart);
+      if (!Number.isNaN(start.getTime())) {
+        conditions.push(gte(calls.createdAt, start));
+      }
+    }
+    if (dateRangeEnd) {
+      const end = new Date(dateRangeEnd);
+      if (!Number.isNaN(end.getTime())) {
+        conditions.push(lte(calls.createdAt, end));
+      }
+    }
 
-    if (callsToAnalyze.length === 0) {
-      return res.status(400).json({ error: "No calls with transcripts available for analysis" });
+    const callsToAnalyze = await db.select({ call: calls })
+      .from(calls)
+      .leftJoin(campaigns, eq(calls.campaignId, campaigns.id))
+      .leftJoin(incomingConnections, eq(calls.incomingConnectionId, incomingConnections.id))
+      .where(and(...conditions))
+      .orderBy(desc(calls.createdAt))
+      .limit(ML_ANALYZE_CALL_LIMIT);
+
+    const callRows = callsToAnalyze.map((row) => row.call);
+
+    if (callRows.length === 0) {
+      return res.status(400).json({
+        error: "No calls with transcripts available for analysis. Complete some calls first, then return here.",
+      });
     }
 
     // Create analysis job
     const [job] = await db.insert(mlAnalysisJobs).values({
       userId: req.userId,
       name: name || `Analysis ${new Date().toLocaleDateString()}`,
-      totalCalls: callsToAnalyze.length,
+      totalCalls: callRows.length,
       dateRangeStart: dateRangeStart ? new Date(dateRangeStart) : null,
       dateRangeEnd: dateRangeEnd ? new Date(dateRangeEnd) : null,
       status: "processing",
@@ -1370,7 +1445,7 @@ router.post("/ml-conversations/analyze", async (req: AuthRequest, res: Response)
     }).returning();
 
     // Process calls in background
-    processCallsForML(req.userId, job.id, callsToAnalyze).catch(err => {
+    processCallsForML(req.userId, job.id, callRows).catch(err => {
       console.error("ML analysis error:", err);
     });
 
@@ -1443,17 +1518,15 @@ router.get("/ml-conversations/samples", async (req: AuthRequest, res: Response) 
     const status = req.query.status as string;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
 
-    let query = db.select().from(mlTrainingSamples)
-      .where(eq(mlTrainingSamples.userId, req.userId));
-
+    const conditions = [eq(mlTrainingSamples.userId, req.userId)];
     if (status && status !== "all") {
-      query = query.where(and(
-        eq(mlTrainingSamples.userId, req.userId),
-        eq(mlTrainingSamples.status, status)
-      ));
+      conditions.push(eq(mlTrainingSamples.status, status));
     }
 
-    const samples = await query.orderBy(desc(mlTrainingSamples.createdAt)).limit(limit);
+    const samples = await db.select().from(mlTrainingSamples)
+      .where(and(...conditions))
+      .orderBy(desc(mlTrainingSamples.createdAt))
+      .limit(limit);
 
     res.json(samples);
   } catch (error) {
@@ -1529,14 +1602,35 @@ async function processCallsForML(userId: string, jobId: string, callsToProcess: 
   let processedCount = 0;
   let issuesFound = 0;
   let samplesCreated = 0;
+  let failedCount = 0;
+  let lastError: string | null = null;
 
   try {
+    let openai: Awaited<ReturnType<typeof getOpenAIClient>>;
+    try {
+      openai = await getOpenAIClient(userId);
+    } catch (clientError) {
+      const message = clientError instanceof Error ? clientError.message : "OpenAI client unavailable";
+      console.error("ML analysis OpenAI client error:", clientError);
+      await db.update(mlAnalysisJobs)
+        .set({
+          status: "failed",
+          errorMessage: message,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(mlAnalysisJobs.id, jobId));
+      return;
+    }
+
     for (const call of callsToProcess) {
-      if (!call.transcript) continue;
+      const transcript = normalizeCallTranscript(call.transcript);
+      if (!transcript) {
+        failedCount++;
+        continue;
+      }
 
       try {
-        const openai = await getOpenAIClient(userId);
-        
         // Analyze transcript with AI
         const analysisResponse = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -1566,7 +1660,7 @@ Respond in JSON format:
             },
             {
               role: "user",
-              content: call.transcript
+              content: transcript
             }
           ],
           response_format: { type: "json_object" },
@@ -1589,7 +1683,7 @@ Respond in JSON format:
           agentPerformance: analysis.agentPerformance,
           questionAnswerPairs: analysis.questionAnswerPairs || [],
           suggestedImprovements: analysis.suggestedImprovements || [],
-          transcriptLength: call.transcript.length,
+          transcriptLength: transcript.length,
           callDuration: call.duration,
         });
 
@@ -1659,8 +1753,25 @@ Respond in JSON format:
           .where(eq(mlAnalysisJobs.id, jobId));
 
       } catch (callError) {
+        failedCount++;
+        lastError = callError instanceof Error ? callError.message : "Unknown call processing error";
         console.error(`Error processing call ${call.id}:`, callError);
       }
+    }
+
+    if (processedCount === 0) {
+      await db.update(mlAnalysisJobs)
+        .set({
+          status: "failed",
+          processedCalls: 0,
+          issuesFound,
+          trainingSamplesCreated: samplesCreated,
+          errorMessage: lastError || `Failed to analyze ${failedCount || callsToProcess.length} call(s). Check OpenAI configuration and transcripts.`,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(mlAnalysisJobs.id, jobId));
+      return;
     }
 
     // Mark job complete
@@ -1670,6 +1781,7 @@ Respond in JSON format:
         processedCalls: processedCount,
         issuesFound,
         trainingSamplesCreated: samplesCreated,
+        errorMessage: failedCount > 0 ? `${failedCount} call(s) skipped or failed` : null,
         completedAt: new Date(),
         updatedAt: new Date(),
       })

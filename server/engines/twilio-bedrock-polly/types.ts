@@ -178,7 +178,7 @@ export interface AgentTool {
   handler: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
-export type TtsProvider = 'aws_polly' | 'elevenlabs' | 'cartesia';
+export type TtsProvider = 'aws_polly' | 'elevenlabs' | 'cartesia' | 'local_clone';
 
 /**
  * Agent configuration for a Bedrock+Polly call session.
@@ -197,12 +197,28 @@ export interface AgentConfig {
   ttsProvider?: TtsProvider;
   elevenLabsVoiceId?: string;
   elevenLabsApiKey?: string;
+  /** Optional ElevenLabs model override; phone defaults to eleven_flash_v2_5. */
+  elevenLabsModelId?: string;
+  /** OpenAI-compatible local clone profile id (OmniVoice / self-hosted). */
+  localCloneVoiceId?: string;
+  /** Optional bearer for LOCAL_CLONE_TTS_BASE_URL. */
+  localCloneApiKey?: string;
+  /** Optional model/engine id for local clone TTS. */
+  localCloneModelId?: string;
+  /** ElevenLabs voice_settings — applied on live phone TTS. */
+  voiceStability?: number;
+  voiceSimilarityBoost?: number;
+  voiceSpeed?: number;
+  voiceStyle?: number;
+  voiceSpeakerBoost?: boolean;
   cartesiaVoiceId?: string;
   agentName?: string;
   language?: string;
   behaviorConfig?: Record<string, any>;
   waitingMessages?: string[];
   dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
+  /** Optional call/agent ids for routing policy (cost takeover rollout). */
+  toolContext?: { userId?: string; agentId?: string; callId?: string };
 }
 
 /**
@@ -344,12 +360,25 @@ export interface BedrockPollyBridgeSession {
   fromNumber?: string;
   toNumber?: string;
   callDirection?: CallDirection;
+  /** Wizard-selected non-UAE outbound caller ID (E.164) from a Human Agent connection, if any. */
+  humanWizardCli?: string;
   pendingAudioQueue: PendingAudioRequest[];
   isProcessing: boolean;
   pollyEngine: 'neural' | 'generative';
   ttsProvider: TtsProvider;
   isOutbound: boolean;
   explicitEndCall: boolean;
+  /** Immutable outbound generation token for synthesis→send stale rejection. */
+  activeOutboundTurnToken?: number;
+  /**
+   * Live specialist supervisor (LOOP9_CALL_SUPERVISOR). Opaque bundle from
+   * call-supervisor.ts — kept optional so media path stays flag-gated.
+   */
+  callSupervisor?: {
+    supervisor: unknown;
+    state: unknown;
+    turn: number;
+  };
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
   _retryAttempted?: boolean;
@@ -367,6 +396,7 @@ export interface CreateSessionParams {
   toNumber?: string;
   callDirection?: CallDirection;
   awsRegion?: string;
+  humanWizardCli?: string;
 }
 
 /**

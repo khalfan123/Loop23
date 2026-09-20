@@ -9,12 +9,13 @@ import { getDomain } from "../utils/domain";
 import { awsPollyService } from "../services/aws-polly";
 import { awsBedrockService } from "../services/aws-bedrock";
 import { ElevenLabsService } from "../services/elevenlabs";
-import { cartesiaTTSService } from "../services/cartesia-tts";
+import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { nanoid } from "nanoid";
 import { getOpenAIClient } from "../services/openai-modelfarm";
 import { generateAgentAvatar } from "../services/avatar-generator";
 import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-webhooks";
 import { applyArabicPronunciationFixes } from "../engines/twilio-bedrock-polly/services/ssml-humanizer";
+import { normalizeTransferPhoneE164 } from "../utils/phone-e164";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -550,94 +551,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     }
   });
 
-  router.get("/cartesia-voices", authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      if (!cartesiaTTSService.isConfigured()) {
-        return res.json([]);
-      }
-      const voices = await cartesiaTTSService.listVoices();
-      res.json(voices);
-    } catch (error: any) {
-      console.error("[Deprock] Error fetching Cartesia voices:", error.message);
-      res.json([]);
-    }
-  });
-
-  router.post("/cartesia-voices/preview", authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      if (!cartesiaTTSService.isConfigured()) {
-        return res.status(400).json({ error: "Cartesia is not configured" });
-      }
-
-      const { voiceId, text, speed, emotion } = req.body;
-
-      if (!voiceId) {
-        return res.status(400).json({ error: "Voice ID is required" });
-      }
-
-      const previewText = text || "Hello! This is a preview of how I'll sound. I can adjust my tone and style based on your preferences.";
-
-      if (previewText.length > 500) {
-        return res.status(400).json({ error: "Preview text cannot exceed 500 characters" });
-      }
-
-      const validSpeed = typeof speed === 'number' && speed >= 0.5 && speed <= 2.0 ? speed : 1.0;
-
-      let validEmotion = undefined;
-      if (Array.isArray(emotion) && emotion.length > 0) {
-        const validEmotionNames = ['anger', 'positivity', 'surprise', 'sadness', 'curiosity'];
-        const validLevels = ['lowest', 'low', 'medium', 'high', 'highest'];
-        validEmotion = emotion.filter((e: any) =>
-          e && typeof e.name === 'string' && typeof e.level === 'string' &&
-          validEmotionNames.includes(e.name) && validLevels.includes(e.level)
-        );
-        if (validEmotion.length === 0) validEmotion = undefined;
-      }
-
-      const result = await cartesiaTTSService.synthesizeSpeech({
-        text: previewText,
-        voiceId,
-        sampleRate: 24000,
-        outputContainer: 'raw',
-        speed: validSpeed,
-        emotion: validEmotion,
-      });
-
-      const pcmData = result.audioStream;
-      const wavHeader = Buffer.alloc(44);
-      const sampleRate = 24000;
-      const numChannels = 1;
-      const bitsPerSample = 16;
-      const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-      const blockAlign = numChannels * (bitsPerSample / 8);
-      const dataSize = pcmData.length;
-      const fileSize = 36 + dataSize;
-
-      wavHeader.write('RIFF', 0);
-      wavHeader.writeUInt32LE(fileSize, 4);
-      wavHeader.write('WAVE', 8);
-      wavHeader.write('fmt ', 12);
-      wavHeader.writeUInt32LE(16, 16);
-      wavHeader.writeUInt16LE(1, 20);
-      wavHeader.writeUInt16LE(numChannels, 22);
-      wavHeader.writeUInt32LE(sampleRate, 24);
-      wavHeader.writeUInt32LE(byteRate, 28);
-      wavHeader.writeUInt16LE(blockAlign, 32);
-      wavHeader.writeUInt16LE(bitsPerSample, 34);
-      wavHeader.write('data', 36);
-      wavHeader.writeUInt32LE(dataSize, 40);
-
-      const wavBuffer = Buffer.concat([wavHeader, pcmData]);
-
-      res.setHeader('Content-Type', 'audio/wav');
-      res.setHeader('Content-Length', wavBuffer.length);
-      res.setHeader('Cache-Control', 'no-cache');
-      res.send(wavBuffer);
-    } catch (error: any) {
-      console.error("[Deprock] Cartesia voice preview error:", error.message);
-      res.status(500).json({ error: error.message || "Failed to generate Cartesia voice preview" });
-    }
-  });
+  // Cartesia Sonic routes removed (deprecated).
 
   router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
@@ -664,6 +578,86 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     } catch (error: any) {
       console.error('[IVR Configs All] Error:', error.message);
       res.status(500).json({ error: 'Failed to fetch IVR configurations' });
+    }
+  });
+
+  /** Sync call-transfer destination for every incoming agent assigned to this department (IVR → AI → human). */
+  router.post("/:departmentId/sync-transfer", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { departmentId } = req.params;
+      const { transferEnabled, transferPhoneNumber, transferMessage } = req.body;
+
+      const [dept] = await db
+        .select()
+        .from(departments)
+        .where(and(
+          eq(departments.id, departmentId),
+          eq(departments.userId, req.userId!),
+          eq(departments.engineType, 'bedrock-polly')
+        ))
+        .limit(1);
+
+      if (!dept) {
+        return res.status(404).json({ error: "Department not found" });
+      }
+
+      const enabled = !!transferEnabled;
+      let phone: string | null = null;
+      if (enabled) {
+        if (!transferPhoneNumber || !String(transferPhoneNumber).trim()) {
+          return res.status(400).json({ error: "Transfer phone number is required when call transfer is enabled" });
+        }
+        const n = normalizeTransferPhoneE164(transferPhoneNumber);
+        if (!n.ok) {
+          return res.status(400).json({ error: n.error });
+        }
+        phone = n.e164;
+      }
+
+      const links = await db
+        .select({ agentId: departmentAgents.agentId })
+        .from(departmentAgents)
+        .where(eq(departmentAgents.departmentId, departmentId));
+
+      if (links.length === 0) {
+        return res.json({ success: true, updated: 0 });
+      }
+
+      const msgTrim = transferMessage != null && typeof transferMessage === 'string' ? transferMessage.trim() : '';
+
+      let updated = 0;
+      for (const { agentId } of links) {
+        const [ag] = await db
+          .select()
+          .from(agents)
+          .where(and(eq(agents.id, agentId), eq(agents.userId, req.userId!)))
+          .limit(1);
+        if (!ag) continue;
+
+        const prevConfig = (ag.config && typeof ag.config === 'object' ? ag.config : {}) as Record<string, unknown>;
+        const nextConfig = { ...prevConfig };
+        if (msgTrim) {
+          nextConfig.transferMessage = msgTrim;
+        } else {
+          delete nextConfig.transferMessage;
+        }
+
+        await db
+          .update(agents)
+          .set({
+            transferEnabled: enabled,
+            transferPhoneNumber: enabled ? phone : null,
+            config: Object.keys(nextConfig).length > 0 ? nextConfig : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(agents.id, agentId));
+        updated++;
+      }
+
+      res.json({ success: true, updated });
+    } catch (error: any) {
+      console.error("[Deprock] sync-transfer error:", error);
+      res.status(500).json({ error: "Failed to sync transfer settings" });
     }
   });
 
@@ -883,7 +877,16 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         console.log(`[Deprock] Deleted ${linkedAgentIds.length} linked agent(s) for department ${id}`);
       }
 
-      res.json({ success: true, deletedAgents: linkedAgentIds.length });
+      const { cleanupDepartmentReferences } = await import("../services/department-cleanup");
+      const cleanup = await cleanupDepartmentReferences(req.userId!, id);
+
+      res.json({
+        success: true,
+        deletedAgents: linkedAgentIds.length,
+        ivrsUpdated: cleanup.ivrsUpdated,
+        ivrsDeleted: cleanup.ivrsDeleted,
+        phonesFreed: cleanup.phonesFreed,
+      });
     } catch (error: any) {
       console.error("[Deprock] Delete error:", error);
       res.status(500).json({ error: "Failed to delete department" });
@@ -1107,7 +1110,16 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
   router.patch("/:departmentId/agents/:departmentAgentId", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { departmentId, departmentAgentId } = req.params;
-      const { systemPrompt, voiceTone, voiceId, firstMessage } = req.body;
+      const {
+        systemPrompt,
+        voiceTone,
+        voiceId,
+        firstMessage,
+        voiceSpeed,
+        transferEnabled,
+        transferPhoneNumber,
+        transferMessage,
+      } = req.body;
 
       const existingDept = await db
         .select()
@@ -1127,6 +1139,16 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
       if (!deptAgent) {
         return res.status(404).json({ error: "Department agent not found" });
+      }
+
+      const [linkedAgent] = await db
+        .select()
+        .from(agents)
+        .where(and(eq(agents.id, deptAgent.agentId), eq(agents.userId, req.userId!)))
+        .limit(1);
+
+      if (!linkedAgent) {
+        return res.status(404).json({ error: "Agent not found" });
       }
 
       const deptAgentUpdate: Record<string, any> = {};
@@ -1158,6 +1180,44 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       if (voiceTone !== undefined) agentUpdate.voiceTone = voiceTone;
       if (systemPrompt !== undefined) agentUpdate.systemPrompt = systemPrompt;
       if (firstMessage !== undefined) agentUpdate.firstMessage = firstMessage;
+      if (voiceSpeed !== undefined) agentUpdate.voiceSpeed = voiceSpeed;
+
+      if (transferEnabled !== undefined || transferPhoneNumber !== undefined || transferMessage !== undefined) {
+        let nextEnabled = linkedAgent.transferEnabled ?? false;
+        if (transferEnabled !== undefined) nextEnabled = !!transferEnabled;
+
+        let nextPhone = linkedAgent.transferPhoneNumber;
+        if (transferPhoneNumber !== undefined) {
+          if (transferPhoneNumber === null || (typeof transferPhoneNumber === 'string' && !transferPhoneNumber.trim())) {
+            nextPhone = null;
+          } else {
+            const n = normalizeTransferPhoneE164(transferPhoneNumber);
+            if (!n.ok) {
+              return res.status(400).json({ error: n.error });
+            }
+            nextPhone = n.e164;
+          }
+        }
+
+        if (nextEnabled && !nextPhone?.trim()) {
+          return res.status(400).json({ error: "Transfer phone number is required when call transfer is enabled" });
+        }
+
+        const prevConfig = (linkedAgent.config && typeof linkedAgent.config === 'object' ? linkedAgent.config : {}) as Record<string, unknown>;
+        const nextConfig = { ...prevConfig };
+        if (transferMessage !== undefined) {
+          const m = typeof transferMessage === 'string' ? transferMessage.trim() : '';
+          if (m) {
+            nextConfig.transferMessage = m;
+          } else {
+            delete nextConfig.transferMessage;
+          }
+        }
+
+        agentUpdate.transferEnabled = nextEnabled;
+        agentUpdate.transferPhoneNumber = nextEnabled ? nextPhone : null;
+        agentUpdate.config = Object.keys(nextConfig).length > 0 ? nextConfig : null;
+      }
 
       if (Object.keys(agentUpdate).length > 0) {
         await db
@@ -1166,7 +1226,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           .where(and(eq(agents.id, deptAgent.agentId), eq(agents.userId, req.userId!)));
       }
 
-      console.log(`[Deprock] Updated agent config for departmentAgent ${departmentAgentId}: voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}, prompt=${!!systemPrompt}, firstMessage=${!!firstMessage}`);
+      console.log(`[Deprock] Updated agent config for departmentAgent ${departmentAgentId}: voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}, prompt=${!!systemPrompt}, firstMessage=${!!firstMessage}, transfer=${transferEnabled !== undefined || transferPhoneNumber !== undefined}`);
 
       res.json({ success: true, departmentAgentId, agentId: deptAgent.agentId });
     } catch (error: any) {
@@ -1328,9 +1388,18 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             
             if (phoneRecord.length > 0 && phoneRecord[0].twilioSid) {
               const domain = getDomain();
-              const webhookUrl = `${domain}/api/webhooks/twilio/incoming`;
-              console.log(`[Deprock] Configuring Twilio webhook for phone ${phoneRecord[0].phoneNumber}: ${webhookUrl}`);
-              await twilioService.updatePhoneNumber(phoneRecord[0].twilioSid, { voiceUrl: webhookUrl });
+              // Point VoiceUrl directly at the IVR answer handler (with fallback to
+              // the generic incoming webhook). Startup sync used to wipe this back
+              // to /incoming-only and caused Twilio 11200 / "out of service".
+              const ivrAnswerUrl = `${domain}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(newIvr[0].id)}&attempt=1`;
+              const fallbackUrl = `${domain}/api/webhooks/twilio/incoming`;
+              console.log(`[Deprock] Configuring Twilio VoiceUrl for phone ${phoneRecord[0].phoneNumber}: ${ivrAnswerUrl}`);
+              await twilioService.updatePhoneNumber(phoneRecord[0].twilioSid, {
+                voiceUrl: ivrAnswerUrl,
+                voiceMethod: "POST",
+                voiceFallbackUrl: fallbackUrl,
+                voiceFallbackMethod: "POST",
+              });
               console.log(`[Deprock] Twilio webhook configured successfully`);
             }
           } catch (twilioError: any) {
@@ -1537,9 +1606,15 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         res.setHeader("Content-Disposition", "inline; filename=preview.wav");
         res.send(result.audioStream);
       } else if (isElVoice) {
-        const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+        // Resolve an ElevenLabs key the same way voice listing does:
+        // user-affinity credential pool → env fallback. Avoids "API key not
+        // configured" errors when the env var isn't set but DB credentials are.
+        const credential = req.userId
+          ? await ElevenLabsPoolService.getUserCredential(req.userId)
+          : null;
+        const elevenLabsApiKey = credential?.apiKey || process.env.ELEVENLABS_API_KEY;
         if (!elevenLabsApiKey) {
-          return res.status(400).json({ error: "ElevenLabs API key not configured" });
+          return res.status(400).json({ error: "No ElevenLabs credential available — add one in Admin → ElevenLabs Pool" });
         }
 
         const realVoiceId = getElevenLabsVoiceId(voiceId);
@@ -1832,7 +1907,7 @@ Write it entirely in ${langLabel}.`
         messages: [
           {
             role: "system",
-            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. If company knowledge base information is provided, use it to personalize the prompt with real company details — reference actual products, services, policies, and brand identity instead of using generic placeholders. The entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
+            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent.\n\nHARD REQUIREMENTS:\n- The prompt MUST be written for a live phone call and must sound human.\n- Keep replies short by default (1–2 sentences), ask one question at a time, and confirm intent before giving steps.\n- The prompt MUST include a clearly-delimited policy block with the marker PHONE_HUMAN_POLICY_V1.\n- The prompt MUST enforce knowledge-base adherence: the agent must never guess; it must use the KB tool first for factual questions.\n- The prompt MUST enforce a low-confidence protocol: if KB results are weak/low-confidence, the agent must ask EXACTLY ONE clarifying question and then re-check the KB before answering.\n\nIf company knowledge base information is provided, use it to personalize the prompt with real company details — reference actual products, services, policies, and brand identity instead of using generic placeholders.\n\nThe entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
           },
           {
             role: "user",

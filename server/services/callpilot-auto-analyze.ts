@@ -88,7 +88,13 @@ async function sweep(): Promise<void> {
 
         const insertData = CallpilotAI.buildInsertTasks(result.tasks, call.userId, call.id);
         await storage.createOpsTasks(insertData);
-        await storage.recordOpsAnalysisRun(call.userId, call.id, insertData.length);
+        await storage.recordOpsAnalysisRun(call.userId, call.id, insertData.length, {
+          outputLanguage: businessContext.language || null,
+          provider: result.provider,
+          modelUsed: result.modelUsed,
+          callSummary: result.callSummary,
+          callBrief: result.callBrief as unknown as Record<string, unknown>,
+        });
 
         logger.info(
           `[CallpilotWorker] Call ${call.id} → ${insertData.length} task(s) via ${result.provider} [company: ${businessContext.companyName || 'unknown'}]`,

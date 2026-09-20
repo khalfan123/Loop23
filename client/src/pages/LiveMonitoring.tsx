@@ -63,6 +63,21 @@ interface LiveCall {
   sentimentScore?: number;
   sentimentAlert?: boolean;
   sentimentReason?: string | null;
+  wasTransferred?: boolean;
+  transferredTo?: string | null;
+  transferCallerId?: string | null;
+  transferCallerIdSource?: 'wizard' | 'env' | 'inbound' | 'omitted' | 'relay' | null;
+  transferRelayPhoneNumber?: string | null;
+  transferAgentStatus?: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled' | null;
+}
+
+function formatTransferCli(
+  callerId?: string | null,
+  source?: 'wizard' | 'env' | 'inbound' | 'omitted' | 'relay' | null,
+): string | null {
+  if (!source) return null;
+  if (source === 'omitted') return 'omitted (UAE-only DID)';
+  return `${callerId ?? '(unknown)'} (${source})`;
 }
 
 interface LiveCallStats {
@@ -598,6 +613,57 @@ export default function LiveMonitoring() {
                               {SENTIMENT_CONFIG[call.sentimentLevel]?.label || call.sentimentLevel}
                             </Badge>
                           )}
+                          {(call.wasTransferred || call.transferCallerIdSource || call.transferredTo || call.transferRelayPhoneNumber || call.transferAgentStatus) && (() => {
+                            const isRelay = call.transferCallerIdSource === 'relay' || !!call.transferRelayPhoneNumber;
+                            // Live calls are removed from the registry on terminal status, so any
+                            // call still visible here is in-flight. Prefer the explicit
+                            // `transferAgentStatus` (populated from the hop2 status callback /
+                            // single-leg <Dial> action callback once a terminal signal arrives);
+                            // otherwise fall back to "Answered" when `wasTransferred=true`,
+                            // and "Ringing" while the agent leg is still pending.
+                            const outcome: 'answered' | 'missed' | 'ringing' =
+                              call.transferAgentStatus === 'answered'
+                                ? 'answered'
+                                : call.transferAgentStatus
+                                  ? 'missed'
+                                  : call.wasTransferred
+                                    ? 'answered'
+                                    : 'ringing';
+                            const tooltipParts: string[] = [];
+                            if (isRelay && call.transferRelayPhoneNumber) {
+                              tooltipParts.push(`Relay caller ID: ${call.transferRelayPhoneNumber}`);
+                            } else if (call.transferCallerIdSource) {
+                              tooltipParts.push(`Transfer CLI: ${formatTransferCli(call.transferCallerId, call.transferCallerIdSource)}`);
+                            }
+                            if (call.transferredTo) {
+                              tooltipParts.push(`Agent: ${call.transferredTo}`);
+                            }
+                            if (outcome === 'answered') {
+                              tooltipParts.push('Agent answered the bridged leg');
+                            } else if (outcome === 'missed') {
+                              tooltipParts.push(`Agent leg did not answer (${call.transferAgentStatus})`);
+                            } else {
+                              tooltipParts.push('Agent leg ringing / not yet answered');
+                            }
+                            const tooltip = tooltipParts.join(' · ');
+                            const outcomeLabel = outcome === 'answered' ? 'Answered' : outcome === 'missed' ? 'Missed' : 'Ringing';
+                            const label = `${isRelay ? 'Relay' : 'Transfer'} · ${outcomeLabel}`;
+                            const colorClass = outcome === 'answered'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                              : outcome === 'missed'
+                                ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30';
+                            return (
+                              <Badge
+                                variant="outline"
+                                className={colorClass}
+                                data-testid={isRelay ? `badge-relay-${call.callId}` : `badge-transfer-${call.callId}`}
+                                title={tooltip}
+                              >
+                                {label}
+                              </Badge>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center gap-1 text-sm font-mono tabular-nums">
@@ -730,6 +796,50 @@ export default function LiveMonitoring() {
                       {ENGINE_LABELS[selectedCall.engine] || selectedCall.engine}
                     </Badge>
                   </div>
+
+                  {selectedCall.wasTransferred && selectedCall.transferRelayPhoneNumber && (
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">Hop 1 (customer → conf)</span>
+                        <span
+                          className="text-sm font-mono text-right break-all"
+                          data-testid="text-selected-transfer-hop1"
+                        >
+                          UAE inbound parked
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">Hop 2 (relay → agent)</span>
+                        <span
+                          className="text-sm font-mono text-right break-all"
+                          data-testid="text-selected-transfer-hop2"
+                        >
+                          {selectedCall.transferRelayPhoneNumber} → {selectedCall.transferredTo ?? '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">Agent-leg CLI</span>
+                        <span
+                          className="text-sm font-mono text-right break-all"
+                          data-testid="text-selected-transfer-cli"
+                        >
+                          {selectedCall.transferRelayPhoneNumber} (relay)
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {selectedCall.wasTransferred && !selectedCall.transferRelayPhoneNumber && (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm text-muted-foreground">Transfer CLI</span>
+                      <span
+                        className="text-sm font-mono text-right break-all"
+                        data-testid="text-selected-transfer-cli"
+                        title={selectedCall.transferredTo ? `Transferred to ${selectedCall.transferredTo}` : undefined}
+                      >
+                        {formatTransferCli(selectedCall.transferCallerId, selectedCall.transferCallerIdSource) ?? '—'}
+                      </span>
+                    </div>
+                  )}
 
                   {selectedCall.sentimentLevel && (
                     <div className="flex items-center justify-between">

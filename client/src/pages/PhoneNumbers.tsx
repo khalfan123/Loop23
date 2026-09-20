@@ -21,8 +21,10 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming, Network, Bot, PanelLeft, ClipboardList, ChevronLeft, ArrowRightLeft } from "lucide-react";
+import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming, Network, Bot, PanelLeft, ClipboardList, ChevronLeft, ArrowRightLeft, MessageCircle } from "lucide-react";
 import NumberPortingView from "@/components/NumberPortingView";
+import EmbeddedSignupButton from "@/components/whatsapp/EmbeddedSignupButton";
+import AutoAssignButton from "@/components/whatsapp/AutoAssignButton";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,7 +33,7 @@ import { AuthStorage } from "@/lib/auth-storage";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -92,6 +94,19 @@ const COUNTRY_CODE_TO_NAME: Record<string, string> = {
 
 function getCountryName(code: string): string {
   return COUNTRY_CODE_TO_NAME[code] || code;
+}
+
+function getFlagEmoji(iso: string): string {
+  if (!iso || iso.length !== 2) return "🌐";
+  return Array.from(iso.toUpperCase())
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+}
+
+function getFlagImageSrc(iso: string): string | null {
+  if (!iso || iso.length !== 2) return null;
+  // FlagCDN provides flat SVG flags (ISO 3166-1 alpha-2).
+  return `https://flagcdn.com/${iso.toLowerCase()}.svg`;
 }
 
 interface PublicSettings {
@@ -252,6 +267,7 @@ export default function PhoneNumbers() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const [searchCountry, setSearchCountry] = useState("");
   const [searchContains, setSearchContains] = useState("");
   const [selectedNumber, setSelectedNumber] = useState<AvailableNumber | null>(null);
@@ -265,8 +281,9 @@ export default function PhoneNumbers() {
 
   // Inline inner views (replaces dialogs)
   const [showBuyNumberView, setShowBuyNumberView] = useState(false);
-  const [showUaeTollFreeView, setShowUaeTollFreeView] = useState(false);
   const [showPortingView, setShowPortingView] = useState(false);
+  const [addMenuCountrySearch, setAddMenuCountrySearch] = useState("");
+  const [cameFromCountryGrid, setCameFromCountryGrid] = useState(false);
 
 
   // SIP Trunks sidebar state
@@ -275,6 +292,9 @@ export default function PhoneNumbers() {
   const sipTrunks = sipTrunksData?.trunks || sipTrunksData || [];
   const { data: sipPhoneNumbersData } = useQuery<any>({ queryKey: ["/api/sip/phone-numbers"] });
   const sipPhoneNumbers = sipPhoneNumbersData?.phoneNumbers || sipPhoneNumbersData || [];
+
+  // UAE direct purchase state
+  const [uaeDirectNumber, setUaeDirectNumber] = useState("");
 
   // Import existing Twilio number state
   const [selectedImportNumber, setSelectedImportNumber] = useState<any>(null);
@@ -302,6 +322,7 @@ export default function PhoneNumbers() {
 
   // Provider Numbers Lookup state
   const [providerLookupDialogOpen, setProviderLookupDialogOpen] = useState(false);
+  const [whatsappSetupOpen, setWhatsappSetupOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<TcxcInterconnection | null>(null);
   const [selectedCarrier, setSelectedCarrier] = useState<CarrierProvider | null>(null);
   const [providerNumberSearch, setProviderNumberSearch] = useState("");
@@ -382,7 +403,7 @@ export default function PhoneNumbers() {
   });
   const isKycApproved = currentUser?.kycStatus === 'approved';
 
-  const canPurchaseTwilio = !twilioKycRequired || isKycApproved;
+  const canPurchaseTwilio = true;
 
   // TCXC credentials query - check if TCXC is configured
   const { data: tcxcStatus } = useQuery<TcxcStatus>({
@@ -467,11 +488,15 @@ export default function PhoneNumbers() {
     return providers;
   }, [tcxcInterconnections]);
 
-  // Existing Twilio numbers for import
-  const { data: existingTwilioNumbers = [], isLoading: loadingExisting, refetch: refetchExisting } = useQuery<any[]>({
+  // Existing Twilio numbers for import (response can be array OR { numbers, _debug })
+  const { data: twilioExistingResp, isLoading: loadingExisting, refetch: refetchExisting } = useQuery<any>({
     queryKey: ["/api/phone-numbers/twilio-existing"],
-    enabled: showUaeTollFreeView,
+    enabled: showBuyNumberView && searchCountry === "AE",
   });
+  const existingTwilioNumbers: any[] = Array.isArray(twilioExistingResp)
+    ? twilioExistingResp
+    : (twilioExistingResp?.numbers || []);
+  const twilioInventoryDebug = !Array.isArray(twilioExistingResp) ? twilioExistingResp?._debug : null;
 
   const importMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -481,7 +506,7 @@ export default function PhoneNumbers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers/twilio-existing"] });
-      setShowUaeTollFreeView(false);
+      setShowBuyNumberView(false);
       setSelectedImportNumber(null);
       toast({ title: "Number imported successfully" });
     },
@@ -679,6 +704,18 @@ export default function PhoneNumbers() {
     }
   }, [countries, searchCountry]);
 
+  useEffect(() => {
+    const qs = new URLSearchParams(search || "");
+    if (qs.get("add") === "1") {
+      setSelectedPhoneId(null);
+      setSelectedSipTrunkId(null);
+      setAddMenuCountrySearch("");
+      setShowBuyNumberView(false);
+      setShowPortingView(false);
+      setShowAddNumberMenu(true);
+    }
+  }, [search]);
+
   const { data: incomingData } = useQuery<{ connections: IncomingConnection[]; allConnections: IncomingConnection[]; availablePhoneNumbers: PhoneNumber[] }>({
     queryKey: ["/api/incoming-connections"],
   });
@@ -698,6 +735,50 @@ export default function PhoneNumbers() {
   };
 
   const isCountryValid = countries.some(c => c.code === searchCountry);
+
+  const COUNTRY_GRID_ORDER: string[] = [
+    "AE",
+    "AR",
+    "AU",
+    "AT",
+    "BE",
+    "BR",
+    "CA",
+    "CL",
+    "CZ",
+    "FI",
+    "FR",
+    "DE",
+    "HK",
+    "IE",
+    "IL",
+    "JP",
+    "MX",
+    "NZ",
+    "PH",
+    "PR",
+    "ZA",
+    "CH",
+    "GB",
+    "US",
+  ];
+
+  const orderedCountriesForAddMenu = useMemo(() => {
+    if (!countries?.length) return [];
+    const byCode = new Map(countries.map((c) => [c.code, c]));
+    return COUNTRY_GRID_ORDER.map((code) => byCode.get(code)).filter(Boolean) as TwilioCountry[];
+  }, [countries]);
+
+  const filteredCountriesForAddMenu = useMemo(() => {
+    const q = addMenuCountrySearch.trim().toLowerCase();
+    if (!q) return orderedCountriesForAddMenu;
+    return orderedCountriesForAddMenu.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.dialCode.replace("+", "").includes(q)
+    );
+  }, [orderedCountriesForAddMenu, addMenuCountrySearch]);
 
   const buildSearchQuery = () => {
     const params = new URLSearchParams();
@@ -835,12 +916,29 @@ export default function PhoneNumbers() {
         setKycRequiredDialogOpen(true);
         return;
       }
+      setCameFromCountryGrid(false);
       setShowBuyNumberView(true);
       setShowAddNumberMenu(false);
-      setShowUaeTollFreeView(false);
       setSelectedPhoneId(null);
       setSelectedSipTrunkId(null);
     }
+  };
+
+  const openBuyForCountry = (code: string) => {
+    if (!canPurchaseTwilio) {
+      setKycRequiredDialogOpen(true);
+      return;
+    }
+    setCameFromCountryGrid(true);
+    setSearchCountry(code);
+    setShowAddNumberMenu(false);
+    setShowBuyNumberView(true);
+    setSelectedPhoneId(null);
+    setSelectedSipTrunkId(null);
+    setSelectedNumber(null);
+    setSearchContains("");
+    setFriendlyName("");
+    setHasSearched(true);
   };
 
   const getKycStatusBadgeVariant = (status?: string): "default" | "secondary" | "destructive" | "outline" => {
@@ -994,7 +1092,12 @@ export default function PhoneNumbers() {
             size="icon"
             variant="default"
             className="rounded-full"
-            onClick={() => { setSelectedPhoneId(null); setSelectedSipTrunkId(null); setShowAddNumberMenu(true); }}
+            onClick={() => {
+              setSelectedPhoneId(null);
+              setSelectedSipTrunkId(null);
+              setAddMenuCountrySearch("");
+              setShowAddNumberMenu(true);
+            }}
             data-testid="button-add-number-sidebar"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -1029,7 +1132,6 @@ export default function PhoneNumbers() {
                   setSelectedSipTrunkId(null);
                   setShowAddNumberMenu(false);
                   setShowBuyNumberView(false);
-                  setShowUaeTollFreeView(false);
                   setSelectedPhoneId(phone.id);
                   setMobileSidebarOpen(false);
                 }}
@@ -1071,7 +1173,6 @@ export default function PhoneNumbers() {
                   setSelectedPhoneId(null);
                   setShowAddNumberMenu(false);
                   setShowBuyNumberView(false);
-                  setShowUaeTollFreeView(false);
                   setSelectedSipTrunkId(trunk.id);
                   setMobileSidebarOpen(false);
                 }}
@@ -1318,6 +1419,17 @@ export default function PhoneNumbers() {
             {t('phoneNumbers.manageConnections')}
           </Button>
 
+          <Button
+            variant="outline"
+            className="rounded-full border-[#25D366]/40 text-[#1fa855] hover:bg-[#25D366]/10 hover:border-[#25D366]/60"
+            onClick={() => setWhatsappSetupOpen(true)}
+            title="Enable WhatsApp"
+            aria-label="Enable WhatsApp"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Enable WhatsApp
+          </Button>
+
           {type === 'twilio' && !(data as PhoneNumber).isSystemPool && (
             <Button
               variant="destructive"
@@ -1346,6 +1458,325 @@ export default function PhoneNumbers() {
       </div>
     );
   };
+
+  const renderWhatsappSetupDialog = () => (
+    <Dialog open={whatsappSetupOpen} onOpenChange={setWhatsappSetupOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Enable WhatsApp</DialogTitle>
+          <DialogDescription>
+            Connect your first WhatsApp sender to Byan AI.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 text-sm">
+          <div className="rounded-lg border p-3">
+            <div className="font-medium mb-1">Before you start</div>
+            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+              <li>The phone number you onboard must not already be active on WhatsApp with another provider.</li>
+              <li>Meta may require verification during the flow.</li>
+              <li>After verification, Twilio may take a short processing period to complete registration.</li>
+            </ul>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => setWhatsappSetupOpen(false)}>
+              Cancel
+            </Button>
+            <AutoAssignButton
+              variant="secondary"
+              onCompleted={() => {
+                setWhatsappSetupOpen(false);
+                setLocation("/app/inbox");
+              }}
+            />
+            <EmbeddedSignupButton
+              onCompleted={() => {
+                setWhatsappSetupOpen(false);
+                setLocation("/app/inbox");
+              }}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const selectedCountryMeta = countries.find((c) => c.code === searchCountry);
+
+  const renderTwilioRegularSearchAndPurchase = () => (
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <Label htmlFor="search-contains-inline">Search by digits (optional)</Label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="search-contains-inline"
+            placeholder="e.g. 2200, 555"
+            value={searchContains}
+            onChange={(e) => setSearchContains(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            className="pl-10"
+            data-testid="input-search-contains"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Filter numbers containing specific digits (leave empty to see all available)
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          onClick={() => {
+            setHasSearched(true);
+            searchNumbers();
+          }}
+          disabled={!canSearch() || searchLoading}
+          className="flex-1"
+          data-testid="button-search-numbers"
+        >
+          {searchLoading ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+              {t("phoneNumbers.actions.searching")}
+            </>
+          ) : (
+            <>
+              <Search className="h-4 w-4 mr-2" />
+              {t("phoneNumbers.actions.searchNumbers")}
+            </>
+          )}
+        </Button>
+        {hasSearched && (
+          <Button
+            variant="outline"
+            onClick={() => searchNumbers()}
+            disabled={!canSearch() || searchLoading}
+            data-testid="button-refresh-numbers"
+            title="Load different numbers"
+          >
+            <RefreshCw className={`h-4 w-4 ${searchLoading ? "animate-spin" : ""}`} />
+          </Button>
+        )}
+      </div>
+
+      {!searchLoading && hasSearched && availableNumbers.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground space-y-2">
+          <p>{t("phoneNumbers.search.noResults")}</p>
+          <p className="text-xs">
+            If you already own a number in this country, an admin can import it from the Admin Panel under Phone
+            Numbers.
+          </p>
+        </div>
+      )}
+
+      {availableNumbers.length > 0 && (
+        <div className="space-y-2">
+          <Label>{t("phoneNumbers.labels.availableNumbers")}</Label>
+          <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
+            {availableNumbers.map((number) => (
+              <div
+                key={number.phoneNumber}
+                className={`p-4 hover-elevate cursor-pointer ${selectedNumber?.phoneNumber === number.phoneNumber ? "bg-accent" : ""}`}
+                onClick={() => setSelectedNumber(number)}
+                data-testid={`available-number-${number.phoneNumber}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-mono font-semibold">{formatPhoneNumber(number.phoneNumber)}</div>
+                    {number.locality && number.region && (
+                      <div className="text-sm text-muted-foreground">
+                        {number.locality}, {number.region}
+                      </div>
+                    )}
+                  </div>
+                  {selectedNumber?.phoneNumber === number.phoneNumber && <Check className="h-5 w-5 text-primary" />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedNumber && (
+        <div className="space-y-2">
+          <Label htmlFor="friendly-name-inline">{t("phoneNumbers.labels.friendlyName")}</Label>
+          <Input
+            id="friendly-name-inline"
+            placeholder={t("phoneNumbers.placeholders.friendlyName")}
+            value={friendlyName}
+            onChange={(e) => setFriendlyName(e.target.value)}
+            data-testid="input-friendly-name"
+          />
+        </div>
+      )}
+
+      {selectedNumber && (
+        <Button
+          onClick={handleBuyNumber}
+          disabled={!selectedNumber || buyMutation.isPending}
+          className="w-full"
+          data-testid="button-confirm-purchase"
+        >
+          {buyMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Purchasing...
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              {t("phoneNumbers.actions.buyNumber")}
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  );
+
+  const renderUaeTollFreePurchaseSection = () => (
+    <div className="space-y-6 pt-2">
+      <div>
+        <p className="text-sm font-medium mb-2">Available UAE Toll-Free Numbers</p>
+        {loadingExisting ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-muted-foreground text-sm">Loading available numbers...</span>
+          </div>
+        ) : existingTwilioNumbers.length === 0 ? (
+          <div className="py-4 px-4 text-muted-foreground border rounded-md space-y-2">
+            <p className="text-sm font-medium text-foreground">No UAE toll-free numbers are currently available.</p>
+            <p className="text-xs">Use the purchase form below to request a specific UAE 800 number.</p>
+          </div>
+        ) : (
+          <div className="border rounded-md divide-y max-h-64 overflow-y-auto">
+            {existingTwilioNumbers.map((number: any) => {
+              const isSelected = uaeDirectNumber === number.phoneNumber;
+              return (
+                <div
+                  key={number.sid}
+                  className={`p-3 ${number.allocated ? "opacity-60 cursor-not-allowed" : "hover-elevate cursor-pointer"} ${isSelected ? "bg-accent" : ""}`}
+                  onClick={() => {
+                    if (number.allocated) return;
+                    setUaeDirectNumber(number.phoneNumber);
+                    if (!friendlyName && number.friendlyName) {
+                      setFriendlyName(number.friendlyName);
+                    }
+                  }}
+                  data-testid={`available-number-${number.phoneNumber}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium font-mono text-sm">{number.phoneNumber}</p>
+                      <p className="text-xs text-muted-foreground">{number.friendlyName}</p>
+                    </div>
+                    {number.allocated ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border shrink-0">
+                        In Use
+                      </span>
+                    ) : isSelected ? (
+                      <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+        <div>
+          <p className="text-sm font-medium mb-1">Purchase Number</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            Select an available number above, or enter a UAE 800 number manually (e.g. +9718001234567).
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="uae-direct-number">Phone Number</Label>
+          <Input
+            id="uae-direct-number"
+            placeholder="+9718001234567"
+            value={uaeDirectNumber}
+            onChange={(e) => setUaeDirectNumber(e.target.value)}
+            data-testid="input-uae-direct-number"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="uae-direct-name">Friendly Name (optional)</Label>
+          <Input
+            id="uae-direct-name"
+            placeholder="e.g. UAE Support Line"
+            value={friendlyName}
+            onChange={(e) => setFriendlyName(e.target.value)}
+          />
+        </div>
+        <Button
+          className="w-full"
+          disabled={
+            !uaeDirectNumber ||
+            !uaeDirectNumber.startsWith("+971") ||
+            buyMutation.isPending ||
+            importMutation.isPending ||
+            (() => {
+              const match = existingTwilioNumbers.find(
+                (n: any) => n.phoneNumber === uaeDirectNumber,
+              );
+              return !!(match && match.allocated);
+            })()
+          }
+          onClick={() => {
+            if (!uaeDirectNumber) return;
+            // If the number is already in the user's Twilio account (pre-allocated
+            // by Twilio's regulatory team), import it instead of trying to "buy"
+            // it again — Twilio rejects re-purchase with "This account can't buy ..."
+            const existing = existingTwilioNumbers.find(
+              (n: any) => n.phoneNumber === uaeDirectNumber,
+            );
+            if (existing) {
+              if (existing.allocated) {
+                toast({
+                  title: "Number already in use",
+                  description: "This number is already allocated to a user.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              importMutation.mutate({
+                phoneNumber: existing.phoneNumber,
+                twilioSid: existing.sid,
+                friendlyName: friendlyName || existing.friendlyName,
+                capabilities: existing.capabilities,
+              });
+              return;
+            }
+            // Brand-new number not yet in the account → real Twilio purchase
+            buyMutation.mutate({
+              phoneNumber: uaeDirectNumber,
+              friendlyName,
+              country: "AE",
+            });
+          }}
+          data-testid="button-buy-uae-tollfree-number"
+        >
+          {buyMutation.isPending || importMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              {importMutation.isPending ? "Activating..." : "Purchasing..."}
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              {existingTwilioNumbers.some(
+                (n: any) => n.phoneNumber === uaeDirectNumber,
+              )
+                ? "Activate Number"
+                : "Purchase Number"}
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex w-full -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6" style={{ minHeight: 'calc(100vh - 48px)' }}>
@@ -1385,7 +1816,12 @@ export default function PhoneNumbers() {
             size="icon"
             variant="default"
             className="rounded-full ml-auto"
-            onClick={() => { setSelectedPhoneId(null); setSelectedSipTrunkId(null); setShowAddNumberMenu(true); }}
+            onClick={() => {
+              setSelectedPhoneId(null);
+              setSelectedSipTrunkId(null);
+              setAddMenuCountrySearch("");
+              setShowAddNumberMenu(true);
+            }}
             data-testid="button-add-number"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -1393,108 +1829,143 @@ export default function PhoneNumbers() {
         </div>
         <div className="p-6 h-full overflow-y-auto">
           {showAddNumberMenu ? (
-            <div className="max-w-lg mx-auto" data-testid="add-number-menu">
-              <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="h-8 w-8 -ml-1" onClick={() => setShowAddNumberMenu(false)} data-testid="button-back-add-number">
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Plus className="h-5 w-5" />
-                    {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{t('phoneNumbers.addNumberDescription', { defaultValue: 'Choose how you want to add a phone number to your account.' })}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-4">
-                <div
-                  className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
-                  onClick={() => {
-                    setShowAddNumberMenu(false);
-                    handleBuyClick('twilio');
-                  }}
-                  data-testid="option-buy-number"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                      <ShoppingCart className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+            <div className="max-w-5xl mx-auto" data-testid="add-number-menu">
+              <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm p-5 md:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-6 items-start mb-5">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 -ml-1" onClick={() => setShowAddNumberMenu(false)} data-testid="button-back-add-number">
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                      <h2 className="text-[17px] font-semibold tracking-tight flex items-center gap-2">
+                        <Plus className="h-[18px] w-[18px]" />
+                        {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
+                      </h2>
+                      <p className="text-[13px] text-muted-foreground">
+                        {t('phoneNumbers.addNumberDescription', { defaultValue: 'Choose an option to add a number.' })}
+                      </p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold">{t('phoneNumbers.buyNewNumber', { defaultValue: 'Buy New Number' })}</h3>
-                      <p className="text-sm text-muted-foreground">{t('phoneNumbers.buyNewNumberDesc', { defaultValue: 'Purchase a new phone number from available providers' })}</p>
+                  </div>
+
+                  <div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        className="h-10 inline-flex items-center justify-center gap-2 rounded-2xl border border-black/[0.06] dark:border-white/[0.10] bg-white/70 dark:bg-zinc-950/20 hover:bg-white/90 dark:hover:bg-zinc-950/30 transition-colors px-3"
+                        onClick={() => {
+                          setShowAddNumberMenu(false);
+                          setLocation("/app/phone-numbers/sip-trunking");
+                        }}
+                        data-testid="option-sip-trunking"
+                      >
+                        <Network className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-[12px] font-semibold tracking-tight">SIP Trunk</span>
+                      </button>
+
+                      <button
+                        className="h-10 inline-flex items-center justify-center gap-2 rounded-2xl border border-black/[0.06] dark:border-white/[0.10] bg-white/70 dark:bg-zinc-950/20 hover:bg-white/90 dark:hover:bg-zinc-950/30 transition-colors px-3"
+                        onClick={() => {
+                          setShowAddNumberMenu(false);
+                          setShowPortingView(true);
+                          setShowBuyNumberView(false);
+                          setSelectedPhoneId(null);
+                          setSelectedSipTrunkId(null);
+                        }}
+                        data-testid="option-port-number"
+                      >
+                        <ArrowRightLeft className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        <span className="text-[12px] font-semibold tracking-tight">Port</span>
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div
-                  className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
-                  onClick={() => {
-                    setShowAddNumberMenu(false);
-                    setShowUaeTollFreeView(true);
-                    setShowBuyNumberView(false);
-                    setSelectedPhoneId(null);
-                    setSelectedSipTrunkId(null);
-                  }}
-                  data-testid="option-buy-us-tollfree"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-md bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-2xl">
-                      <span role="img" aria-label="UAE flag">&#x1F1E6;&#x1F1EA;</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold">Buy UAE Toll-Free Number</h3>
-                      <p className="text-sm text-muted-foreground">Purchase a UAE toll-free number (+971)</p>
-                    </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-[15px] font-semibold text-foreground tracking-tight">
+                      {t('phoneNumbers.addNumberMenu.buyNumberHeading', { defaultValue: 'Buy a number' })}
+                    </h3>
                   </div>
-                </div>
 
-                <div
-                  className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
-                  onClick={() => {
-                    setShowAddNumberMenu(false);
-                    setLocation("/app/phone-numbers/sip-trunking");
-                  }}
-                  data-testid="option-sip-trunking"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-md bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                      <Network className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold">{t('phoneNumbers.connectViaSipTrunking', { defaultValue: 'Connect via SIP Trunking' })}</h3>
-                      <p className="text-sm text-muted-foreground">{t('phoneNumbers.connectViaSipTrunkingDesc', { defaultValue: 'Connect your existing numbers through SIP trunk configuration' })}</p>
-                    </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={t('phoneNumbers.addNumberMenu.searchCountries', { defaultValue: 'Search countries' })}
+                      value={addMenuCountrySearch}
+                      onChange={(e) => setAddMenuCountrySearch(e.target.value)}
+                      className="pl-10 rounded-2xl bg-white/70 dark:bg-zinc-950/30 border-black/[0.06] dark:border-white/[0.10] focus-visible:ring-2 focus-visible:ring-black/[0.08] dark:focus-visible:ring-white/[0.12]"
+                      data-testid="input-country-grid-search"
+                    />
                   </div>
-                </div>
 
-                <div
-                  className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
-                  onClick={() => {
-                    setShowAddNumberMenu(false);
-                    setShowPortingView(true);
-                    setShowBuyNumberView(false);
-                    setShowUaeTollFreeView(false);
-                    setSelectedPhoneId(null);
-                    setSelectedSipTrunkId(null);
-                  }}
-                  data-testid="option-port-number"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-md bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                      <ArrowRightLeft className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  {countriesLoading ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {Array.from({ length: 12 }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-2xl border border-black/[0.06] dark:border-white/[0.10] bg-white/40 dark:bg-zinc-950/10 h-[92px]"
+                        />
+                      ))}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold">Port Your Number</h3>
-                      <p className="text-sm text-muted-foreground">Transfer your existing mobile or landline number (GCC countries)</p>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                      {filteredCountriesForAddMenu.map((country) => (
+                        <button
+                          key={country.code}
+                          className="group rounded-2xl border border-black/[0.06] dark:border-white/[0.10] bg-white/65 dark:bg-zinc-950/20 hover:bg-white/90 dark:hover:bg-zinc-950/30 transition-colors p-3.5 text-left shadow-[0_1px_0_rgba(0,0,0,0.03)] dark:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-black/[0.08] dark:focus-visible:ring-white/[0.12] hover:shadow-[0_6px_18px_rgba(0,0,0,0.06)] dark:hover:shadow-none hover:-translate-y-[1px] will-change-transform"
+                          onClick={() => openBuyForCountry(country.code)}
+                          data-testid={`country-tile-${country.code}`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className="h-7 w-10 rounded-md bg-black/[0.03] dark:bg-white/[0.06] flex items-center justify-center ring-1 ring-black/[0.06] dark:ring-white/[0.10] overflow-hidden">
+                              <img
+                                src={getFlagImageSrc(country.code) || undefined}
+                                alt={`${country.name} flag`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                                  const fallback = (e.currentTarget as HTMLImageElement)
+                                    .nextElementSibling as HTMLElement | null;
+                                  if (fallback) fallback.style.display = "flex";
+                                }}
+                              />
+                              <div
+                                className="hidden h-full w-full items-center justify-center text-[11px] font-mono text-muted-foreground"
+                                aria-hidden="true"
+                              >
+                                {country.code}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-2.5 text-[13px] font-semibold truncate tracking-tight text-foreground leading-5">
+                            {country.name}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground font-mono">
+                            {country.dialCode} {country.code}
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
           ) : showBuyNumberView ? (
-            <div className="max-w-lg mx-auto" data-testid="buy-number-view">
+            <div className="max-w-3xl mx-auto" data-testid="buy-number-view">
               <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="h-8 w-8 -ml-1" onClick={() => { setShowBuyNumberView(false); setSelectedNumber(null); setHasSearched(false); }} data-testid="button-back-buy-number">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 -ml-1"
+                  onClick={() => {
+                    setShowBuyNumberView(false);
+                    setSelectedNumber(null);
+                    setHasSearched(false);
+                    if (cameFromCountryGrid) setShowAddNumberMenu(true);
+                  }}
+                  data-testid="button-back-buy-number"
+                >
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
                 <div>
@@ -1506,225 +1977,75 @@ export default function PhoneNumbers() {
                 </div>
               </div>
 
-              <div className="bg-accent/50 border border-accent rounded-lg p-4 flex items-start gap-3 mb-6">
+              <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.10] bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm p-4 flex items-start gap-3 mb-6">
                 <CreditCard className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-sm mb-1">{t('phoneNumbers.dialog.monthlyBilling')}</h4>
-                  <p className="text-sm text-muted-foreground">
+                  <h4 className="font-semibold text-[13px] mb-1 tracking-tight">{t('phoneNumbers.dialog.monthlyBilling')}</h4>
+                  <p className="text-[13px] text-muted-foreground">
                     {t('phoneNumbers.dialog.monthlyBillingDesc', { credits: MONTHLY_CREDITS })}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-5">
-                <div className="space-y-3">
-                  <Label>{t('phoneNumbers.labels.country')}</Label>
-                  <Select value={searchCountry} onValueChange={setSearchCountry} disabled={countriesLoading}>
-                    <SelectTrigger data-testid="select-country">
-                      <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <SelectValue placeholder={countriesLoading ? t('phoneNumbers.placeholders.loadingCountries') : t('phoneNumbers.placeholders.selectCountry')} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.code}>
-                          {country.name} ({country.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="search-contains-inline">Search by digits (optional)</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search-contains-inline"
-                      placeholder="e.g. 2200, 555"
-                      value={searchContains}
-                      onChange={(e) => setSearchContains(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="pl-10"
-                      data-testid="input-search-contains"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Filter numbers containing specific digits (leave empty to see all available)
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => { setHasSearched(true); searchNumbers(); }}
-                    disabled={!canSearch() || searchLoading}
-                    className="flex-1"
-                    data-testid="button-search-numbers"
-                  >
-                    {searchLoading ? (
-                      <>
-                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                        {t('phoneNumbers.actions.searching')}
-                      </>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4 mr-2" />
-                        {t('phoneNumbers.actions.searchNumbers')}
-                      </>
-                    )}
-                  </Button>
-                  {hasSearched && (
-                    <Button
-                      variant="outline"
-                      onClick={() => searchNumbers()}
-                      disabled={!canSearch() || searchLoading}
-                      data-testid="button-refresh-numbers"
-                      title="Load different numbers"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${searchLoading ? 'animate-spin' : ''}`} />
-                    </Button>
-                  )}
-                </div>
-
-                {!searchLoading && hasSearched && availableNumbers.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground space-y-2">
-                    <p>{t('phoneNumbers.search.noResults')}</p>
-                    <p className="text-xs">If you already own a number in this country, an admin can import it from the Admin Panel under Phone Numbers.</p>
-                  </div>
-                )}
-
-                {availableNumbers.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>{t('phoneNumbers.labels.availableNumbers')}</Label>
-                    <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
-                      {availableNumbers.map((number) => (
+                <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.10] bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-5 w-8 rounded-md bg-black/[0.03] dark:bg-white/[0.06] flex items-center justify-center ring-1 ring-black/[0.06] dark:ring-white/[0.10] overflow-hidden flex-shrink-0">
+                        <img
+                          src={getFlagImageSrc(searchCountry) || undefined}
+                          alt={`${selectedCountryMeta?.name || searchCountry} flag`}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                            const fallback = (e.currentTarget as HTMLImageElement)
+                              .nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
                         <div
-                          key={number.phoneNumber}
-                          className={`p-4 hover-elevate cursor-pointer ${selectedNumber?.phoneNumber === number.phoneNumber ? "bg-accent" : ""}`}
-                          onClick={() => setSelectedNumber(number)}
-                          data-testid={`available-number-${number.phoneNumber}`}
+                          className="hidden h-full w-full items-center justify-center text-[10px] font-mono text-muted-foreground"
+                          aria-hidden="true"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="font-mono font-semibold">{formatPhoneNumber(number.phoneNumber)}</div>
-                              {number.locality && number.region && (
-                                <div className="text-sm text-muted-foreground">{number.locality}, {number.region}</div>
-                              )}
-                            </div>
-                            {selectedNumber?.phoneNumber === number.phoneNumber && (
-                              <Check className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedNumber && (
-                  <div className="space-y-2">
-                    <Label htmlFor="friendly-name-inline">{t('phoneNumbers.labels.friendlyName')}</Label>
-                    <Input
-                      id="friendly-name-inline"
-                      placeholder={t('phoneNumbers.placeholders.friendlyName')}
-                      value={friendlyName}
-                      onChange={(e) => setFriendlyName(e.target.value)}
-                      data-testid="input-friendly-name"
-                    />
-                  </div>
-                )}
-
-                {selectedNumber && (
-                  <Button
-                    onClick={handleBuyNumber}
-                    disabled={!selectedNumber || buyMutation.isPending}
-                    className="w-full"
-                    data-testid="button-confirm-purchase"
-                  >
-                    {buyMutation.isPending ? (
-                      <><Loader2 className="h-4 w-4 animate-spin mr-2" />Purchasing...</>
-                    ) : (
-                      <><ShoppingCart className="h-4 w-4 mr-2" />{t('phoneNumbers.actions.buyNumber')}</>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : showUaeTollFreeView ? (
-            <div className="max-w-lg mx-auto" data-testid="uae-tollfree-view">
-              <div className="flex items-center gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="h-8 w-8 -ml-1" onClick={() => { setShowUaeTollFreeView(false); setSelectedImportNumber(null); }} data-testid="button-back-uae-tollfree">
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <span className="text-lg">&#x1F1E6;&#x1F1EA;</span>
-                    Buy UAE Toll-Free Number
-                  </h2>
-                  <p className="text-sm text-muted-foreground">Select an available UAE toll-free number to purchase.</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {loadingExisting ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Loading available toll-free numbers...</span>
-                  </div>
-                ) : existingTwilioNumbers.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No UAE toll-free numbers available for purchase.</p>
-                    <p className="text-xs mt-1">All available numbers have been allocated.</p>
-                  </div>
-                ) : (
-                  <div className="border rounded-md divide-y max-h-96 overflow-y-auto">
-                    {existingTwilioNumbers.map((number: any) => (
-                      <div
-                        key={number.sid}
-                        className={`p-4 hover-elevate cursor-pointer ${selectedImportNumber?.sid === number.sid ? "bg-accent" : ""}`}
-                        onClick={() => setSelectedImportNumber(number)}
-                        data-testid={`import-number-${number.phoneNumber}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="font-medium font-mono">{number.phoneNumber}</p>
-                            <p className="text-sm text-muted-foreground">{number.friendlyName}</p>
-                          </div>
-                          {selectedImportNumber?.sid === number.sid && (
-                            <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                          )}
+                          {searchCountry}
                         </div>
                       </div>
-                    ))}
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-semibold truncate tracking-tight" data-testid="text-selected-country-name">
+                          {selectedCountryMeta?.name || searchCountry}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          {selectedCountryMeta?.dialCode || ""} {searchCountry}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowBuyNumberView(false);
+                        setSelectedNumber(null);
+                        setHasSearched(false);
+                        setAddMenuCountrySearch("");
+                        setShowAddNumberMenu(true);
+                      }}
+                      data-testid="button-change-country"
+                    >
+                      {t('phoneNumbers.dialog.changeCountry', { defaultValue: 'Change country' })}
+                    </Button>
                   </div>
-                )}
+                </div>
 
-                {selectedImportNumber && (
-                  <Button
-                    className="w-full"
-                    disabled={!selectedImportNumber || importMutation.isPending}
-                    onClick={() => {
-                      if (selectedImportNumber) {
-                        importMutation.mutate({
-                          phoneNumber: selectedImportNumber.phoneNumber,
-                          twilioSid: selectedImportNumber.sid,
-                          friendlyName: selectedImportNumber.friendlyName,
-                          capabilities: selectedImportNumber.capabilities,
-                        });
-                      }
-                    }}
-                    data-testid="button-buy-uae-tollfree-number"
-                  >
-                    {importMutation.isPending ? (
-                      <><Loader2 className="h-4 w-4 animate-spin mr-2" />Purchasing...</>
-                    ) : (
-                      <><ShoppingCart className="h-4 w-4 mr-2" />Buy Number</>
-                    )}
-                  </Button>
+                {searchCountry === "AE" ? (
+                  renderUaeTollFreePurchaseSection()
+                ) : (
+                  renderTwilioRegularSearchAndPurchase()
                 )}
               </div>
             </div>
           ) : showPortingView ? (
-            <NumberPortingView onBack={() => setShowPortingView(false)} />
+            <NumberPortingView onBack={() => { setShowPortingView(false); setShowAddNumberMenu(true); }} />
           ) : selectedSipTrunkId ? (
             renderSipTrunkDetails()
           ) : allPhoneNumbers.length === 0 && (!Array.isArray(sipTrunks) || sipTrunks.length === 0) ? (
@@ -1732,7 +2053,15 @@ export default function PhoneNumbers() {
               <ClipboardList className="h-12 w-12 text-muted-foreground/40 mb-4" />
               <h3 className="text-base font-medium text-foreground mb-1">You don't have any phone numbers</h3>
               <p className="text-sm text-muted-foreground mb-4">Add your first phone number to get started.</p>
-              <Button onClick={() => { setSelectedPhoneId(null); setSelectedSipTrunkId(null); setShowAddNumberMenu(true); }} data-testid="button-add-first-number">
+              <Button
+                onClick={() => {
+                  setSelectedPhoneId(null);
+                  setSelectedSipTrunkId(null);
+                  setAddMenuCountrySearch("");
+                  setShowAddNumberMenu(true);
+                }}
+                data-testid="button-add-first-number"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
               </Button>
@@ -2184,7 +2513,7 @@ export default function PhoneNumbers() {
         </DialogContent>
       </Dialog>
 
-
+      {renderWhatsappSetupDialog()}
 
     </div>
   );

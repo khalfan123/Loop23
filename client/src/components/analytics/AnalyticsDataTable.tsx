@@ -13,6 +13,7 @@ export interface CallRow {
   sentiment?: string;
   duration?: number;
   campaign?: string;
+  direction?: string;
   date?: string;
   summary?: string;
 }
@@ -25,6 +26,12 @@ interface AnalyticsDataTableProps {
 
 export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: AnalyticsDataTableProps) {
   const [search, setSearch] = useState("");
+  const formatDate = (value?: string) => {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString();
+  };
 
   const filtered = useMemo(() => {
     let rows = data;
@@ -95,7 +102,7 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
                 <th className="pb-2 pr-4 font-medium">Classification</th>
                 <th className="pb-2 pr-4 font-medium">Sentiment</th>
                 <th className="pb-2 pr-4 font-medium">Duration</th>
-                <th className="pb-2 pr-4 font-medium">Campaign</th>
+                <th className="pb-2 pr-4 font-medium">Direction</th>
                 <th className="pb-2 font-medium">Date</th>
               </tr>
             </thead>
@@ -114,8 +121,8 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
                     <td className="py-2 pr-4">{row.classification || '—'}</td>
                     <td className="py-2 pr-4">{row.sentiment || '—'}</td>
                     <td className="py-2 pr-4">{row.duration ? `${Math.round(row.duration)}s` : '—'}</td>
-                    <td className="py-2 pr-4">{row.campaign || '—'}</td>
-                    <td className="py-2">{row.date || '—'}</td>
+                    <td className="py-2 pr-4">{row.direction || '—'}</td>
+                    <td className="py-2">{formatDate(row.date)}</td>
                   </tr>
                 ))
               )}

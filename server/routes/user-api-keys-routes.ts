@@ -37,6 +37,9 @@ export function createUserApiKeysRoutes(authenticate: any) {
   router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.id || req.user?.userId;
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H5',location:'server/routes/user-api-keys-routes.ts:40',message:'List API keys hit',data:{userIdPresent:!!userId},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       const keys = await db
@@ -59,8 +62,14 @@ export function createUserApiKeysRoutes(authenticate: any) {
         createdAt: k.createdAt,
       }));
 
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H6',location:'server/routes/user-api-keys-routes.ts:62',message:'List API keys success',data:{count:sanitized.length,names:sanitized.slice(0,3).map(k=>k.name),prefixes:sanitized.slice(0,3).map(k=>k.keyPrefix)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       res.json({ success: true, data: sanitized });
     } catch (error: any) {
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-pre',hypothesisId:'H7',location:'server/routes/user-api-keys-routes.ts:64',message:'List API keys failed',data:{error:String(error?.message||error||'unknown')},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       res.status(500).json({ error: "Failed to fetch API keys" });
     }
   });
@@ -68,6 +77,9 @@ export function createUserApiKeysRoutes(authenticate: any) {
   router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.id || req.user?.userId;
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-multi-pre',hypothesisId:'K1',location:'server/routes/user-api-keys-routes.ts:79',message:'Create API key hit',data:{userIdPresent:!!userId,nameType:typeof (req.body?.name),nameLen:typeof (req.body?.name)==='string'?(req.body.name as string).length:0,scopesType:Array.isArray(req.body?.scopes)?'array':typeof req.body?.scopes,ipWhitelistType:Array.isArray(req.body?.ipWhitelist)?'array':typeof req.body?.ipWhitelist},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       const { name, scopes, ipWhitelist } = req.body;
@@ -95,6 +107,9 @@ export function createUserApiKeysRoutes(authenticate: any) {
         })
         .returning();
 
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-multi-pre',hypothesisId:'K2',location:'server/routes/user-api-keys-routes.ts:107',message:'Create API key success',data:{id:created.id,name:created.name,keyPrefix:created.keyPrefix},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       res.status(201).json({
         success: true,
         data: {
@@ -106,6 +121,9 @@ export function createUserApiKeysRoutes(authenticate: any) {
         },
       });
     } catch (error: any) {
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-multi-pre',hypothesisId:'K3',location:'server/routes/user-api-keys-routes.ts:118',message:'Create API key failed',data:{error:String(error?.message||error||'unknown')},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       res.status(500).json({ error: "Failed to create API key" });
     }
   });

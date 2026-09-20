@@ -1,14 +1,52 @@
 /**
  * ============================================================
- * Whisper transcript quality filters
+ * Inbound transcript gates + lexical *signals* (not drop rules)
  *
- * Pure heuristics used to reject hallucinated, background, or
- * wrong-language transcripts returned by batch Whisper STT on
- * noisy 8kHz telephony audio.
+ * Drop only defensible empty / non-speech transcripts. Text alone
+ * cannot prove YouTube watermarks, TV/background origin, homework
+ * chatter, or wrong-language speech — those become non-dropping
+ * signals for observability. Prefer validated Whisper confidence
+ * (no_speech_prob / avg_logprob) and acoustic checks upstream; do
+ * not invent acoustic evidence here.
+ *
+ * Bridge consumes decideInboundTranscriptGate() for the runtime path.
  * ============================================================
  */
 
-export const WHISPER_HALLUCINATION_EXACT: string[] = [
+/** Arabic combining marks commonly present in vocalized transcripts. */
+const ARABIC_DIACRITICS = /[\u064B-\u065F\u0670\u06D6-\u06ED]/g;
+
+/** Western + Arabic-Indic + Eastern Arabic-Indic digits. */
+const DIGIT_CHARS = /[0-9\u0660-\u0669\u06F0-\u06F9]/g;
+
+/**
+ * Normalize a caller transcript for signal matching:
+ * trim, lowercase, strip Arabic diacritics, strip surrounding punctuation.
+ */
+export function normalizeCallerUtterance(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(ARABIC_DIACRITICS, '')
+    .replace(/^[¿?؟!.,،؛:!"'“”‘’\-—–…\s]+/, '')
+    .replace(/[¿?؟!.,،؛:!"'“”‘’\-—–…\s]+$/, '')
+    .trim();
+}
+
+/** True when the string is only digits (any common Arabic digit shapes). */
+export function isDigitOnlyUtterance(text: string): boolean {
+  const normalized = normalizeCallerUtterance(text);
+  if (!normalized) return false;
+  const digits = normalized.match(DIGIT_CHARS);
+  if (!digits || digits.length === 0) return false;
+  return digits.join('') === normalized.replace(/\s+/g, '') && digits.length <= 16;
+}
+
+/**
+ * Lexical watermark *suspects* — logged as signals only.
+ * Never used to drop a turn: callers request subscriptions, endings, etc.
+ */
+export const LEXICAL_WATERMARK_SUSPECT_PHRASES: string[] = [
   'شكراً على المشاهدة',
   'وشكراً على المشاهدة',
   'شكرا على المشاهدة',
@@ -16,81 +54,22 @@ export const WHISPER_HALLUCINATION_EXACT: string[] = [
   'اشتركوا في القناة',
   'اشترك في القناة',
   'لا تنسوا الاشتراك',
-  'ترجمة',
-  'أعوذ بالله من الشيطان الرجيم',
-  'بسم الله الرحمن الرحيم',
-  'السلام عليكم ورحمة الله وبركاته',
-  'صلى الله عليه وسلم',
-  'سبحان الله وبحمده',
-  'الحمد لله رب العالمين',
-  'والسلام عليكم ورحمة الله',
-  'إن شاء الله',
-  'ما شاء الله',
-  'لا حول ولا قوة إلا بالله',
-  'سبحان الله',
-  'الله أكبر',
-  'لا إله إلا الله',
-  'استغفر الله',
-  'أشهد أن لا إله إلا الله',
-  'رضي الله عنه',
-  'جزاكم الله خيرا',
-  'بارك الله فيكم',
-  'حسبي الله ونعم الوكيل',
-  'إنا لله وإنا إليه راجعون',
-  'تحياتي',
-  'مع السلامة',
-  'الى اللقاء',
   'subscribe',
   'thank you for watching',
   'thanks for watching',
   'like and subscribe',
   'please subscribe',
-  'don\'t forget to subscribe',
+  "don't forget to subscribe",
   'hit the bell',
-  'Shabbat shalom',
   'subtitles by',
   'amara.org',
   'www.mooji.org',
-  '♪',
-  '...',
-  'you',
-  'bye',
   'the end',
-  'thank you',
-  'thanks',
-  'MBC',
-  'SBS',
-  'TV',
-  'FM',
-];
-
-export const WHISPER_HALLUCINATION_CONTAINS: string[] = [
-  'شكرا على المشاهدة',
-  'شكراً على المشاهدة',
-  'اشتركوا في القناة',
-  'لا تنسوا الاشتراك',
-  'thank you for watching',
-  'thanks for watching',
-  'like and subscribe',
-  'please subscribe',
-  'subtitles by',
-  'amara.org',
-  'www.mooji.org',
   'مشاهدة ممتعة',
   'تابعونا على',
   'قناتنا على',
   'ترجمة الأخ',
   'ترجمة فريق',
-  'أخرجها',
-  'إخراج',
-  'مونتاج',
-  'تصوير',
-  'إعداد وتقديم',
-  'حلقة جديدة',
-  'الحلقة القادمة',
-  'في الحلقة',
-  'نراكم في',
-  'كونوا معنا',
   'لا تنسى الإعجاب',
   'اضغط لايك',
   'فعل الجرس',
@@ -98,83 +77,19 @@ export const WHISPER_HALLUCINATION_CONTAINS: string[] = [
 ];
 
 /**
- * True when a Whisper transcript looks like a known hallucination:
- * YouTube-style outros, religious filler on noise, symbol-only output,
- * exact/near phrase repetition, or implausible short Arabic fragments.
+ * Household/TV *suspect* phrases — signals only.
+ * Callers legitimately ask for volume, channel, homework/school help.
  */
-export function isWhisperHallucination(text: string): boolean {
-  const trimmed = text.trim();
-  if (trimmed.length < 3) return true;
-
-  const lower = trimmed.toLowerCase();
-
-  for (const h of WHISPER_HALLUCINATION_EXACT) {
-    if (lower === h.toLowerCase()) return true;
-  }
-
-  for (const h of WHISPER_HALLUCINATION_CONTAINS) {
-    if (lower.includes(h.toLowerCase())) return true;
-  }
-
-  if (/^[♪♫🎵🎶\s.,!?]+$/.test(trimmed)) return true;
-
-  if (/^\.{2,}$/.test(trimmed)) return true;
-
-  const exactRepeat = /^(.{2,30})\1{2,}$/;
-  if (exactRepeat.test(trimmed)) return true;
-
-  const isArabic = /[؀-ۿ]/.test(trimmed);
-  if (isArabic) {
-    const arabicOnly = trimmed.replace(/[^؀-ۿ\s]/g, '').trim();
-    const arabicRatio = arabicOnly.length / trimmed.length;
-    if (arabicRatio > 0.8) {
-      const cleanedForCheck = trimmed.replace(/[؟?!.,،؛\s]+$/g, '').replace(/(.)\1{2,}/g, '$1$1');
-      const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك)$/i;
-      const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
-
-      if (arabicWords.length <= 2 && trimmed.length < 15) {
-        if (!validShortArabic.test(cleanedForCheck)) return true;
-      }
-
-      if (/الله|سبحان|بسم|صلى|رحمة|الحمد|أعوذ|الشيطان/.test(trimmed) && arabicWords.length <= 6) return true;
-
-      if (/المشاهدة|الاشتراك|القناة|الحلقة|تابعونا|لايك|الجرس/.test(trimmed)) return true;
-    }
-  }
-
-  const words = trimmed.split(/\s+/).filter(w => w.length > 1);
-  if (words.length >= 4) {
-    const uniqueWords = new Set(words.map(w => w.toLowerCase()));
-    if (uniqueWords.size === 1) return true;
-
-    const windowSize = Math.min(4, Math.floor(words.length / 3));
-    if (windowSize >= 2) {
-      for (let phraseLen = 2; phraseLen <= windowSize; phraseLen++) {
-        const phraseCounts = new Map<string, number>();
-        for (let i = 0; i <= words.length - phraseLen; i++) {
-          const phrase = words.slice(i, i + phraseLen).join(' ').toLowerCase();
-          phraseCounts.set(phrase, (phraseCounts.get(phrase) || 0) + 1);
-        }
-        for (const count of Array.from(phraseCounts.values())) {
-          if (count >= 3) return true;
-        }
-      }
-    }
-  }
-
-  return false;
-}
-
-export const BACKGROUND_NOISE_PHRASES: string[] = [
+export const LEXICAL_BACKGROUND_SUSPECT_PHRASES: string[] = [
   'pass me the salt',
   'pass the salt',
   'what do you want to eat',
   'what should we eat',
-  'what\'s for dinner',
-  'what\'s for lunch',
-  'let\'s order food',
+  "what's for dinner",
+  "what's for lunch",
+  "let's order food",
   'change the channel',
-  'what\'s on tv',
+  "what's on tv",
   'volume up',
   'volume down',
   'stay tuned',
@@ -198,13 +113,13 @@ export const BACKGROUND_NOISE_PHRASES: string[] = [
   'bad dog',
   'here kitty',
   'who scored',
-  'what\'s the score',
+  "what's the score",
   'touchdown',
   'home run',
   'what a play',
   'pass the remote',
-  'where\'s the remote',
-  'someone\'s at the door',
+  "where's the remote",
+  "someone's at the door",
   'answer the door',
   'hey google',
   'ok google',
@@ -226,7 +141,7 @@ export const BACKGROUND_NOISE_PHRASES: string[] = [
   'مين على الباب',
 ];
 
-export const BACKGROUND_TOPIC_PATTERNS: RegExp[] = [
+export const LEXICAL_TOPIC_SUSPECT_PATTERNS: RegExp[] = [
   /\b(?:recipe|ingredient|tablespoon|teaspoon|cups? of|oven|stir|chop|dice|bake|fry|boil)\b/i,
   /\b(?:episode|season \d|series|movie|film|actor|actress|character|plot|scene)\b/i,
   /\b(?:homework|math|science|teacher|school|class|exam|test|grade)\b/i,
@@ -236,68 +151,223 @@ export const BACKGROUND_TOPIC_PATTERNS: RegExp[] = [
   /\b(?:commercial|advertisement|promo|trailer)\b/i,
 ];
 
+/** @deprecated Keep export name for older imports; lists are signal-only now. */
+export const WHISPER_HALLUCINATION_EXACT = LEXICAL_WATERMARK_SUSPECT_PHRASES;
+/** @deprecated Signal-only; do not use to drop turns. */
+export const WHISPER_HALLUCINATION_CONTAINS = LEXICAL_WATERMARK_SUSPECT_PHRASES;
+/** @deprecated Signal-only. */
+export const BACKGROUND_NOISE_PHRASES = LEXICAL_BACKGROUND_SUSPECT_PHRASES;
+/** @deprecated Signal-only. */
+export const BACKGROUND_TOPIC_PATTERNS = LEXICAL_TOPIC_SUSPECT_PATTERNS;
+
+export type LexicalSuspectKind =
+  | 'watermark_suspect'
+  | 'background_phrase_suspect'
+  | 'topic_pattern_suspect';
+
+export interface LexicalSuspectSignal {
+  kind: LexicalSuspectKind;
+  /** Stable phrase/pattern id — never the full caller transcript. */
+  matchedId: string;
+}
+
 /**
- * True when a transcript matches household/TV background-speech phrases,
- * or an off-topic pattern with almost no lexical overlap with the recent
- * conversation context.
+ * Collect non-dropping lexical suspects for observability.
+ * Does not assert TV/background/watermark origin.
  */
-export function isLikelyBackgroundSpeech(
-  text: string,
-  conversationMessages: { role: string; content: string }[]
-): boolean {
-  const trimmed = text.trim().toLowerCase();
-  if (trimmed.length < 3) return false;
+export function collectLexicalSuspectSignals(text: string): LexicalSuspectSignal[] {
+  const normalized = normalizeCallerUtterance(text);
+  if (!normalized) return [];
 
-  for (const phrase of BACKGROUND_NOISE_PHRASES) {
-    if (trimmed === phrase.toLowerCase() || trimmed.includes(phrase.toLowerCase())) {
-      return true;
+  const signals: LexicalSuspectSignal[] = [];
+  const lower = text.trim().toLowerCase();
+
+  for (const phrase of LEXICAL_WATERMARK_SUSPECT_PHRASES) {
+    const needle = normalizeCallerUtterance(phrase);
+    if (!needle) continue;
+    if (normalized === needle || normalized.includes(needle)) {
+      signals.push({ kind: 'watermark_suspect', matchedId: needle.slice(0, 48) });
     }
   }
 
-  for (const pattern of BACKGROUND_TOPIC_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      const recentContext = conversationMessages
-        .slice(-6)
-        .map(m => m.content.toLowerCase())
-        .join(' ');
-
-      const words = trimmed.split(/\s+/).filter(w => w.length > 3);
-      const contextOverlap = words.filter(w => recentContext.includes(w)).length;
-      const overlapRatio = words.length > 0 ? contextOverlap / words.length : 0;
-
-      if (overlapRatio < 0.15) {
-        return true;
-      }
+  for (const phrase of LEXICAL_BACKGROUND_SUSPECT_PHRASES) {
+    const p = phrase.toLowerCase();
+    if (lower === p || lower.includes(p)) {
+      signals.push({ kind: 'background_phrase_suspect', matchedId: p.slice(0, 48) });
     }
   }
+
+  for (const pattern of LEXICAL_TOPIC_SUSPECT_PATTERNS) {
+    if (pattern.test(text)) {
+      signals.push({ kind: 'topic_pattern_suspect', matchedId: pattern.source.slice(0, 48) });
+    }
+  }
+
+  return signals;
+}
+
+/**
+ * True only for empty / non-speech transcripts (music marks, ellipsis,
+ * punctuation-only). Never rejects lexical watermark suspects or speech.
+ */
+export function isWhisperHallucination(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+
+  // Non-speech: music/emoji/punctuation-only or ellipsis-only.
+  if (/^[♪♫🎵🎶\s.,!?…¿?؟،؛:!"'“”‘’\-—–]+$/.test(trimmed)) return true;
+  if (/^\.{2,}$/.test(trimmed)) return true;
+
+  const normalized = normalizeCallerUtterance(trimmed);
+  // Combining marks / punctuation only after normalization — still non-speech.
+  if (!normalized) return true;
 
   return false;
 }
 
 /**
- * True when a transcript's script/character mix clearly contradicts the
- * expected conversation language (e.g. Latin text on an Arabic call).
+ * Background drop gate — disabled for text-only heuristics.
+ * Lexical suspects are signals via collectLexicalSuspectSignals.
+ * Returns true only when validatedAcousticEvidence is explicitly true
+ * (callers must supply real acoustic/provider evidence; never invent it).
  */
-export function isLanguageMismatch(text: string, expectedLang: string): boolean {
-  const trimmed = text.trim();
-  if (trimmed.length < 5) return false;
+export function isLikelyBackgroundSpeech(
+  _text: string,
+  _conversationMessages: { role: string; content: string }[],
+  validatedAcousticEvidence?: boolean
+): boolean {
+  return validatedAcousticEvidence === true;
+}
 
-  const arabicChars = (trimmed.match(/[؀-ۿ]/g) || []).length;
-  const latinChars = (trimmed.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-  const cjkChars = (trimmed.match(/[一-鿿぀-ゟ゠-ヿ가-힯]/g) || []).length;
-  const totalAlpha = arabicChars + latinChars + cjkChars;
-  if (totalAlpha < 3) return false;
+/**
+ * Language-mismatch drop gate — disabled for phrase/script heuristics.
+ * Gulf Arabic↔English code-switch and other scripts must not be dropped
+ * on text alone. Always returns false.
+ */
+export function isLanguageMismatch(_text: string, _expectedLang: string): boolean {
+  return false;
+}
 
-  if (expectedLang === 'ar') {
-    if (arabicChars / totalAlpha < 0.3) return true;
-  } else if (expectedLang === 'en') {
-    if (arabicChars / totalAlpha > 0.5) return true;
-    if (cjkChars / totalAlpha > 0.3) return true;
-    const frenchPatterns = /\b(je suis|nous|vous|qu['']|c['']est|pas de|il semble|voulez|s['']il vous|en tout cas|on est)\b/i;
-    const spanishPatterns = /\b(está|usted|nosotros|también|pero|porque|entonces|gracias por|quiero|necesito)\b/i;
-    if (frenchPatterns.test(trimmed) && latinChars > 10) return true;
-    if (spanishPatterns.test(trimmed) && latinChars > 10) return true;
+export type InboundTranscriptFilterStage =
+  | 'nonspeech'
+  | 'language_mismatch'
+  | 'background_speech';
+
+export interface InboundTranscriptFilterResult {
+  accept: boolean;
+  rejectedBy: InboundTranscriptFilterStage | null;
+  stages: Array<{ stage: InboundTranscriptFilterStage; rejected: boolean }>;
+  signals: LexicalSuspectSignal[];
+}
+
+/**
+ * Sequential gate used by BedrockPollyAudioBridge.processUserTurn.
+ * Order: nonspeech → language → background. Only nonspeech may drop
+ * without validated acoustic evidence.
+ */
+export function evaluateInboundTranscriptFilters(
+  text: string,
+  options: {
+    expectedLang: string;
+    conversationMessages?: { role: string; content: string }[];
+    backgroundNoiseRejection?: boolean;
+    /** Must be real acoustic/provider evidence — never invent. */
+    validatedBackgroundAcousticEvidence?: boolean;
+  }
+): InboundTranscriptFilterResult {
+  const conversationMessages = options.conversationMessages ?? [];
+  const backgroundNoiseRejection = options.backgroundNoiseRejection !== false;
+  const signals = collectLexicalSuspectSignals(text);
+  const stages: InboundTranscriptFilterResult['stages'] = [];
+
+  const nonspeech = isWhisperHallucination(text);
+  stages.push({ stage: 'nonspeech', rejected: nonspeech });
+  if (nonspeech) {
+    return { accept: false, rejectedBy: 'nonspeech', stages, signals };
   }
 
-  return false;
+  const lang = isLanguageMismatch(text, options.expectedLang);
+  stages.push({ stage: 'language_mismatch', rejected: lang });
+  if (lang) {
+    return { accept: false, rejectedBy: 'language_mismatch', stages, signals };
+  }
+
+  const background =
+    backgroundNoiseRejection &&
+    isLikelyBackgroundSpeech(
+      text,
+      conversationMessages,
+      options.validatedBackgroundAcousticEvidence
+    );
+  stages.push({ stage: 'background_speech', rejected: background });
+  if (background) {
+    return { accept: false, rejectedBy: 'background_speech', stages, signals };
+  }
+
+  return { accept: true, rejectedBy: null, stages, signals };
+}
+
+export type InboundTranscriptGateDecision =
+  | {
+      action: 'accept';
+      signals: LexicalSuspectSignal[];
+      stages: InboundTranscriptFilterResult['stages'];
+    }
+  | {
+      action: 'reject_nonspeech';
+      signals: LexicalSuspectSignal[];
+      stages: InboundTranscriptFilterResult['stages'];
+      /** Inbound-only: re-prompt when count stays within limit. */
+      shouldReprompt: boolean;
+      nextHallucinationCount: number;
+    }
+  | {
+      action: 'reject_silent';
+      rejectedBy: Exclude<InboundTranscriptFilterStage, 'nonspeech'>;
+      signals: LexicalSuspectSignal[];
+      stages: InboundTranscriptFilterResult['stages'];
+    };
+
+/**
+ * Bridge-facing decision helper: filter stages + inbound re-prompt policy.
+ * This is the function BedrockPollyAudioBridge must call (not a parallel copy).
+ */
+export function decideInboundTranscriptGate(
+  text: string,
+  options: {
+    expectedLang: string;
+    conversationMessages?: { role: string; content: string }[];
+    backgroundNoiseRejection?: boolean;
+    validatedBackgroundAcousticEvidence?: boolean;
+    isOutbound: boolean;
+    inboundHallucinationCount: number;
+    maxInboundReprompts?: number;
+  }
+): InboundTranscriptGateDecision {
+  const maxReprompts = options.maxInboundReprompts ?? 2;
+  const result = evaluateInboundTranscriptFilters(text, options);
+
+  if (result.accept) {
+    return { action: 'accept', signals: result.signals, stages: result.stages };
+  }
+
+  if (result.rejectedBy === 'nonspeech') {
+    const nextHallucinationCount = options.inboundHallucinationCount + 1;
+    const shouldReprompt =
+      !options.isOutbound && nextHallucinationCount <= maxReprompts;
+    return {
+      action: 'reject_nonspeech',
+      signals: result.signals,
+      stages: result.stages,
+      shouldReprompt,
+      nextHallucinationCount,
+    };
+  }
+
+  return {
+    action: 'reject_silent',
+    rejectedBy: result.rejectedBy!,
+    signals: result.signals,
+    stages: result.stages,
+  };
 }

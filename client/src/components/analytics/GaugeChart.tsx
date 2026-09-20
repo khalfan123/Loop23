@@ -6,37 +6,70 @@ interface GaugeChartProps {
   title: string;
   unit?: string;
   thresholds?: { green: number; yellow: number };
+  /** Force a specific ring color (hex) — overrides threshold logic */
+  color?: string;
 }
 
-export function GaugeChart({ value, maxValue = 100, title, unit = "%", thresholds }: GaugeChartProps) {
+export function GaugeChart({
+  value,
+  maxValue = 100,
+  title,
+  unit = "%",
+  thresholds,
+  color,
+}: GaugeChartProps) {
   const percentage = Math.min((value / maxValue) * 100, 100);
   const getColor = () => {
+    if (color) return color;
     if (!thresholds) {
-      if (percentage >= 60) return "text-green-500";
-      if (percentage >= 30) return "text-yellow-500";
-      return "text-red-500";
+      if (percentage >= 60) return "var(--l9-success-ring)";
+      if (percentage >= 30) return "var(--l9-warning)";
+      return "var(--l9-danger)";
     }
-    if (percentage >= thresholds.green) return "text-green-500";
-    if (percentage >= thresholds.yellow) return "text-yellow-500";
-    return "text-red-500";
+    if (percentage >= thresholds.green) return "var(--l9-success-ring)";
+    if (percentage >= thresholds.yellow) return "var(--l9-warning)";
+    return "var(--l9-danger)";
   };
 
-  const strokeDasharray = `${percentage * 2.51327} ${251.327 - percentage * 2.51327}`;
+  const r = 46;
+  const circ = 2 * Math.PI * r;
+  const strokeDasharray = `${(percentage / 100) * circ} ${circ}`;
 
   return (
-    <Card className="glass-card" data-testid={`gauge-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-      <CardContent className="p-4 flex flex-col items-center">
-        <div className="relative w-24 h-24">
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/20" />
-            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" strokeDasharray={strokeDasharray} strokeLinecap="round" className={getColor()} />
+    <Card
+      className="border-[var(--l9-border-card)] shadow-[var(--l9-shadow-card)] rounded-2xl bg-[var(--l9-surface)]"
+      data-testid={`gauge-${title.toLowerCase().replace(/\s+/g, "-")}`}
+    >
+      <CardContent className="p-[22px] flex flex-col items-center">
+        <div className="relative w-[112px] h-[112px]">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 112 112">
+            <circle
+              cx="56"
+              cy="56"
+              r={r}
+              fill="none"
+              stroke="var(--l9-chart-track)"
+              strokeWidth="9"
+            />
+            <circle
+              cx="56"
+              cy="56"
+              r={r}
+              fill="none"
+              stroke={getColor()}
+              strokeWidth="9"
+              strokeDasharray={strokeDasharray}
+              strokeLinecap="round"
+            />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold">{Math.round(value)}</span>
+            <span className="text-[26px] font-bold tabular-nums text-[var(--l9-text)]">
+              {Math.round(value)}
+            </span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">{title}</p>
-        {unit && <p className="text-[10px] text-muted-foreground/60">{unit}</p>}
+        <p className="text-[14px] font-semibold text-[var(--l9-text)] mt-3 text-center">{title}</p>
+        {unit && <p className="text-[12.5px] text-[var(--l9-text-faint)] mt-0.5">{unit}</p>}
       </CardContent>
     </Card>
   );

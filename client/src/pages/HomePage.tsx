@@ -58,7 +58,7 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold text-foreground mb-2">Welcome to {appName}</h1>
+        <h1 className="text-3xl font-semibold text-foreground mb-2">Welcome to {appName} Call Center</h1>
         <p className="text-muted-foreground">Get started by creating your first AI agent or exploring the platform</p>
       </div>
 

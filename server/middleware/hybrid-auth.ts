@@ -45,7 +45,14 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
+  // #region agent log
+  fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-auth-pre',hypothesisId:'H_AUTH_1',location:'server/middleware/hybrid-auth.ts:47',message:'authenticateHybrid entry',data:{path:req.path,hasAuthHeader:!!authHeader,tokenLen:token?token.length:0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
   if (!token) {
+    // #region agent log
+    fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-auth-pre',hypothesisId:'H_AUTH_2',location:'server/middleware/hybrid-auth.ts:51',message:'authenticateHybrid missing token -> 401',data:{path:req.path},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return res.status(401).json({ error: "Authentication required" });
   }
 
@@ -62,6 +69,9 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
       role: decoded.role
     };
     
+    // #region agent log
+    fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-auth-pre',hypothesisId:'H_AUTH_3',location:'server/middleware/hybrid-auth.ts:68',message:'authenticateHybrid JWT ok',data:{path:req.path,role:decoded.role,userIdPresent:!!decoded.userId},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return next();
   } catch (jwtError) {
     // JWT verification failed, try team member authentication if plugin is installed
@@ -131,6 +141,9 @@ export async function authenticateHybrid(req: HybridAuthRequest, res: Response, 
   }
 
   // All authentication methods failed
+  // #region agent log
+  fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-auth-pre',hypothesisId:'H_AUTH_4',location:'server/middleware/hybrid-auth.ts:133',message:'authenticateHybrid failed all methods -> 401',data:{path:req.path,teamPluginInstalled:isTeamManagementInstalled()},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   return res.status(401).json({ error: "Invalid or expired token" });
 }
 

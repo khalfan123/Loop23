@@ -73,16 +73,9 @@ outputType = "webview"
 [userenv]
 
 [userenv.shared]
-APP_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
-APP_URL = "https://looop23.replit.app"
-DEV_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
-AWS_REGION = "us-east-1"
-UAEPASS_CLIENT_ID = "sandbox_stage"
-UAEPASS_CLIENT_SECRET = "sandbox_stage"
-UAEPASS_BASE_URL = "https://stg-id.uaepass.ae/idshub"
-UAEPASS_REDIRECT_URI = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev/api/auth/uaepass/callback"
-SUPPORT_API_KEY = "980f4aa892ac10edec08028eda910a5f5f825bd190adb053e16af46435dbd163"
-SUPPORT_API_BASE = "https://looop23.replit.app/api/public/support"
+## NOTE:
+## Do not commit secrets here (UAEPASS_CLIENT_SECRET, API keys, etc).
+## Configure these via Replit Secrets / Deployments settings.
 
 [userenv.development]
 NODE_ENV = "development"

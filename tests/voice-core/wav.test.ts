@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createMulawWavHeader } from '../../server/voice-core/audio/wav';
+import { createMulawWavHeader, createPcm16WavHeader } from '../../server/voice-core/audio/wav';
 
 describe('createMulawWavHeader', () => {
   it('produces a 46-byte header', () => {
@@ -32,5 +32,26 @@ describe('createMulawWavHeader', () => {
     expect(h.readUInt16LE(22)).toBe(2);
     expect(h.readUInt32LE(24)).toBe(16000);
     expect(h.readUInt32LE(28)).toBe(32000);
+  });
+});
+
+describe('createPcm16WavHeader', () => {
+  it('produces a 44-byte PCM header (format code 1, 16-bit)', () => {
+    const h = createPcm16WavHeader(1600);
+    expect(h.length).toBe(44);
+    expect(h.toString('ascii', 0, 4)).toBe('RIFF');
+    expect(h.readUInt32LE(4)).toBe(1600 + 36);
+    expect(h.toString('ascii', 8, 12)).toBe('WAVE');
+    expect(h.readUInt16LE(20)).toBe(1); // PCM
+    expect(h.readUInt16LE(34)).toBe(16); // bits/sample
+    expect(h.toString('ascii', 36, 40)).toBe('data');
+    expect(h.readUInt32LE(40)).toBe(1600);
+  });
+
+  it('computes byteRate and blockAlign for mono 8kHz', () => {
+    const h = createPcm16WavHeader(100);
+    expect(h.readUInt32LE(24)).toBe(8000);   // sample rate
+    expect(h.readUInt32LE(28)).toBe(16000);  // byteRate = 8000 * 2
+    expect(h.readUInt16LE(32)).toBe(2);      // blockAlign
   });
 });

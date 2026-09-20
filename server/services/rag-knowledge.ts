@@ -46,6 +46,9 @@ import {
 } from "@shared/schema";
 import { eq, and, inArray, sql, or, ilike } from "drizzle-orm";
 import { awsBedrockService } from "./aws-bedrock";
+import { isRagSearchSemanticRerankEnabled } from "./rag-knowledge-flags";
+
+export { isRagSearchSemanticRerankEnabled } from "./rag-knowledge-flags";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 1536;
@@ -780,6 +783,74 @@ export class RAGKnowledgeService {
       return { success: false, chunksCreated: 0, error: error.message };
     }
   }
+
+  /**
+   * Prefetch common FAQ-style queries for a KB item so runtime calls can hit
+   * the fast FAQ path (knowledge_faqs) before vector search.
+   *
+   * Retrieval-only (no LLM) for reliability and cost.
+   */
+  static async prefetchCommonFaqs(
+    knowledgeBaseId: string,
+    userId: string,
+    sourceUrl?: string
+  ): Promise<{ created: number }> {
+    const commonQuestions = [
+      // English
+      'What are your working hours?',
+      'How do I book or reserve?',
+      'What documents are required?',
+      'What is the cancellation policy?',
+      'How much is the deposit?',
+      'Do you accept international driving licenses?',
+      'Is insurance included?',
+      // Arabic
+      'ما هي ساعات العمل؟',
+      'كيف يمكنني الحجز؟',
+      'ما هي المستندات المطلوبة؟',
+      'ما هي سياسة الإلغاء؟',
+      'كم مبلغ التأمين (الوديعة)؟',
+      'هل تقبلون رخصة قيادة دولية؟',
+      'هل التأمين مشمول؟',
+    ];
+
+    let created = 0;
+    try {
+      const qEmbeddings = await generateEmbeddingBatch(commonQuestions);
+
+      for (let i = 0; i < commonQuestions.length; i++) {
+        const question = commonQuestions[i];
+        const results = await this.searchKnowledge(question, [knowledgeBaseId], userId, 3);
+        if (!results || results.length === 0) continue;
+
+        const top = results[0];
+        const answer = String(top.chunk.chunkText || '').trim().slice(0, 1200);
+        if (!answer || answer.length < 20) continue;
+
+        try {
+          await db.insert(knowledgeFaqs).values({
+            userId,
+            knowledgeBaseId,
+            question,
+            answer,
+            sourceUrl: sourceUrl || 'prefetch',
+            sourceChunkId: top.chunk.id,
+            confidence: Math.max(0.3, Math.min(0.95, top.score)),
+            isVerified: false,
+            embedding: qEmbeddings[i] as any,
+            updatedAt: new Date(),
+          } as any);
+          created++;
+        } catch {
+          // Best effort; ignore duplicates/insert errors.
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[RAG] FAQ prefetch failed for ${knowledgeBaseId}: ${err?.message || err}`);
+    }
+
+    return { created };
+  }
   
   static async searchKnowledge(
     query: string,
@@ -799,7 +870,12 @@ export class RAGKnowledgeService {
         return [];
       }
 
-      const cacheKey = `${query.toLowerCase().trim()}|${knowledgeBaseIds.sort().join(',')}|${userId}|${maxResults}`;
+      const semanticRerankEnabled = isRagSearchSemanticRerankEnabled();
+      const candidateLimit = semanticRerankEnabled
+        ? Math.max(maxResults * 3, maxResults)
+        : maxResults;
+
+      const cacheKey = `${query.toLowerCase().trim()}|${knowledgeBaseIds.sort().join(',')}|${userId}|${maxResults}|rr=${semanticRerankEnabled ? 1 : 0}`;
       const cachedResults = searchResultCache.get(cacheKey);
       if (cachedResults) {
         console.log(`[RAG] Search cache hit (${cachedResults.length} results)`);
@@ -905,7 +981,7 @@ export class RAGKnowledgeService {
               })
               .filter(r => r.score >= MIN_FALLBACK_RELEVANCE)
               .sort((a, b) => b.score - a.score)
-              .slice(0, maxResults);
+              .slice(0, candidateLimit);
 
             console.log(`[RAG] SQL hybrid search: ${chunkResults.length} results (vector: ${vectorScoreMap.size}, keyword: ${keywordChunks.length}, fused: ${fusedScores.size})`);
           }
@@ -1000,15 +1076,25 @@ export class RAGKnowledgeService {
             .sort((a, b) => b.score - a.score);
 
           const preFilterCount = allScoredChunks.length;
-          chunkResults = allScoredChunks.slice(0, maxResults);
+          chunkResults = allScoredChunks.slice(0, candidateLimit);
 
           console.log(`[RAG] JS hybrid search: ${chunkResults.length}/${preFilterCount} chunks above threshold (top: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, vector: ${vectorResults.length}, keyword: ${keywordResults.length}, expanded: ${expandedQueries ? 'yes' : 'no'})`);
         }
       }
       
       let combined = [...faqResults, ...chunkResults]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, maxResults);
+        .sort((a, b) => b.score - a.score);
+
+      // Optional post-hybrid semantic rerank (awesome-ai-apps RAG pattern).
+      if (semanticRerankEnabled && combined.length > maxResults) {
+        const candidates = combined.slice(0, candidateLimit);
+        console.log(
+          `[RAG] RAG_SEARCH_SEMANTIC_RERANK: reranking ${candidates.length} candidates → top ${maxResults}`,
+        );
+        combined = await this.semanticRerank(query, candidates, maxResults);
+      } else {
+        combined = combined.slice(0, maxResults);
+      }
       
       if (combined.length > 0 && isProductServiceQuery(query)) {
         const beforeFilter = combined.length;
@@ -1367,7 +1453,11 @@ Only suggest if genuinely relevant. Don't force it.`,
       useAnswerExtraction?: boolean;
       reasoningMode?: 'quick' | 'deep' | 'expert';
     } = {}
-  ): Promise<{ results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>; extractedAnswer?: string }> {
+  ): Promise<{
+    results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>;
+    extractedAnswer?: string;
+    meta?: { topScore: number; avgScore: number; confidence: number; sourcesCount: number };
+  }> {
     const {
       maxResults = 5,
       useReranking = true,
@@ -1485,9 +1575,26 @@ Only suggest if genuinely relevant. Don't force it.`,
       extractedAnswer = await this.extractAnswer(query, allResults);
     }
 
-    console.log(`[RAG Enhanced] Final: ${allResults.length} results (avg score: ${avgScore.toFixed(3)}), answer extracted: ${!!extractedAnswer}`);
+    const topScore = allResults[0]?.score || 0;
+    const secondScore = allResults[1]?.score || 0;
+    const scoreGap = Math.max(0, topScore - secondScore);
+    const confidence = Math.max(
+      0,
+      Math.min(1, topScore * 0.75 + avgScore * 0.2 + Math.min(scoreGap, 0.2) * 0.25)
+    );
 
-    return { results: allResults, extractedAnswer };
+    console.log(`[RAG Enhanced] Final: ${allResults.length} results (top: ${topScore.toFixed(3)}, avg: ${avgScore.toFixed(3)}, conf: ${confidence.toFixed(3)}), answer extracted: ${!!extractedAnswer}`);
+
+    return {
+      results: allResults,
+      extractedAnswer,
+      meta: {
+        topScore,
+        avgScore,
+        confidence,
+        sourcesCount: allResults.length,
+      },
+    };
   }
 
   static buildDataSchemaContext(

@@ -148,7 +148,7 @@ export default function OnboardingPage() {
                     <Bot className="w-6 h-6" />
                   </div>
                   <span className="text-[1.5rem] font-bold text-gray-900 dark:text-white tracking-tight">
-                    {branding.app_name || "AgentLabs"}
+                    {branding.app_name || "Byan AI"}
                   </span>
                 </div>
               )}
@@ -337,7 +337,7 @@ export default function OnboardingPage() {
 
         <div className="py-4 border-t border-gray-100 dark:border-white/5">
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            &copy; {new Date().getFullYear()} {branding.app_name || "AgentLabs"}. All rights reserved.
+            &copy; {new Date().getFullYear()} {branding.app_name || "Byan AI"}. All rights reserved.
           </p>
         </div>
       </div>

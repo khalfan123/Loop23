@@ -20,6 +20,7 @@ import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { phoneNumbers, creditTransactions, phoneNumberRentals } from "@shared/schema";
+import { WorkspaceService } from "../services/workspace-service";
 
 const COUNTRY_PREFIX_MAP: Record<string, string> = {
   '+971': 'AE', '+966': 'SA', '+974': 'QA', '+973': 'BH', '+968': 'OM', '+965': 'KW',
@@ -126,6 +127,40 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
     }
   });
 
+  /**
+   * Provider inventory: list all inbound phone numbers present in the connected account for this user's workspace.
+   * This is independent from whether the number has been "imported" into our DB.
+   */
+  router.get("/api/phone-numbers/inventory", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const workspace = await WorkspaceService.getPrimaryWorkspaceForUser(req.userId!);
+      if (!workspace) {
+        return res.status(400).json({ error: "No workspace found for user" });
+      }
+      await WorkspaceService.ensureTwilioSubaccountProvisioned(workspace.id);
+
+      const owned = await twilioService.listOwnedNumbers({ workspaceId: workspace.id });
+
+      const existingNumbersDb = await db.select({ phoneNumber: phoneNumbers.phoneNumber }).from(phoneNumbers);
+      const existingSet = new Set(existingNumbersDb.map((n) => n.phoneNumber));
+
+      const inventory = owned.map((n) => ({
+        phoneNumber: n.phoneNumber,
+        friendlyName: n.friendlyName,
+        sid: n.sid,
+        capabilities: n.capabilities,
+        country: detectCountryFromNumber(n.phoneNumber),
+        numberType: detectNumberTypeFromNumber(n.phoneNumber),
+        allocated: existingSet.has(n.phoneNumber),
+      }));
+
+      res.json(inventory);
+    } catch (error: any) {
+      console.error("Get phone number inventory error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch phone number inventory" });
+    }
+  });
+
   router.get("/api/phone-numbers/search", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { country, areaCode, postalCode, locality, region, contains, numberType } = req.query;
@@ -134,7 +169,14 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Country is required" });
       }
 
+      const workspace = await WorkspaceService.getPrimaryWorkspaceForUser(req.userId!);
+      if (!workspace) {
+        return res.status(400).json({ error: "No workspace found for user" });
+      }
+      await WorkspaceService.ensureTwilioSubaccountProvisioned(workspace.id);
+
       const availableNumbers = await twilioService.searchAvailableNumbers({
+        workspaceId: workspace.id,
         country: (country as string),
         areaCode: areaCode as string,
         contains: contains as string,
@@ -193,35 +235,95 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
     try {
       const dbSid = await storage.getGlobalSetting('twilio_account_sid');
       const dbToken = await storage.getGlobalSetting('twilio_auth_token');
-      
-      const accountSid = (dbSid?.value as string) || process.env.TWILIO_ACCOUNT_SID;
-      const authToken = (dbToken?.value as string) || process.env.TWILIO_AUTH_TOKEN;
-      
+
+      const { getEnvTwilioCredentials } = await import('../services/twilio-connector');
+      const envCreds = getEnvTwilioCredentials();
+      const accountSid = (dbSid?.value as string) || envCreds.accountSid;
+      const authToken = (dbToken?.value as string) || envCreds.authToken;
+
       if (!accountSid || !authToken) {
-        return res.json([]);
+        return res.json({ numbers: [], _debug: { error: 'No Twilio credentials configured' } });
       }
       
       const twilio = (await import('twilio')).default;
       const client = twilio(accountSid, authToken);
       
-      const incomingNumbers = await client.incomingPhoneNumbers.list({ limit: 100 });
+      // Collect all numbers across main + all accessible accounts
+      let allNumbers: any[] = [];
+      const accountsScanned: Array<{ sid: string; friendlyName: string; status: string; numberCount: number; isMain: boolean }> = [];
+
+      // 1. Fetch main account numbers
+      try {
+        const mainNumbers = await client.incomingPhoneNumbers.list({ limit: 1000 });
+        console.log(`[UAE Numbers] Main account (${accountSid}): ${mainNumbers.length} number(s)`);
+        mainNumbers.forEach(n => console.log(`[UAE Numbers]   Main: ${n.phoneNumber} (${n.friendlyName})`));
+        allNumbers = allNumbers.concat(mainNumbers.map((n: any) => ({ ...n, _accountSid: accountSid })));
+        accountsScanned.push({ sid: accountSid, friendlyName: 'Main account', status: 'active', numberCount: mainNumbers.length, isMain: true });
+      } catch (err: any) {
+        console.warn(`[UAE Numbers] Failed to list main account numbers: ${err.message}`);
+      }
+
+      // 2. List ALL accounts the credentials can see (main + sub-accounts)
+      try {
+        const allAccounts = await client.api.v2010.accounts.list({ limit: 100 });
+        console.log(`[UAE Numbers] accounts.list() returned ${allAccounts.length} account(s) total`);
+        allAccounts.forEach(a => console.log(`[UAE Numbers]   Account: ${a.sid} - "${a.friendlyName}" (status: ${a.status}, type: ${a.type})`));
+
+        for (const acct of allAccounts) {
+          if (acct.sid === accountSid) continue; // already scanned as main
+          try {
+            const acctNumbers = await client.api.v2010.accounts(acct.sid).incomingPhoneNumbers.list({ limit: 1000 });
+            console.log(`[UAE Numbers] Sub-account ${acct.sid} ("${acct.friendlyName}"): ${acctNumbers.length} number(s)`);
+            acctNumbers.forEach((n: any) => console.log(`[UAE Numbers]   Sub: ${n.phoneNumber} (${n.friendlyName})`));
+            allNumbers = allNumbers.concat(acctNumbers.map((n: any) => ({ ...n, _accountSid: acct.sid })));
+            accountsScanned.push({ sid: acct.sid, friendlyName: acct.friendlyName || '', status: acct.status, numberCount: acctNumbers.length, isMain: false });
+          } catch (subErr: any) {
+            console.warn(`[UAE Numbers] Could not fetch numbers for ${acct.sid}: ${subErr.message}`);
+            accountsScanned.push({ sid: acct.sid, friendlyName: acct.friendlyName || '', status: acct.status, numberCount: -1, isMain: false });
+          }
+        }
+      } catch (acctErr: any) {
+        console.warn(`[UAE Numbers] Could not list accounts: ${acctErr.message}`);
+      }
+
+      console.log(`[UAE Numbers] Total numbers across all scanned accounts: ${allNumbers.length}`);
       
-      const existingNumbers = await db.select({ phoneNumber: phoneNumbers.phoneNumber }).from(phoneNumbers);
-      const existingSet = new Set(existingNumbers.map(n => n.phoneNumber));
+      // Get numbers already in our database to mark them as allocated
+      const existingNumbersDb = await db.select({ phoneNumber: phoneNumbers.phoneNumber }).from(phoneNumbers);
+      const existingSet = new Set(existingNumbersDb.map(n => n.phoneNumber));
       
-      const numbers = incomingNumbers
-        .filter(n => n.phoneNumber.startsWith('+971') && !existingSet.has(n.phoneNumber))
+      // Filter to UAE only — mark allocated ones so UI can disable them
+      const uaeNumbers = allNumbers
+        .filter(n => n.phoneNumber && n.phoneNumber.startsWith('+971'))
         .map(n => ({
           sid: n.sid,
           phoneNumber: n.phoneNumber,
           friendlyName: n.friendlyName,
-          capabilities: n.capabilities
+          capabilities: n.capabilities,
+          allocated: existingSet.has(n.phoneNumber),
+          accountSid: n._accountSid,
         }));
       
-      res.json(numbers);
+      console.log(`[UAE Numbers] UAE numbers (+971) found: ${uaeNumbers.length}`);
+
+      // Backwards compat: if numbers found, return array directly. Otherwise return diagnostic object.
+      if (uaeNumbers.length > 0) {
+        return res.json(uaeNumbers);
+      }
+
+      return res.json({
+        numbers: [],
+        _debug: {
+          credentialsAccountSid: accountSid,
+          accountsScanned,
+          totalNumbersFound: allNumbers.length,
+          allNumbers: allNumbers.map((n: any) => ({ phoneNumber: n.phoneNumber, accountSid: n._accountSid })),
+          message: 'No UAE numbers (+971) found in the accounts accessible by these Twilio credentials. The numbers may be in a different Twilio account.',
+        },
+      });
     } catch (error: any) {
       console.error('Error fetching existing Twilio numbers:', error);
-      res.json([]);
+      res.json({ numbers: [], _debug: { error: error.message } });
     }
   });
 
@@ -562,7 +664,14 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         }
       }
 
+      const workspace = await WorkspaceService.getPrimaryWorkspaceForUser(req.userId!);
+      if (!workspace) {
+        return res.status(400).json({ error: "No workspace found for user" });
+      }
+      await WorkspaceService.ensureTwilioSubaccountProvisioned(workspace.id);
+
       const twilioNumber = await twilioService.buyPhoneNumber({
+        workspaceId: workspace.id,
         phoneNumber,
         friendlyName,
         addressSid: effectiveAddressSid,
@@ -576,7 +685,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
       
       if (!credentialToUse) {
         try {
-          await twilioService.releasePhoneNumber(twilioNumber.sid);
+          await twilioService.releasePhoneNumber(twilioNumber.sid, { workspaceId: workspace.id });
         } catch (releaseError: any) {
           console.error('Failed to release Twilio number after credential error:', releaseError);
         }
@@ -608,6 +717,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             const finalNumberType = reqNumberType || detectNumberTypeFromNumber(twilioNumber.phoneNumber);
             const [phoneNumberRecord] = await tx.insert(phoneNumbers).values({
               userId: req.userId!,
+              workspaceId: workspace.id,
               phoneNumber: twilioNumber.phoneNumber,
               twilioSid: twilioNumber.sid,
               friendlyName: twilioNumber.friendlyName,
@@ -686,16 +796,50 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
           const { ElevenLabsService } = await import('../services/elevenlabs');
           const elevenLabsService = new ElevenLabsService(credentialToUse.apiKey);
           
-          const { getTwilioAccountSid, getTwilioAuthToken } = await import('../services/twilio-connector');
-          const twilioAccountSid = await getTwilioAccountSid();
-          const twilioAuthToken = await getTwilioAuthToken();
+          // The number was purchased via the workspace's Twilio SUBACCOUNT (workspaceId
+          // passed to buyPhoneNumber above), so ElevenLabs must verify against the SAME
+          // subaccount creds — env-account creds 404 because the SID lives on the subaccount.
+          const subCreds = await WorkspaceService.getWorkspaceTwilioSubaccountCredentials(workspace.id);
+          let twilioAccountSid: string;
+          let twilioAuthToken: string;
+          if (subCreds) {
+            twilioAccountSid = subCreds.accountSid;
+            twilioAuthToken = subCreds.authToken;
+          } else {
+            const { getTwilioAccountSid, getTwilioAuthToken } = await import('../services/twilio-connector');
+            twilioAccountSid = await getTwilioAccountSid();
+            twilioAuthToken = await getTwilioAuthToken();
+          }
           
-          const elevenLabsResult = await elevenLabsService.syncPhoneNumberToElevenLabs({
-            phoneNumber: twilioNumber.phoneNumber,
-            twilioAccountSid,
-            twilioAuthToken,
-            label: friendlyName || twilioNumber.phoneNumber,
-          });
+          // Twilio's API has a short propagation delay after IncomingPhoneNumbers.create —
+          // ElevenLabs verifies the number against Twilio and 404s if it queries too soon.
+          // Retry the sync with backoff to absorb that propagation window.
+          const syncWithRetry = async () => {
+            const delaysMs = [1500, 3000, 5000, 8000];
+            let lastErr: any;
+            for (let attempt = 0; attempt <= delaysMs.length; attempt++) {
+              try {
+                return await elevenLabsService.syncPhoneNumberToElevenLabs({
+                  phoneNumber: twilioNumber.phoneNumber,
+                  twilioAccountSid,
+                  twilioAuthToken,
+                  label: friendlyName || twilioNumber.phoneNumber,
+                });
+              } catch (err: any) {
+                lastErr = err;
+                const body = String(err?.context?.responseBody ?? err?.message ?? "");
+                const isPropagation =
+                  err?.context?.statusCode === 404 || body.includes("phone_number_not_found");
+                if (!isPropagation || attempt === delaysMs.length) throw err;
+                console.warn(
+                  `⏳ [ElevenLabs Sync] Retry ${attempt + 1} after ${delaysMs[attempt]}ms (Twilio propagation lag)`
+                );
+                await new Promise((r) => setTimeout(r, delaysMs[attempt]));
+              }
+            }
+            throw lastErr;
+          };
+          const elevenLabsResult = await syncWithRetry();
           
           elevenLabsPhoneNumberId = elevenLabsResult.phone_number_id;
           console.log(`✅ [ElevenLabs Sync] Phone number synced successfully: ${elevenLabsPhoneNumberId}`);
@@ -752,7 +896,25 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             await db.delete(phoneNumbers).where(eq(phoneNumbers.id, dbPhoneNumber.id));
             console.log('✅ [Rollback] Deleted phone number from database');
             
-            await twilioService.releasePhoneNumber(twilioNumber.sid);
+            // The number was purchased on the workspace SUBACCOUNT, so the release MUST also
+            // pass workspaceId — otherwise we hit the parent account and get a 404. Also retry
+            // briefly for any genuine Twilio propagation lag on the subaccount.
+            const releaseDelaysMs = [1500, 3000, 5000];
+            let released = false;
+            let lastReleaseErr: any;
+            for (let attempt = 0; attempt <= releaseDelaysMs.length; attempt++) {
+              try {
+                await twilioService.releasePhoneNumber(twilioNumber.sid, { workspaceId: workspace.id });
+                released = true;
+                break;
+              } catch (relErr: any) {
+                lastReleaseErr = relErr;
+                if (relErr?.status !== 404 || attempt === releaseDelaysMs.length) break;
+                console.warn(`⏳ [Rollback] Twilio release retry ${attempt + 1} after ${releaseDelaysMs[attempt]}ms`);
+                await new Promise((r) => setTimeout(r, releaseDelaysMs[attempt]));
+              }
+            }
+            if (!released) throw lastReleaseErr;
             console.log('✅ [Rollback] Released Twilio phone number');
             
             console.log('✅ [Rollback] Complete rollback successful - all state restored consistently');

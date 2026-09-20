@@ -67,7 +67,263 @@
     "selectLanguage": "Select Language",
     "tryAgain": "Please try again",
     "copied": "Copied to clipboard",
-    "remindLater": "Remind me later"
+    "remindLater": "Remind me later",
+    "creating": "Creating…",
+    "done": "Done"
+  },
+  "automation": {
+    "breadcrumb": {
+      "settings": "Settings",
+      "automation": "Automation"
+    },
+    "hub": {
+      "title": "Automation",
+      "subtitle": "Connect your AI call center to the rest of your stack — install a template, browse the marketplace, or wire up a custom webhook.",
+      "tabsLabel": "Automation sections"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "marketplace": "Marketplace",
+      "mine": "My Automations",
+      "api": "API & Webhooks"
+    },
+    "subnav": {
+      "sections": "Sections",
+      "yours": "Your automations"
+    },
+    "starterPack": {
+      "title": "AI Call Center starter pack",
+      "curated": "Curated",
+      "subtitle": "Battle-tested workflows for real call-center jobs — recover missed calls, convert hot leads, stay compliant, and keep humans in the loop. One click to install.",
+      "browseAll": "Browse all templates",
+      "installs": "installs",
+      "minSetup": "min setup",
+      "installing": "Installing",
+      "install": "Install",
+      "preview": "Preview",
+      "verified": "Verified",
+      "toast": {
+        "installed": "Automation installed",
+        "opening": "Opening marketplace",
+        "needsCreds": "This template needs a few credentials. Opening the marketplace…"
+      }
+    },
+    "overview": {
+      "stats": {
+        "total": "Total automations",
+        "active": "Active",
+        "subscriptions": "Event subscriptions"
+      },
+      "recentRuns": "Recent runs",
+      "noRuns": "No automation runs yet. Install a template above to get started.",
+      "quickActions": "Quick actions",
+      "actionMarketplace": {
+        "title": "Browse the marketplace",
+        "desc": "500+ templates across 70+ apps. Filter by trigger event, app, or industry."
+      },
+      "actionCustom": {
+        "title": "Build a custom webhook",
+        "desc": "Wire any event group to your own endpoint with HMAC signing and per-campaign filters."
+      },
+      "actionApi": {
+        "title": "Manage API keys",
+        "desc": "Create scoped API keys for the REST API and view payload schemas."
+      }
+    },
+    "mine": {
+      "title": "My automations",
+      "subtitle": "Custom webhooks that listen for AI call-center events and forward them to your stack.",
+      "create": "Create automation",
+      "empty": {
+        "title": "No custom automations yet",
+        "subtitle": "Browse the marketplace for one-click templates, or build a custom webhook in 3 steps.",
+        "marketplace": "Browse marketplace",
+        "create": "Create custom"
+      }
+    },
+    "wizard": {
+      "title": "New automation",
+      "submit": "Create automation",
+      "steps": {
+        "trigger": "Trigger",
+        "destination": "Destination",
+        "review": "Review"
+      },
+      "trigger": {
+        "title": "Pick trigger events",
+        "subtitle": "Choose which AI call-center events should fire this automation.",
+        "search": "Search events…"
+      },
+      "destination": {
+        "title": "Where should events go?",
+        "subtitle": "Give your automation a name, an HTTPS endpoint, and optional auth."
+      },
+      "review": {
+        "title": "Review & create",
+        "subtitle": "Double-check your trigger and destination, then create the automation.",
+        "name": "Name",
+        "url": "Endpoint",
+        "events": "Trigger events",
+        "auth": "Authentication",
+        "campaigns": "Campaigns"
+      }
+    },
+    "api": {
+      "title": "API & webhook reference",
+      "subtitle": "Manage API keys for the REST API and review payload schemas + signature verification for outgoing webhooks.",
+      "hmac": {
+        "title": "Signed payloads",
+        "subtitle": "Every outgoing webhook is signed so you can verify it's from us.",
+        "loading": "Loading signature info…"
+      },
+      "payloadRef": "Payload field reference",
+      "loadingCatalog": "Loading reference…",
+      "events": {
+        "title": "Event catalog",
+        "subtitle": "All events your endpoints can subscribe to.",
+        "loading": "Loading events…"
+      }
+    }
+  },
+  "marketplace": {
+    "searchPlaceholder": "Search templates and apps…",
+    "modes": {
+      "templates": "Templates",
+      "apps": "Apps"
+    },
+    "filters": {
+      "industry": "Industry",
+      "industryAll": "All industries",
+      "useCase": "Use case",
+      "useCaseAll": "All use cases",
+      "trigger": "Trigger event",
+      "triggerAll": "All triggers",
+      "destination": "Destination",
+      "destinationAll": "All destinations",
+      "category": "Category",
+      "reset": "Reset",
+      "activeLabel": "Filters:",
+      "clearAll": "Clear all"
+    },
+    "destinationPlaceholder": "Destination",
+    "clearSearch": "Clear search",
+    "featured": "Featured this week",
+    "featuredHint": "High-performing starter workflows ready to customize.",
+    "templatesCount": "templates",
+    "allTemplates": "All templates",
+    "showingTemplates": "Showing {{visible}} of {{total}} templates",
+    "allApps": "All apps",
+    "loadMore": "Load more",
+    "noApps": "No apps match your filter.",
+    "installs": "installs",
+    "popular": "Popular",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "viewTemplates": "View templates",
+    "starterPack": "Starter pack",
+    "verified": "Verified",
+    "empty": {
+      "title": "No templates match those filters",
+      "subtitle": "Tell our AI Concierge what you're trying to build and it'll generate a workflow for you.",
+      "cta": "Request a custom template"
+    },
+    "preview": {
+      "what": "What this does",
+      "required": "Required credentials",
+      "payload": "Sample event payload",
+      "credentials": "Credentials",
+      "customize": "Customize with AI",
+      "hideChat": "Hide chat",
+      "useAsIs": "Use as-is",
+      "deploy": "Deploy",
+      "destination": "Destination",
+      "destinationHint": "This template uses {{name}}, which isn't one-click yet. Pick where to send these events instead:",
+      "destinationSwitchHint": "Sending to {{name}}. Switch destination if you want:",
+      "pickDestinationHint": "Pick a destination above to continue",
+      "pickDestinationCta": "Pick a destination",
+      "destinationSelected": "Selected",
+      "destinationActive": "Ready to deploy",
+      "destinationAvailable": "Use this provider"
+    },
+    "steps": {
+      "preview": "Preview",
+      "credentials": "Connect",
+      "deploy": "Deploy"
+    },
+    "deploy": {
+      "success": "Automation deployed",
+      "failed": "Deploy failed",
+      "deployed": "Workflow deployed"
+    },
+    "chat": {
+      "title": "Customize with AI",
+      "recipeReady": "Recipe ready. Add credentials below to deploy.",
+      "needsAnswers": "I need a few details to generate this workflow.",
+      "error": "Concierge failed",
+      "thinking": "Thinking…",
+      "placeholder": "Tweak the workflow…",
+      "workflowReadyNeedsCredentials": "Workflow is ready. Add the required credentials below to deploy it.",
+      "unsupportedDirectDeploy": "This template uses a destination that is not available for one-click deploy yet. Choose Zendesk, Slack, or HubSpot, or customize the workflow.",
+      "pickDestinationFirst": "Pick a destination above (Zendesk, Slack, or HubSpot) and I'll wire this template to it."
+    },
+    "wizard": {
+      "back": "Back",
+      "next": "Next",
+      "deploy": "Deploy",
+      "steps": {
+        "trigger": "Trigger",
+        "destination": "Destination",
+        "filter": "Filter",
+        "actions": "Actions",
+        "deploy": "Deploy"
+      },
+      "flow": {
+        "filterApplied": "Rules set",
+        "filterOptional": "Optional",
+        "send": "Send event"
+      },
+      "trigger": {
+        "title": "When this happens…",
+        "subtitle": "Pick the platform event that should fire this automation.",
+        "event": "Trigger event",
+        "placeholder": "Select an event…"
+      },
+      "destination": {
+        "title": "Where should it go?",
+        "subtitle": "Pick a destination from {{count}} apps. Zendesk, Slack and HubSpot deploy with a single click; the rest use a generic HTTP/webhook adapter you'll configure on the next step.",
+        "search": "Search apps…",
+        "empty": "No apps match.",
+        "oneClick": "One-click",
+        "preset": "Preset",
+        "custom": "Custom"
+      },
+      "filter": {
+        "title": "Run only when… (optional)",
+        "subtitle": "Limit which {{event}} events fire this automation. Leave both rules empty to run for every event.",
+        "campaigns": "Run for these campaigns",
+        "campaignsHint": "Empty = all campaigns.",
+        "noCampaigns": "No campaigns yet.",
+        "condition": "Payload condition",
+        "conditionEnable": "Add a rule"
+      },
+      "actions": {
+        "title": "Configure the action",
+        "pickDestinationFirst": "Pick a destination first.",
+        "method": "Method",
+        "url": "URL",
+        "authType": "Authentication",
+        "authNone": "None",
+        "authBearer": "Bearer token",
+        "authBasic": "Basic auth",
+        "authHeader": "Custom header",
+        "headers": "Custom headers",
+        "addHeader": "Add header",
+        "noHeaders": "No custom headers.",
+        "body": "Body template (JSON)",
+        "bodyHint": "Use {{trigger.<field>}} to inject payload values and {{cred.<id>}} for credentials.",
+        "preview": "Sample request"
+      }
+    }
   },
   "auth": {
     "login": "Login",
@@ -123,12 +379,13 @@
     "calls": "Calls",
     "crm": "Leads",
     "analytics": "Analytics",
+    "live": "Live",
     "phoneNumbers": "Phone Numbers",
     "incomingConnections": "Assign AI Agent",
     "departments": "Departments",
     "flowBuilder": "Flow Builder",
     "executionLogs": "Execution Logs",
-    "webhooks": "Webhooks",
+    "webhooks": "Automation",
     "forms": "Forms",
     "appointments": "Appointments",
     "templates": "Templates",
@@ -139,7 +396,10 @@
     "adminDashboard": "Admin Dashboard",
     "accountSettings": "Account Settings",
     "websiteWidget": "Website Widget",
-    "operations": "Operations"
+    "operations": "Operations",
+    "integrations": "Integrations",
+    "whatsapp": "WhatsApp",
+    "sms": "SMS"
   },
   "sidebar": {
     "navigation": "Menu",
@@ -206,7 +466,7 @@
     "appointmentsBooked": "Appointments Booked",
     "formsSubmitted": "Forms Submitted",
     "knowledgeBase": "Knowledge Bases",
-    "webhooks": "Webhooks",
+    "webhooks": "Automation",
     "templates": "Templates"
   },
   "landing": {
@@ -243,9 +503,9 @@
         "knowledgeBase": "{{count}} Knowledge Base",
         "knowledgeBases": "{{count}} Knowledge Bases",
         "unlimitedKnowledgeBases": "Unlimited Knowledge Bases",
-        "webhook": "{{count}} Webhook",
-        "webhooks": "{{count}} Webhooks",
-        "unlimitedWebhooks": "Unlimited Webhooks",
+        "webhook": "{{count}} Automation",
+        "webhooks": "{{count}} Automations",
+        "unlimitedWebhooks": "Unlimited Automations",
         "phoneNumber": "{{count}} Phone Number",
         "phoneNumbers": "{{count}} Phone Numbers",
         "unlimitedPhoneNumbers": "Unlimited Phone Numbers",
@@ -1873,8 +2133,8 @@
       "callTransferDescription": "Agent can transfer calls to human operators when requested",
       "transferPhoneNumber": "Transfer Phone Number",
       "transferPhoneRequired": "Transfer Phone Number",
-      "transferPhonePlaceholder": "+1234567890",
-      "transferPhoneHint": "Number to transfer calls to (E.164 format: +country code + number)",
+      "transferPhonePlaceholder": "+971501234567",
+      "transferPhoneHint": "E.164 destination (e.g. UAE +971…, US +1…). Spaces are stripped on save.",
       "enableEndConversation": "Enable End Conversation",
       "endConversationTooltip": "Allows the AI to intelligently end the conversation when the objective is complete or the caller indicates they're done. The agent will politely conclude the call instead of continuing indefinitely.",
       "endConversationDescription": "Let agent intelligently end conversation when appropriate",
@@ -2009,7 +2269,8 @@
       "callTransferTooltip": "When enabled, the agent can transfer calls to a human operator when the caller explicitly requests to speak to a person. Transfer happens automatically when user says phrases like 'talk to a human' or 'speak to someone'.",
       "callTransferDescription": "Agent can transfer calls to human operators when requested",
       "transferPhoneNumber": "Transfer Phone Number",
-      "transferPhoneHint": "Number to transfer calls to (E.164 format: +country code + number)",
+      "transferPhonePlaceholder": "+971501234567",
+      "transferPhoneHint": "E.164 destination (e.g. UAE +971…, US +1…). Spaces are stripped on save.",
       "languageDetectionTooltip": "Automatically detects and switches to the caller's language. Supports 99 languages including English, Spanish, French, German, Chinese, Japanese, and more. The agent adapts its responses to match the detected language.",
       "languageDetectionDescription": "Automatically detect and respond in caller's language (99 languages)",
       "enableEndConversation": "Enable End Conversation",
@@ -2375,6 +2636,10 @@
     "postalCode": "Postal Code",
     "postalCodePlaceholder": "Enter postal code",
     "manageConnections": "Manage Connections",
+    "addNumberMenu": {
+      "buyNumberHeading": "Buy a number",
+      "searchCountries": "Search countries"
+    },
     "tabs": {
       "myNumbers": "My Numbers"
     },
@@ -2429,6 +2694,7 @@
     "dialog": {
       "buyTitle": "Rent Phone Number",
       "buyDescription": "Search for and rent a phone number. Numbers are billed monthly.",
+      "changeCountry": "Change country",
       "monthlyBilling": "Monthly Billing",
       "monthlyBillingDesc": "Phone numbers cost {{credits}} credits per month. Your account will be charged automatically each billing cycle.",
       "releaseTitle": "Release Phone Number",
@@ -2584,17 +2850,17 @@
     }
   },
   "webhooks": {
-    "title": "Webhooks",
-    "subtitle": "Configure webhook endpoints for real-time event notifications",
-    "description": "Configure webhook subscriptions",
-    "createWebhook": "Create Webhook",
-    "addWebhook": "Add Webhook",
-    "noWebhooks": "No webhooks configured",
-    "getStarted": "Add webhooks to receive event notifications.",
-    "loading": "Loading webhooks...",
-    "name": "Webhook Name",
+    "title": "Automations",
+    "subtitle": "Configure Automations and webhook endpoints for real-time event notifications",
+    "description": "Configure Automations and webhook endpoints for real-time event notifications",
+    "createWebhook": "Create Automation",
+    "addWebhook": "Add Automation",
+    "noWebhooks": "No automations configured",
+    "getStarted": "Add automations to receive event notifications.",
+    "loading": "Loading automations...",
+    "name": "Automation Name",
     "namePlaceholder": "My CRM Integration",
-    "url": "Webhook URL",
+    "url": "Endpoint URL",
     "urlPlaceholder": "https://api.example.com/webhooks",
     "secret": "Secret Token",
     "secretPlaceholder": "your-secret-token",
@@ -2603,20 +2869,20 @@
     "selectEvents": "Select Events",
     "active": "Active",
     "stats": {
-      "totalWebhooks": "Total Webhooks",
+      "totalWebhooks": "Total Automations",
       "eventSubscriptions": "Event Subscriptions"
     },
     "empty": {
-      "title": "No Webhooks Configured",
-      "description": "Create webhooks to receive real-time notifications when events occur in your campaigns and calls.",
-      "createFirst": "Create Your First Webhook"
+      "title": "No Automations Configured",
+      "description": "Create automations to receive real-time notifications when events occur in your campaigns and calls.",
+      "createFirst": "Create Your First Automation"
     },
     "dialog": {
-      "createTitle": "Create Webhook",
-      "createDescription": "Configure a webhook endpoint to receive event notifications."
+      "createTitle": "Create Automation",
+      "createDescription": "Configure an automation endpoint to receive event notifications."
     },
     "labels": {
-      "webhookName": "Webhook Name",
+      "webhookName": "Automation Name",
       "endpointUrl": "Endpoint URL",
       "eventSubscriptions": "Event Subscriptions",
       "events": "Events",
@@ -2645,11 +2911,11 @@
       "customHeaders": "{\"X-API-Key\": \"your-key\", \"X-Secret\": \"your-secret\"}"
     },
     "tooltips": {
-      "webhookName": "A friendly name to identify this webhook. Example: 'CRM Integration' or 'Analytics Tracking'.",
-      "endpointUrl": "The URL where webhook events will be sent. Must be a valid HTTPS URL that can receive POST requests.",
-      "eventSubscriptions": "Select which events should trigger webhook notifications. You'll receive a POST request with event details whenever any selected event occurs.",
-      "campaignFilter": "By default, this webhook receives events from all campaigns. Enable filtering to only receive events from specific campaigns.",
-      "authTitle": "Choose how to authenticate webhook requests:"
+      "webhookName": "A friendly name to identify this automation. Example: 'CRM Integration' or 'Analytics Tracking'.",
+      "endpointUrl": "The URL where automation events will be sent. Must be a valid HTTPS URL that can receive POST requests.",
+      "eventSubscriptions": "Select which events should trigger automation notifications. You'll receive a POST request with event details whenever any selected event occurs.",
+      "campaignFilter": "By default, this automation receives events from all campaigns. Enable filtering to only receive events from specific campaigns.",
+      "authTitle": "Choose how to authenticate automation requests:"
     },
     "actions": {
       "test": "Test",
@@ -2680,7 +2946,9 @@
       "appointmentEvents": "Appointment Events",
       "appointmentEventsDesc": "Events related to appointments",
       "formEvents": "Form Events",
-      "formEventsDesc": "Events related to form submissions"
+      "formEventsDesc": "Events related to form submissions",
+      "ivrEvents": "IVR (Phone Menu)",
+      "ivrEventsDesc": "Department IVR: language and menu selections"
     },
     "events": {
       "callStarted": "Call Started",
@@ -2742,10 +3010,18 @@
       "formSubmitted": "Form Submitted",
       "formSubmittedDesc": "When a form is submitted",
       "formLeadCreated": "Lead Created",
-      "formLeadCreatedDesc": "When a new lead is created from a form"
+      "formLeadCreatedDesc": "When a new lead is created from a form",
+      "leadCaptured": "Lead Captured",
+      "leadCapturedDesc": "When a lead is captured (reserved for CRM workflows)",
+      "ivrStarted": "IVR Started",
+      "ivrStartedDesc": "When the caller reaches your phone menu",
+      "ivrLanguageSelected": "IVR Language Selected",
+      "ivrLanguageSelectedDesc": "When the caller chooses a language (multi-language IVR)",
+      "ivrOptionSelected": "IVR Option Selected",
+      "ivrOptionSelectedDesc": "When the caller chooses a department or menu option"
     },
     "logs": {
-      "title": "Webhook Delivery Logs",
+      "title": "Automation Delivery Logs",
       "recentDeliveries": "Recent Deliveries",
       "failedDeliveries": "Failed Deliveries",
       "loading": "Loading logs...",
@@ -2755,12 +3031,12 @@
       "noResponse": "No Response"
     },
     "toast": {
-      "created": "Webhook created successfully",
-      "createFailed": "Failed to create webhook",
-      "deleted": "Webhook deleted",
-      "deleteFailed": "Failed to delete webhook",
-      "testSent": "Test webhook sent",
-      "testFailed": "Failed to send test webhook",
+      "created": "Automation created successfully",
+      "createFailed": "Failed to create automation",
+      "deleted": "Automation deleted",
+      "deleteFailed": "Failed to delete automation",
+      "testSent": "Test automation sent",
+      "testFailed": "Failed to send test automation",
       "retryInitiated": "Retry initiated",
       "retryFailed": "Failed to retry delivery"
     },
@@ -2768,10 +3044,85 @@
       "invalidJson": "Invalid JSON format for custom headers"
     },
     "fields": {
-      "url": "Webhook URL",
+      "url": "Endpoint URL",
       "events": "Events",
       "secret": "Secret",
       "active": "Active"
+    },
+    "automation": {
+      "title": "n8n and external automation",
+      "description": "Forward signed JSON to n8n, Zapier, or your CRM/ERP. Use Integration Concierge to generate workflows from plain English.",
+      "openConcierge": "Open Integration Concierge",
+      "conciergeHint": "Concierge compiles recipes to n8n and subscribes your automation URL to the chosen platform events.",
+      "viewCatalog": "Payload field reference",
+      "catalogLoading": "Loading field reference…"
+    },
+    "flowBuilder": {
+      "pageTitle": "Automation",
+      "pageSubtitle": "Design message and action steps on the canvas. This is your planning workspace; wire outbound URLs below only when you send events to n8n or your stack.",
+      "runWizard": "Flow setup wizard",
+      "breadcrumbRoot": "Automation",
+      "untitled": "Untitled flow",
+      "saved": "Saved",
+      "update": "Update",
+      "goConcierge": "Integration Concierge",
+      "inspectorEmpty": "Select a step",
+      "inspectorHint": "Click a step on the canvas to edit copy and actions.",
+      "chooseNext": "Choose next step",
+      "deleteStep": "Delete step",
+      "fieldTitle": "Step title",
+      "fieldBody": "Message body",
+      "fieldButton": "Quick reply label",
+      "fieldActions": "One action per line",
+      "actionsHelp": "Each line appears as a numbered action in the yellow Actions card.",
+      "fieldWaiting": "Waiting hint",
+      "actionsTitle": "Actions",
+      "newSendTitle": "Send message",
+      "newSendBody": "Your message…",
+      "newActionLine": "Describe an action…",
+      "waitTitle": "Wait for reply",
+      "waitBody": "Prompt shown while waiting…",
+      "waitHint": "Waiting for a reply from contact…",
+      "addStep": "Add step",
+      "addSend": "Send message",
+      "addActions": "Actions block",
+      "addWait": "Wait for reply",
+      "triggerWhen": "When: {{event}}",
+      "footerHint": "Connect HTTP automation URLs in Advanced only when you need JSON POST delivery to external tools.",
+      "advancedOutbound": "Advanced: outbound automation URLs",
+      "advancedOutboundHint": "Register HTTPS endpoints that receive signed JSON for platform events (n8n, Zapier, CRM).",
+      "template": {
+        "send1Title": "Send message #1",
+        "send1Body": "Hi {{First Name}}, thanks for reaching us.\nTap below if you have a question.",
+        "buttonLabel": "I have a question",
+        "actionLine1": "Mark conversation as Open",
+        "actionLine2": "Assign conversation to your team",
+        "send2Title": "Send message #2",
+        "send2Body": "Please enter your question — we'll get back to you shortly.",
+        "waitingHint": "Waiting for a reply from contact…"
+      }
+    },
+    "flowWizard": {
+      "step1Title": "Name your automation",
+      "step1Desc": "This appears in the header next to Automation.",
+      "step2Title": "Choose a trigger",
+      "step2Desc": "Which platform event starts this flow on the diagram?",
+      "step3Title": "Ready to open the canvas",
+      "step3Desc": "We'll load a starter template you can edit.",
+      "flowName": "Flow name",
+      "flowNamePlaceholder": "e.g. Sales WhatsApp follow-up",
+      "pickTrigger": "Trigger event",
+      "summaryName": "Flow:",
+      "summaryTrigger": "Trigger:",
+      "skip": "Skip for now",
+      "openCanvas": "Open canvas",
+      "triggers": {
+        "ivrOption": "IVR — menu option selected",
+        "inboundReceived": "Inbound — call received",
+        "callCompleted": "Call completed",
+        "leadCaptured": "Lead captured",
+        "formSubmitted": "Form submitted"
+      }
     }
   },
   "settings": {
@@ -3530,7 +3881,7 @@
         "email": "Email",
         "authorizedOn": "Authorized On",
         "fieldMapping": "Field Mapping",
-        "fieldMappingDesc": "Configure how data fields map from Loop9 to {{name}}.",
+        "fieldMappingDesc": "Configure how data fields map from Byan AI to {{name}}.",
         "contactName": "Contact Name",
         "phoneNumber": "Phone Number",
         "company": "Company",

@@ -36,9 +36,12 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  const configHmr =
+    typeof viteConfig.server?.hmr === "object" ? viteConfig.server.hmr : {};
   const serverOptions = {
+    ...(viteConfig.server ?? {}),
     middlewareMode: true,
-    hmr: { server },
+    hmr: { ...configHmr, server },
     allowedHosts: true as const,
   };
 

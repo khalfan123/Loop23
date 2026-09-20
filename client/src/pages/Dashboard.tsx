@@ -35,7 +35,6 @@ import {
   Calendar,
   FileText,
   BookOpen,
-  Webhook,
   Search,
   Sparkles,
   MessageSquare,
@@ -698,14 +697,14 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="hover-elevate cursor-pointer" onClick={() => setLocation('/app/flows/webhooks')} data-testid="feature-webhooks">
+          <Card className="hover-elevate cursor-pointer" onClick={() => setLocation('/app/settings/automation')} data-testid="feature-webhooks">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                  <Webhook className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <Zap className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Webhooks</p>
+                  <p className="text-sm font-medium">Automation</p>
                   <span className="text-2xl font-bold tracking-tight">{dashboard?.webhooksCount || 0}</span>
                 </div>
               </div>

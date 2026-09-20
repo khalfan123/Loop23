@@ -360,12 +360,32 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
   const [generatingRecId, setGeneratingRecId] = useState<string | null>(null);
   const [dismissedRecIds, setDismissedRecIds] = useState<Set<string>>(new Set());
 
+  const showKnowledgeQueries =
+    section === "all" ||
+    ["crawl", "insights", "content-studio", "entities", "topic-clusters", "faqs", "content-gaps"].includes(section);
+  const showMlConversations = section === "all" || section === "ml-conversations";
+
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
+    enabled: showKnowledgeQueries,
   });
 
   // ML Conversations queries
-  const { data: mlStats, isLoading: mlStatsLoading, refetch: refetchMlStats } = useQuery<{
+  const { data: mlJobs = [], refetch: refetchMlJobs } = useQuery<any[]>({
+    queryKey: ["/api/knowledge-intelligence/ml-conversations/jobs"],
+    enabled: showMlConversations,
+    refetchInterval: (query) => {
+      const jobs = query.state.data;
+      if (Array.isArray(jobs) && jobs.some((j) => j.status === "processing")) {
+        return 3000;
+      }
+      return false;
+    },
+  });
+
+  const hasProcessingMlJob = mlJobs.some((j) => j.status === "processing");
+
+  const { data: mlStats, isLoading: mlStatsLoading, isError: mlStatsError, refetch: refetchMlStats } = useQuery<{
     totalCallsAnalyzed: number;
     totalIssuesDiscovered: number;
     totalTrainingSamples: number;
@@ -376,24 +396,26 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
     improvementPercentage?: number;
   }>({
     queryKey: ["/api/knowledge-intelligence/ml-conversations/stats"],
-  });
-
-  const { data: mlJobs = [], refetch: refetchMlJobs } = useQuery<any[]>({
-    queryKey: ["/api/knowledge-intelligence/ml-conversations/jobs"],
-    refetchInterval: 5000,
+    enabled: showMlConversations,
+    refetchInterval: hasProcessingMlJob ? 5000 : false,
   });
 
   const { data: mlIssues = [], refetch: refetchMlIssues } = useQuery<any[]>({
     queryKey: ["/api/knowledge-intelligence/ml-conversations/issues"],
+    enabled: showMlConversations,
+    refetchInterval: hasProcessingMlJob ? 5000 : false,
   });
 
   const { data: mlSamples = [], refetch: refetchMlSamples } = useQuery<any[]>({
     queryKey: ["/api/knowledge-intelligence/ml-conversations/samples"],
+    enabled: showMlConversations,
+    refetchInterval: hasProcessingMlJob ? 5000 : false,
   });
 
   // Poll for active pipeline job
   const { data: activePipelineJob } = useQuery<PipelineJob | null>({
     queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"],
+    enabled: showKnowledgeQueries,
     refetchInterval: (query) => {
       // Poll every 2 seconds while job is running, otherwise every 30 seconds
       const data = query.state.data;
@@ -406,7 +428,8 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
 
   const { data: crawlJobs = [], refetch: refetchCrawlJobs } = useQuery<CrawlJob[]>({
     queryKey: ["/api/knowledge-intelligence/crawl-jobs"],
-    refetchInterval: 10000,
+    enabled: showKnowledgeQueries,
+    refetchInterval: showKnowledgeQueries ? 10000 : false,
   });
 
   const { data: crawlPages = [] } = useQuery<CrawlPage[]>({
@@ -417,29 +440,33 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!expandedCrawlJobId,
+    enabled: showKnowledgeQueries && !!expandedCrawlJobId,
     refetchInterval: expandedCrawlJobId ? 5000 : false,
   });
 
   const { data: entities = [] } = useQuery<Entity[]>({
     queryKey: ["/api/knowledge-intelligence/entities"],
+    enabled: showKnowledgeQueries,
   });
 
   const { data: topics = [] } = useQuery<Topic[]>({
     queryKey: ["/api/knowledge-intelligence/topics"],
+    enabled: showKnowledgeQueries,
   });
 
   const { data: faqs = [] } = useQuery<FAQ[]>({
     queryKey: ["/api/knowledge-intelligence/faqs"],
+    enabled: showKnowledgeQueries,
   });
 
   const { data: articles = [] } = useQuery<Article[]>({
     queryKey: ["/api/knowledge-intelligence/articles"],
+    enabled: showKnowledgeQueries,
   });
 
   const { data: topicGaps = [] } = useQuery<TopicGap[]>({
     queryKey: ["/api/knowledge-intelligence/topic-gaps"],
-    enabled: (stats?.topics || 0) > 0,
+    enabled: showKnowledgeQueries && (stats?.topics || 0) > 0,
   });
 
   // Derive content opportunities from the crawled website data
@@ -662,6 +689,8 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/jobs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/issues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/samples"] });
       setMlAnalysisName("");
       toast({ title: "Analysis Started", description: "Analyzing call transcripts for insights and training data..." });
     },
@@ -1553,6 +1582,19 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               </CardContent>
             </Card>
           </div>
+
+          {!mlStatsLoading && (mlStats?.availableCallsForAnalysis || 0) === 0 && (
+            <Card className="border-dashed" data-testid="card-ml-no-transcripts-tab">
+              <CardContent className="py-8 text-center space-y-2">
+                <Phone className="h-10 w-10 mx-auto text-muted-foreground opacity-60" />
+                <h4 className="font-medium">No call transcripts ready for analysis</h4>
+                <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                  Analyze Calls needs completed calls that have a non-empty transcript. Place a test or live call,
+                  wait until the transcript appears under Calls, then return here to run analysis.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Active Analysis Jobs */}
           {mlJobs.filter(j => j.status === "processing").length > 0 && (
@@ -2452,6 +2494,20 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
             </Button>
           </div>
 
+          {mlStatsError && (
+            <Card className="border-destructive/50 bg-destructive/5" data-testid="card-ml-stats-error">
+              <CardContent className="py-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span>Could not load ML Conversations data. Check that you are signed in and try again.</span>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => refetchMlStats()}>
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Stats Overview */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card data-testid="card-ml-calls-available-section">
@@ -2505,6 +2561,19 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
             </Card>
           </div>
 
+          {!mlStatsLoading && !mlStatsError && (mlStats?.availableCallsForAnalysis || 0) === 0 && (
+            <Card className="border-dashed" data-testid="card-ml-no-transcripts">
+              <CardContent className="py-8 text-center space-y-2">
+                <Phone className="h-10 w-10 mx-auto text-muted-foreground opacity-60" />
+                <h4 className="font-medium">No call transcripts ready for analysis</h4>
+                <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                  Analyze Calls needs completed calls that have a non-empty transcript. Place a test or live call,
+                  wait until the transcript appears under Calls, then return here to run analysis.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Active Analysis Jobs */}
           {mlJobs.filter(j => j.status === "processing").length > 0 && (
             <Card>
@@ -2525,6 +2594,22 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               </CardContent>
             </Card>
           )}
+
+          {mlJobs.filter(j => j.status === "failed").slice(0, 3).map((job: any) => (
+            <Card key={job.id} className="border-destructive/50 bg-destructive/5" data-testid={`card-ml-job-failed-${job.id}`}>
+              <CardContent className="py-4">
+                <div className="flex items-start gap-3">
+                  <XCircle className="h-5 w-5 text-destructive mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-destructive">{job.name} failed</p>
+                    <p className="text-sm text-muted-foreground break-words">
+                      {job.errorMessage || "Analysis failed. Check OpenAI API configuration and try again."}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
 
           {/* Common Issues Section */}
           <Card>
@@ -2701,25 +2786,30 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               <CardContent>
                 <div className="space-y-2">
                   {mlJobs.slice(0, 5).map((job: any) => (
-                    <div key={job.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                      <div className="flex items-center gap-2">
-                        {job.status === "completed" ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : job.status === "processing" ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                        ) : job.status === "failed" ? (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className="font-medium">{job.name}</span>
+                    <div key={job.id} className="flex flex-col gap-1 p-2 bg-muted/30 rounded">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {job.status === "completed" ? (
+                            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                          ) : job.status === "processing" ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-500 shrink-0" />
+                          ) : job.status === "failed" ? (
+                            <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                          ) : (
+                            <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <span className="font-medium truncate">{job.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground shrink-0">
+                          <span>{job.processedCalls}/{job.totalCalls} calls</span>
+                          <span>{job.issuesFound} issues</span>
+                          <span>{job.trainingSamplesCreated} samples</span>
+                          <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{job.processedCalls}/{job.totalCalls} calls</span>
-                        <span>{job.issuesFound} issues</span>
-                        <span>{job.trainingSamplesCreated} samples</span>
-                        <span>{new Date(job.createdAt).toLocaleDateString()}</span>
-                      </div>
+                      {job.status === "failed" && job.errorMessage && (
+                        <p className="text-xs text-destructive pl-6">{job.errorMessage}</p>
+                      )}
                     </div>
                   ))}
                 </div>

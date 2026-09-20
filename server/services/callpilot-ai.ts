@@ -8,10 +8,11 @@ import type { InsertOpsTask } from '@shared/schema';
 interface ExtractedTask {
   title: string;
   description: string;
-  taskType: 'refund' | 'callback' | 'followup' | 'escalation' | 'other';
+  taskType: 'refund' | 'callback' | 'followup' | 'escalation' | 'appointment' | 'dynamic_form' | 'other';
   priority: 'high' | 'medium' | 'low';
   intent: string;
   entities: Record<string, string | string[] | null>;
+  actionTarget?: Record<string, unknown>;
   sourceExcerpt: string;
 }
 
@@ -70,8 +71,14 @@ function buildSystemPrompt(businessContext?: BusinessContext): string {
 1. Extract structured, actionable follow-up tasks from call transcripts
 2. Produce a concise call brief for the ops team
 3. Assess risk level and whether follow-up is required
-4. ALL output (titles, descriptions, summaries, briefs) MUST be in English regardless of the transcript language
+4. ALL output (titles, descriptions, summaries, briefs) MUST be in the SAME LANGUAGE as the transcript (if mixed, use the agent/company primary language from context)
 ${businessSection}
+
+LANGUAGE & DIALECT RULES:
+- If the output language is Arabic, write in Gulf Arabic dialect (UAE-style / Khaleeji) using natural UAE phrasing.
+- Avoid Modern Standard Arabic unless necessary for clarity.
+- Do NOT mix dialects (no Egyptian or Levantine blending).
+- If the caller clearly uses English for 1–2 turns or requests English, switch to English (neutral international English). If they return to Arabic, switch back to Gulf Arabic.
 
 Rules for task extraction:
 1. Extract ALL tasks that require human follow-up action (refunds, callbacks, escalations, follow-ups, etc.)
@@ -80,7 +87,7 @@ Rules for task extraction:
 4. A customer request is ONLY fully resolved when: the customer explicitly says they already received the refund/callback/service AND you see clear evidence from the transcript that a real system confirmed it (e.g., a payment gateway confirmation, not an agent's verbal statement).
 5. MANDATORY RULE: If a customer requests a refund for ANY reason, ALWAYS create a "refund" type task, regardless of what the agent said during the call.
 6. Each task must be specific and actionable
-7. Classify task type as: refund, callback, followup, escalation, or other
+7. Classify task type as: refund, callback, followup, escalation, appointment, dynamic_form, or other
 8. Assign priority: high (refund/financial/urgent/angry customer), medium (standard follow-up), low (informational/optional)
 9. Extract relevant entities (customer name, service name, amount, purchase date, account ID, order number, package name, product name, etc.)
 10. Include the exact excerpt from the transcript that generated the task
@@ -93,27 +100,28 @@ Speech-to-text (STT) transcripts from phone calls frequently contain garbled, mi
 - NEVER produce task titles, descriptions, or summaries that contain nonsensical literal translations of STT errors. Always rationalize to what makes business sense.
 - When quoting sourceExcerpt, you may include the original transcript text, but the title and description MUST reflect the corrected, business-rational interpretation.
 
-IMPORTANT: Write ALL output fields (title, description, callSummary, callBrief headline/outcome/customerIntent/agentPerformance) in English. Even if the transcript is in Arabic or another language, the structured output must be in English for the ops team.
+IMPORTANT: Write ALL output fields (title, description, callSummary, callBrief headline/outcome/customerIntent/agentPerformance) in the transcript language.
 
 Always respond ONLY with valid JSON in this exact structure:
 {
   "tasks": [
     {
-      "title": "Brief action title (in English)",
-      "description": "Detailed description of what needs to be done and why (in English)",
-      "taskType": "refund|callback|followup|escalation|other",
+      "title": "Brief action title (same language as transcript)",
+      "description": "Detailed description of what needs to be done and why (same language as transcript)",
+      "taskType": "refund|callback|followup|escalation|appointment|dynamic_form|other",
       "priority": "high|medium|low",
-      "intent": "The customer's underlying intent or need (in English)",
+      "intent": "The customer's underlying intent or need (same language as transcript)",
       "entities": { "customerName": "...", "orderId": "...", "amount": "...", "productName": "...", "packageName": "..." },
+      "actionTarget": { "type": "appointment|dynamic_form|ops", "data": {} },
       "sourceExcerpt": "The exact quote from transcript that triggered this task"
     }
   ],
-  "callSummary": "One paragraph summary of the call for ops team context (in English)",
+  "callSummary": "One paragraph summary of the call for ops team context (same language as transcript)",
   "callBrief": {
-    "headline": "One sentence headline describing the call (in English, e.g. 'Customer inquired about Germany 10GB eSIM package activation')",
+    "headline": "One sentence headline describing the call (same language as transcript)",
     "outcome": "resolved|escalated|pending|callback_scheduled|abandoned",
-    "customerIntent": "What the customer wanted to achieve (in English)",
-    "agentPerformance": "Brief assessment of how the agent handled the call (in English)",
+    "customerIntent": "What the customer wanted to achieve (same language as transcript)",
+    "agentPerformance": "Brief assessment of how the agent handled the call (same language as transcript)",
     "followUpRequired": true,
     "riskLevel": "low|medium|high"
   }
@@ -313,6 +321,7 @@ export class CallpilotAI {
       status: 'pending' as const,
       intent: t.intent,
       entities: t.entities,
+      actionTarget: t.actionTarget,
       sourceExcerpt: t.sourceExcerpt,
       isDeleted: false,
     }));

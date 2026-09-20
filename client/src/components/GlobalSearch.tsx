@@ -114,17 +114,15 @@ export function GlobalSearch() {
   const showDropdown = isOpen && (query.length >= 2);
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-md" data-testid="global-search-container">
+    <div ref={containerRef} className="relative w-full max-w-[560px]" data-testid="global-search-container">
       <div
         className={cn(
-          "flex items-center gap-2 px-3.5 h-9 rounded-xl transition-all duration-200",
-          "bg-white dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08]",
-          isOpen
-            ? "shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.06]"
-            : "shadow-sm"
+          "flex items-center gap-2.5 px-[15px] py-[9px] rounded-[11px] transition-colors duration-150",
+          "bg-[var(--l9-search-bg)] border border-[var(--l9-border-input)]",
+          isOpen && "ring-1 ring-[var(--l9-primary)]/20",
         )}
       >
-        <Search className="h-4 w-4 text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
+        <Search className="h-4 w-4 text-[var(--l9-text-faint)] flex-shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -136,20 +134,20 @@ export function GlobalSearch() {
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search..."
-          className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none min-w-0"
+          className="flex-1 bg-transparent text-[14px] text-[var(--l9-text)] placeholder:text-[var(--l9-text-placeholder)] outline-none min-w-0"
           data-testid="input-global-search"
         />
         {query ? (
           <button
             onClick={() => { setQuery(""); setResults([]); inputRef.current?.focus(); }}
-            className="flex-shrink-0 p-0.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            className="flex-shrink-0 p-0.5 rounded-md text-[var(--l9-text-faint)] hover:text-[var(--l9-text-muted)] transition-colors"
             data-testid="button-clear-search"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         ) : (
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-700 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 flex-shrink-0">
-            <span className="text-xs">&#8984;</span>K
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-px rounded-md border border-[#E2E5EA] text-[12px] font-medium text-[#B6BDC7] flex-shrink-0">
+            &#8984;K
           </kbd>
         )}
       </div>

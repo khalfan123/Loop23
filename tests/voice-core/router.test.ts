@@ -177,3 +177,112 @@ describe('ProviderRouter', () => {
     expect(polly.attempts).toBe(1);
   });
 });
+
+describe('ProviderRouter — health-aware selection', () => {
+  function registryWith(...ids: TTSProviderId[]): ProviderRegistry {
+    const r = new ProviderRegistry();
+    for (const id of ids) r.registerTTS(mockProvider(id));
+    return r;
+  }
+
+  it('default strategy is unchanged: preferred provider stays first', () => {
+    const router = new ProviderRouter(registryWith('aws_polly', 'elevenlabs', 'cartesia'));
+    const order = router.candidateOrder(makeContext('cartesia', ['cartesia', 'elevenlabs', 'aws_polly']));
+    expect(order[0]).toBe('cartesia');
+    expect(order[order.length - 1]).toBe('aws_polly');
+  });
+
+  it('health_aware ranks a cheaper provider ahead of the preferred one', () => {
+    const router = new ProviderRouter(registryWith('aws_polly', 'elevenlabs', 'cartesia'), {
+      selectionStrategy: 'health_aware',
+      costOf: (id) => (id === 'cartesia' ? 0.05 : 0.18), // cartesia cheaper
+    });
+    // Preferred is elevenlabs, but cartesia is cheaper and equally healthy
+    const order = router.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'cartesia', 'aws_polly']));
+    expect(order.indexOf('cartesia')).toBeLessThan(order.indexOf('elevenlabs'));
+  });
+
+  it('health_aware still always attempts the final fallback last', () => {
+    const router = new ProviderRouter(registryWith('aws_polly', 'elevenlabs'), {
+      selectionStrategy: 'health_aware',
+      costOf: () => 0, // would otherwise score aws_polly best
+    });
+    const order = router.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(order[order.length - 1]).toBe('aws_polly');
+    expect(order.filter(id => id === 'aws_polly')).toHaveLength(1);
+  });
+
+  it('health_aware demotes a provider with a high error rate', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    registry.registerTTS(mockProvider('elevenlabs', { failTimes: 2 }));
+    registry.registerTTS(mockProvider('cartesia'));
+    const router = new ProviderRouter(registry, {
+      selectionStrategy: 'health_aware',
+      breakerOptions: { consecutiveFailuresToOpen: 5 }, // keep breaker closed while failing
+    });
+    const ctx = makeContext('elevenlabs', ['elevenlabs', 'cartesia', 'aws_polly']);
+    // Drive two failures on elevenlabs to build its error rate (falls back to cartesia)
+    await router.synthesize(ctx);
+    await router.synthesize(ctx);
+    const order = router.candidateOrder(ctx);
+    // The healthy cartesia should now rank ahead of the error-prone elevenlabs
+    expect(order.indexOf('cartesia')).toBeLessThan(order.indexOf('elevenlabs'));
+  });
+
+  it('health_aware still considers a preferred provider that fails registry isConfigured() (per-agent key)', async () => {
+    // The registry-level isConfigured() can't see per-agent API keys, so a
+    // provider credentialed only at the agent level reports unconfigured.
+    // Under 'preferred' the router force-includes preferred; 'health_aware'
+    // must not silently drop it to the fallback.
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    const eleven = mockProvider('elevenlabs', { configured: false });
+    registry.registerTTS(eleven);
+    const router = new ProviderRouter(registry, { selectionStrategy: 'health_aware' });
+
+    const order = router.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(order).toEqual(['elevenlabs', 'aws_polly']);
+
+    // And it is actually attempted (buildRequest materializes it), not skipped.
+    const { result } = await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(result.providerId).toBe('elevenlabs');
+    expect(eleven.calls).toHaveLength(1);
+  });
+
+  it('health_aware does NOT resurrect a preferred provider whose breaker is open', async () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    registry.registerTTS(mockProvider('elevenlabs', { configured: false, fail: true }));
+    const router = new ProviderRouter(registry, {
+      selectionStrategy: 'health_aware',
+      breakerOptions: { consecutiveFailuresToOpen: 1 },
+    });
+    // First call trips the breaker (falls back to Polly).
+    await router.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    // Breaker open → preferred is excluded despite the per-agent-key rule.
+    const order = router.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+    expect(order).toEqual(['aws_polly']);
+  });
+
+  it('health_aware excludes breaker-open providers but keeps the final fallback', () => {
+    const registry = new ProviderRegistry();
+    registry.registerTTS(mockProvider('aws_polly'));
+    const eleven = mockProvider('elevenlabs');
+    registry.registerTTS(eleven);
+    const router = new ProviderRouter(registry, {
+      selectionStrategy: 'health_aware',
+      breakerOptions: { consecutiveFailuresToOpen: 1 },
+    });
+    // Trip elevenlabs' breaker manually via a failing synth
+    const failing = new ProviderRegistry();
+    failing.registerTTS(mockProvider('aws_polly'));
+    failing.registerTTS(mockProvider('elevenlabs', { fail: true }));
+    const r2 = new ProviderRouter(failing, { selectionStrategy: 'health_aware', breakerOptions: { consecutiveFailuresToOpen: 1 } });
+    return r2.synthesize(makeContext('elevenlabs', ['elevenlabs', 'aws_polly'])).then(() => {
+      const order = r2.candidateOrder(makeContext('elevenlabs', ['elevenlabs', 'aws_polly']));
+      // elevenlabs breaker is open → excluded from ranking; only polly (fallback) remains
+      expect(order).toEqual(['aws_polly']);
+    });
+  });
+});

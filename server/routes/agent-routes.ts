@@ -29,6 +29,8 @@ import { setupRAGToolForAgent, isRAGEnabled } from "../services/rag-elevenlabs-t
 import { generateAgentAvatar } from "../services/avatar-generator";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
 import { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT } from "../services/dynamic-form-tools";
+import { applyPhoneHumanPolicy } from "../services/phone-human-policy";
+import { normalizeTransferPhoneE164 } from "../utils/phone-e164";
 
 export function createAgentRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -125,6 +127,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceStability,
         voiceSimilarityBoost,
         voiceSpeed,
+        voiceStyle,
+        voiceSpeakerBoost,
+        elevenLabsModelId,
         telephonyProvider,
         openaiVoice,
         voiceProvider,
@@ -151,6 +156,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Voice tone and personality are required for flow agents" });
       }
 
+      // Persist best-practice phone cadence for non-scripted prompts (idempotent).
+      const upgradedSystemPrompt =
+        typeof systemPrompt === 'string' && systemPrompt.trim().length > 0
+          ? applyPhoneHumanPolicy(systemPrompt, 'balanced')
+          : systemPrompt;
+
       // Voice validation depends on telephony provider
       // OpenAI-based providers (twilio_openai) use OpenAI voices, not ElevenLabs
       const isOpenAIProvider = telephonyProvider === 'twilio_openai';
@@ -166,6 +177,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             return res.status(400).json({ error: "AWS Polly Voice ID is required for Polly agents" });
           }
           console.log(`📞 Creating AWS Polly agent with voice: ${req.body.awsPollyVoiceId}`);
+        } else if (voiceProvider === 'local_clone') {
+          const cloneId = req.body.localCloneVoiceId || openaiVoice;
+          if (!cloneId) {
+            return res.status(400).json({ error: "Instant Clone profile ID is required for local_clone agents" });
+          }
+          console.log(`📞 Creating local_clone agent with voice: ${cloneId}`);
         } else {
           // Twilio/ElevenLabs agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -174,7 +191,16 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         }
       }
 
-      if (type === 'incoming' && transferEnabled && !transferPhoneNumber?.trim() && !transferAgentId?.trim()) {
+      let normalizedIncomingTransferPhone = transferPhoneNumber;
+      if (type === 'incoming' && transferPhoneNumber != null && String(transferPhoneNumber).trim()) {
+        const n = normalizeTransferPhoneE164(transferPhoneNumber);
+        if (!n.ok) {
+          return res.status(400).json({ error: n.error });
+        }
+        normalizedIncomingTransferPhone = n.e164;
+      }
+
+      if (type === 'incoming' && transferEnabled && !normalizedIncomingTransferPhone?.trim() && !transferAgentId?.trim()) {
         return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
@@ -277,8 +303,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       let usedCredentialId: string | null = null;
 
       const isAwsPollyProvider = voiceProvider === 'aws_polly';
+      const isLocalCloneProvider = voiceProvider === 'local_clone';
 
-      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider) {
+      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider && !isLocalCloneProvider) {
         const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
         if (!credential) {
           return res.status(500).json({ error: "No available ElevenLabs API keys" });
@@ -378,6 +405,15 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         if (isOpenAIProvider) {
           // OpenAI-based flow agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
           console.log(`📞 [Flow Agent Create] Creating ${telephonyProvider} flow agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
+        } else if (voiceProvider === 'local_clone') {
+          const cloneId = req.body.localCloneVoiceId || openaiVoice;
+          if (!cloneId) {
+            return res.status(400).json({ error: "Instant Clone profile ID is required for local_clone flow agents" });
+          }
+        } else if (voiceProvider === 'aws_polly') {
+          if (!req.body.awsPollyVoiceId) {
+            return res.status(400).json({ error: "AWS Polly Voice ID is required for Polly flow agents" });
+          }
         } else {
           // ElevenLabs/Twilio flow agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -394,8 +430,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           return res.status(404).json({ error: "Selected flow not found" });
         }
 
-        if (isOpenAIProvider) {
-          console.log(`📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${telephonyProvider} flow agent`);
+        if (isOpenAIProvider || voiceProvider === 'local_clone' || voiceProvider === 'aws_polly') {
+          console.log(
+            `📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${voiceProvider || telephonyProvider} flow agent`,
+          );
           // elevenLabsAgentId remains null for non-ElevenLabs flow agents
         } else {
           // ElevenLabs/Twilio flow agents - delegate to FlowAgentService for proper two-phase creation
@@ -442,18 +480,23 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         name,
         voiceTone: voiceTone || null,
         personality: personality || null,
-        systemPrompt,
+        systemPrompt: upgradedSystemPrompt,
         config: config || null,
         elevenLabsAgentId,
         elevenLabsCredentialId: usedCredentialId,
-        elevenLabsVoiceId: (type === 'incoming' || type === 'flow') ? elevenLabsVoiceId : null,
+        elevenLabsVoiceId:
+          voiceProvider === 'local_clone' || voiceProvider === 'aws_polly'
+            ? null
+            : (type === 'incoming' || type === 'flow')
+              ? elevenLabsVoiceId
+              : null,
         firstMessage: (type === 'incoming' || type === 'flow') ? (firstMessage || null) : null,
         language: (type === 'incoming' || type === 'flow') ? (language || null) : null,
         llmModel: (type === 'incoming' || type === 'flow') ? effectiveLlmModelId : null,
         temperature: (type === 'incoming' || type === 'flow') ? (temperature ?? null) : null,
         knowledgeBaseIds: (type === 'incoming' || type === 'flow') ? (knowledgeBaseIds || null) : null,
         transferEnabled: type === 'incoming' ? (transferEnabled || false) : false,
-        transferPhoneNumber: type === 'incoming' ? (transferPhoneNumber || null) : null,
+        transferPhoneNumber: type === 'incoming' ? (normalizedIncomingTransferPhone || null) : null,
         transferAgentId: type === 'incoming' ? (transferAgentId || null) : null,
         detectLanguageEnabled: (type === 'incoming' || type === 'flow') ? (detectLanguageEnabled || false) : false,
         endConversationEnabled: type === 'incoming' ? (endConversationEnabled || false) : false,
@@ -464,12 +507,23 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceStability: (type === 'incoming' || type === 'flow') ? (voiceStability ?? 0.55) : null,
         voiceSimilarityBoost: (type === 'incoming' || type === 'flow') ? (voiceSimilarityBoost ?? 0.85) : null,
         voiceSpeed: (type === 'incoming' || type === 'flow') ? (voiceSpeed ?? 1.0) : null,
+        voiceStyle: (type === 'incoming' || type === 'flow') ? (voiceStyle ?? 0) : null,
+        voiceSpeakerBoost: (type === 'incoming' || type === 'flow') ? (voiceSpeakerBoost ?? true) : null,
+        elevenLabsModelId: (type === 'incoming' || type === 'flow') ? (elevenLabsModelId || null) : null,
         // Voice provider configuration
         voiceProvider: voiceProvider || 'elevenlabs',
         awsPollyVoiceId: voiceProvider === 'aws_polly' ? req.body.awsPollyVoiceId : null,
+        localCloneVoiceId:
+          voiceProvider === 'local_clone'
+            ? (req.body.localCloneVoiceId || openaiVoice || null)
+            : null,
         // OpenAI Realtime configuration (for twilio_openai provider)
         telephonyProvider: isOpenAIProvider ? telephonyProvider : 'twilio',
-        openaiVoice: isOpenAIProvider ? (openaiVoice || 'alloy') : null,
+        openaiVoice: isOpenAIProvider
+          ? (openaiVoice || 'alloy')
+          : voiceProvider === 'local_clone'
+            ? (req.body.localCloneVoiceId || openaiVoice || null)
+            : null,
         // Template tracking fields
         sourceTemplateId: sourceTemplateId || null,
         isFromTemplate: isFromTemplate || false,
@@ -659,14 +713,26 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(404).json({ error: "Agent not found" });
       }
 
-
-      if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim() && !req.body.transferAgentId?.trim()) {
-        return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
-      }
-
       // Sanitize sipPhoneNumberId: convert empty string to null to avoid foreign key constraint violation
       if ('sipPhoneNumberId' in req.body && req.body.sipPhoneNumberId === '') {
         req.body.sipPhoneNumberId = null;
+      }
+
+      if (req.body.transferPhoneNumber !== undefined) {
+        const raw = req.body.transferPhoneNumber;
+        if (raw === null || (typeof raw === 'string' && !raw.trim())) {
+          req.body.transferPhoneNumber = null;
+        } else {
+          const n = normalizeTransferPhoneE164(raw as string);
+          if (!n.ok) {
+            return res.status(400).json({ error: n.error });
+          }
+          req.body.transferPhoneNumber = n.e164;
+        }
+      }
+
+      if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim() && !req.body.transferAgentId?.trim()) {
+        return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
       try {
@@ -763,6 +829,11 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         console.warn("Failed to create agent version:", versionError);
       }
 
+      // Persist best-practice phone cadence for non-scripted prompts (idempotent).
+      if (typeof req.body.systemPrompt === 'string' && req.body.systemPrompt.trim().length > 0) {
+        req.body.systemPrompt = applyPhoneHumanPolicy(req.body.systemPrompt, 'balanced');
+      }
+
       const { 
         name, 
         systemPrompt, 
@@ -780,7 +851,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         maxDurationSeconds: newMaxDuration,
         voiceStability,
         voiceSimilarityBoost,
-        voiceSpeed
+        voiceSpeed,
+        voiceStyle,
+        voiceSpeakerBoost,
+        elevenLabsModelId,
       } = req.body;
 
       if (llmModel && llmModel !== agent.llmModel) {
@@ -894,6 +968,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
                 voiceStability,
                 voiceSimilarityBoost,
                 voiceSpeed,
+                voiceStyle,
+                voiceSpeakerBoost,
+                elevenLabsModelId,
                 databaseAgentId: agent.id,
               }
             );
@@ -1062,7 +1139,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           name: variantData.name,
           voiceTone: variantData.voiceTone || null,
           personality: variantData.personality || null,
-          systemPrompt: variantData.systemPrompt,
+          systemPrompt: variantData.systemPrompt
+            ? applyPhoneHumanPolicy(variantData.systemPrompt, 'balanced')
+            : variantData.systemPrompt,
           config: variantData.config || null,
           elevenLabsAgentId: null,
           elevenLabsCredentialId: null,
@@ -1232,7 +1311,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               name: variantData.name,
               voiceTone: variantData.voiceTone || null,
               personality: variantData.personality || null,
-              systemPrompt: variantData.systemPrompt,
+              systemPrompt: variantData.systemPrompt
+                ? applyPhoneHumanPolicy(variantData.systemPrompt, 'balanced')
+                : variantData.systemPrompt,
               config: variantData.config || null,
               elevenLabsAgentId: null,
               elevenLabsCredentialId: null,

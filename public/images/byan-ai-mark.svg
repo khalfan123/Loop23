@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="Byan AI mark">
+  <defs>
+    <linearGradient id="g" x1="48" y1="32" x2="208" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="208" height="208" rx="64" fill="url(#g)"/>
+  <path d="M84 168V88h49c27 0 43 12 43 33 0 13-7 23-18 28 13 4 21 16 21 31 0 24-18 39-46 39H84Zm36-49h15c11 0 18-5 18-14 0-8-7-13-18-13h-15v27Zm0 23v30h20c12 0 19-6 19-15 0-10-7-15-19-15h-20Z" fill="white" opacity="0.95"/>
+</svg>
+

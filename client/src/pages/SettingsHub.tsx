@@ -8,7 +8,7 @@ import Settings from "@/pages/Settings";
 import FlowsPage from "@/pages/FlowsPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
-import WebhookConfigPage from "@/pages/WebhookConfigPage";
+import AutomationHub from "@/pages/automation/AutomationHub";
 import FormsPage from "@/pages/FormsPage";
 import WidgetsPage from "@/pages/WidgetsPage";
 import PlanBillingPage from "@/pages/PlanBillingPage";
@@ -117,6 +117,11 @@ function SettingsOverview({ onNavigate }: { onNavigate: (url: string) => void })
 export default function SettingsHub() {
   const { t } = useTranslation();
   const [location, setLocation] = useLocation();
+  const isAutomationPage =
+    location === "/app/settings/automation" ||
+    location.startsWith("/app/settings/automation/") ||
+    location === "/app/settings/webhooks" ||
+    location.startsWith("/app/settings/webhooks/");
 
   const isItemActive = (url: string) => {
     if (url === "/app/settings/account") {
@@ -125,7 +130,9 @@ export default function SettingsHub() {
     return location === url || location.startsWith(url + "/");
   };
 
-  const subPanelContent = (
+  // Full-width Automation Builder chat — no Settings sections sidebar.
+  // Marketplace / templates live inside the builder (Choose from template).
+  const subPanelContent = isAutomationPage ? undefined : (
     <SubPanelSection>
       {settingsItems.map((item) => (
         <SubPanelItem
@@ -140,7 +147,7 @@ export default function SettingsHub() {
     </SubPanelSection>
   );
 
-  const subPanelHeader = (
+  const subPanelHeader = isAutomationPage ? undefined : (
     <span className="font-medium text-sm flex items-center gap-2">
       <SettingsIcon className="h-4 w-4 text-primary" />
       {t('nav.settings', 'Settings')}
@@ -152,6 +159,7 @@ export default function SettingsHub() {
       subPanel={subPanelContent}
       subPanelWidth="sm"
       subPanelHeader={subPanelHeader}
+      mainClassName={isAutomationPage ? "!px-0 !pt-0 !pb-0" : undefined}
     >
       <Switch>
         <Route path="/app/settings/account" component={Settings} />
@@ -163,7 +171,11 @@ export default function SettingsHub() {
         <Route path="/app/settings/flows/:id" component={FlowBuilderPage} />
         <Route path="/app/settings/flows" component={FlowsPage} />
         <Route path="/app/settings/execution" component={FlowExecutionLogsPage} />
-        <Route path="/app/settings/webhooks" component={WebhookConfigPage} />
+        <Route path="/app/settings/automation/*" component={AutomationHub} />
+        <Route path="/app/settings/automation" component={AutomationHub} />
+        <Route path="/app/settings/webhooks">
+          <Redirect to="/app/settings/automation" />
+        </Route>
         <Route path="/app/settings/widgets" component={WidgetsPage} />
         <Route path="/app/settings/upgrade">
           <Redirect to="/app/settings/billing" />

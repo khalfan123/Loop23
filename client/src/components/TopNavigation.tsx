@@ -20,7 +20,7 @@ import {
   CreditCard, TrendingUp, UserCheck, Workflow, Webhook, 
   ClipboardList, Calendar, Layout, FileText, Wrench, Globe, 
   Bot, ContactRound, Building2, ShieldCheck, Brain, Menu, X, 
-  ChevronDown, Zap, Grid3X3, Search, HelpCircle, Plug, PhoneOutgoing
+  ChevronDown, Zap, Grid3X3, Search, HelpCircle, Plug, PhoneOutgoing, Radio
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -96,6 +96,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500", description: "Contact management" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500", description: "Call history & logs" },
     { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500", description: "Performance insights" },
+    { title: t('nav.live', 'Live'), url: "/app/live", icon: Radio, iconColor: "text-red-500", description: "Live floor monitoring" },
     { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500", description: "Call quality monitoring" },
   ];
 
@@ -307,12 +308,33 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
             className="flex items-center gap-3 px-4 h-full hover:bg-accent/30 transition-colors"
             data-testid="link-logo"
           >
-            {currentLogo ? (
-              <img 
-                src={currentLogo} 
-                alt={branding.app_name} 
-                className="h-8 w-auto max-w-[180px] object-contain"
-              />
+            {currentLogo || branding.favicon_url ? (
+              <div className="flex items-center gap-2">
+                {branding.favicon_url && (
+                  <img
+                    src={branding.favicon_url}
+                    alt=""
+                    className="h-8 w-8 object-contain"
+                  />
+                )}
+                {currentLogo && currentLogo !== branding.favicon_url ? (
+                  <img
+                    src={currentLogo}
+                    alt={branding.app_name}
+                    className="h-7 w-auto max-w-[160px] object-contain"
+                  />
+                ) : !branding.favicon_url && currentLogo ? (
+                  <img
+                    src={currentLogo}
+                    alt={branding.app_name}
+                    className="h-[42px] w-auto max-w-[234px] object-contain"
+                  />
+                ) : (
+                  <span className="text-lg font-semibold tracking-tight hidden sm:inline">
+                    {branding.app_name}
+                  </span>
+                )}
+              </div>
             ) : (
               <>
                 <div className="flex items-center justify-center w-8 h-8 rounded bg-primary">
@@ -476,20 +498,22 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
             </SheetTrigger>
             <SheetContent side="right" className="w-80 p-0 overflow-y-auto">
               <SheetHeader className="p-4 border-b bg-muted/30">
-                <SheetTitle className="flex items-center gap-3">
-                  {currentLogo ? (
-                    <img 
-                      src={currentLogo} 
-                      alt={branding.app_name} 
-                      className="h-8 w-auto max-w-[150px] object-contain"
+                <SheetTitle className="flex items-center gap-2.5">
+                  {branding.favicon_url && (
+                    <img
+                      src={branding.favicon_url}
+                      alt=""
+                      className="h-8 w-8 object-contain"
+                    />
+                  )}
+                  {currentLogo && currentLogo !== branding.favicon_url ? (
+                    <img
+                      src={currentLogo}
+                      alt={branding.app_name}
+                      className="h-7 w-auto max-w-[160px] object-contain"
                     />
                   ) : (
-                    <>
-                      <div className="flex items-center justify-center w-8 h-8 rounded bg-primary">
-                        <Zap className="h-5 w-5 text-primary-foreground" />
-                      </div>
-                      <span className="text-lg font-semibold">{branding.app_name}</span>
-                    </>
+                    <span className="text-lg font-semibold">{branding.app_name}</span>
                   )}
                 </SheetTitle>
               </SheetHeader>

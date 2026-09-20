@@ -19,11 +19,13 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, humanIncomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents, forms, formFields, formSubmissions } from '../../shared/schema';
 import { nanoid } from 'nanoid';
-import { eq, and, inArray, sql, desc } from 'drizzle-orm';
+import { eq, and, or, inArray, sql, desc } from 'drizzle-orm';
 import WebSocket from 'ws';
 import { getTwilioClient } from '../services/twilio-connector';
 import { twilioService } from '../services/twilio';
 import { getDomain } from '../utils/domain';
+import { normalizeTransferPhoneE164, resolveHumanAgentBridgeCallerId, resolveTransferDialCallerId, normalizePhoneForStorage } from '../utils/phone-e164';
+import { evaluateInboundRoutingPolicy, type InboundRoutingPolicy } from '../utils/inbound-routing-policy';
 import { elevenLabsService, ElevenLabsService } from '../services/elevenlabs';
 import { ElevenLabsPoolService } from '../services/elevenlabs-pool';
 import twilio from 'twilio';
@@ -31,6 +33,7 @@ import crypto from 'crypto';
 import { storage } from '../storage';
 import { webhookDeliveryService } from '../services/webhook-delivery';
 import { liveCallRegistry } from '../services/live-call-registry';
+import { recordRelayCleanup } from '../services/relay-cleanup-monitor';
 import { recordWebhookReceived } from '../engines/payment/webhook-helper';
 import { CreditDeductionResult } from '../services/credit-service';
 import { 
@@ -41,8 +44,16 @@ import {
   fireWebhook,
   deductCallCreditsForElevenLabs 
 } from './webhooks/helpers';
+import { createCalendarEventForAppointment } from "../services/calendar-sync";
 
 const activeConnections = new Map<string, WebSocket>();
+
+/** Normalize Twilio From/To for DB lookup (E.164 with +). */
+function normalizeTwilioPhoneParam(raw: string): string {
+  const s = String(raw).trim().replace(/[\s\-()]/g, '');
+  if (!s) return raw;
+  return s.startsWith('+') ? s : `+${s}`;
+}
 
 // Helper function to end Twilio call
 async function endTwilioCall(twilioCallSid: string | null, reason: string): Promise<void> {
@@ -100,6 +111,17 @@ async function executeCallTransfer(twilioCallSid: string, transferPhoneNumber: s
   }
 }
 
+/** Twilio POST bodies can include non-string values; ElevenLabs expects form-urlencoded fields. */
+function encodeTwilioWebhookFormBody(body: Record<string, unknown> | undefined): string {
+  const p = new URLSearchParams();
+  if (!body || typeof body !== 'object') return '';
+  for (const [key, val] of Object.entries(body)) {
+    if (val === undefined || val === null) continue;
+    p.append(key, String(val));
+  }
+  return p.toString();
+}
+
 // Helper function to setup ElevenLabs message handlers
 function setupElevenLabsMessageHandlers(
   elevenLabsWs: WebSocket,
@@ -111,6 +133,16 @@ function setupElevenLabsMessageHandlers(
   endCall: (reason: string) => Promise<void>,
   flowBridge?: any  // Optional FlowExecutionBridge instance
 ): void {
+  const callStartedAtMs = Date.now();
+  let hasUserSpoken = false;
+  let lastClearSentAtMs = 0;
+
+  // If ElevenLabs fires spurious "interruption" events due to background noise,
+  // repeatedly sending Twilio {event:"clear"} can cause the agent's welcome/first message
+  // to be cut and restarted, sounding like it's "interrupting" itself.
+  const INTERRUPTION_CLEAR_COOLDOWN_MS = 1200;
+  const IGNORE_INTERRUPTION_BEFORE_USER_MS = 8000;
+
   elevenLabsWs.on('message', async (data) => {
     try {
       const message = JSON.parse(data.toString());
@@ -146,7 +178,18 @@ function setupElevenLabsMessageHandlers(
           
         case 'interruption':
           console.log(`🛑 [ElevenLabs] User interruption detected`);
+          // Ignore early interruptions before we have any user speech — this is frequently just noise.
+          if (!hasUserSpoken && Date.now() - callStartedAtMs < IGNORE_INTERRUPTION_BEFORE_USER_MS) {
+            console.log(`   ℹ️ Ignoring early interruption (no user speech yet)`);
+            break;
+          }
+          // Throttle clear events to avoid chopping up the agent audio into repeated restarts.
+          if (Date.now() - lastClearSentAtMs < INTERRUPTION_CLEAR_COOLDOWN_MS) {
+            console.log(`   ℹ️ Throttling clear (cooldown)`);
+            break;
+          }
           if (streamSid && twilioWs.readyState === WebSocket.OPEN) {
+            lastClearSentAtMs = Date.now();
             twilioWs.send(JSON.stringify({ event: 'clear', streamSid }));
           }
           break;
@@ -165,6 +208,7 @@ function setupElevenLabsMessageHandlers(
           }
           
           if (userText && userText !== 'N/A') {
+            hasUserSpoken = true;
             conversationHistory.push({
               role: 'user',
               text: userText,
@@ -1046,6 +1090,23 @@ async function handleIvrCall(
       return res.send(response.toString());
     }
 
+    if (phone.userId) {
+      try {
+        await webhookDeliveryService.triggerEvent(phone.userId, 'ivr.started', {
+          callSid,
+          ivrId: ivrConfig.id,
+          ivrName: ivrConfig.name || null,
+          fromNumber: normalizePhoneForStorage(callerNumber),
+          toNumber: normalizePhoneForStorage(phone.phoneNumber),
+          phoneNumberId: phone.id,
+          ivrEngine: 'default',
+          engine: 'twilio-default',
+        });
+      } catch (whErr) {
+        console.warn('[IVR Call] ivr.started webhook failed:', whErr);
+      }
+    }
+
     if (langOptions && langOptions.length > 1) {
       console.log(`📞 [IVR Call] Multi-language mode with ${langOptions.length} languages`);
       
@@ -1262,6 +1323,25 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     const lang = getTwilioLangCode(langCode);
     
     console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${selectedVoiceId || voice}, speed: ${selectedSpeed}`);
+
+    const ivrUserId = ivrConfig[0].userId;
+    if (ivrUserId) {
+      try {
+        await webhookDeliveryService.triggerEvent(ivrUserId, 'ivr.language_selected', {
+          callSid: callSid as string,
+          ivrId: ivrId as string,
+          language: langCode,
+          languageOptionId: selectedLang.id,
+          fromNumber: normalizePhoneForStorage(String(caller || '')),
+          toNumber: To ? normalizePhoneForStorage(String(To)) : null,
+          phoneNumberId: ivrConfig[0].phoneNumberId,
+          ivrEngine: 'default',
+          engine: 'twilio-default',
+        });
+      } catch (whErr) {
+        console.warn('[IVR Language] ivr.language_selected webhook failed:', whErr);
+      }
+    }
     
     const confirmMsg = IVR_LANG_CONFIRMATIONS[langCode] || IVR_LANG_CONFIRMATIONS.en;
     const confirmDomain = getDomain(req.headers.host as string);
@@ -1421,6 +1501,27 @@ export async function handleIvrSelection(req: Request, res: Response) {
     }
     
     console.log(`📞 [IVR Selection] Selected department: ${selectedOption.label} (${selectedOption.departmentId})`);
+
+    const ivrSelUserId = ivrConfig[0].userId;
+    if (ivrSelUserId) {
+      try {
+        await webhookDeliveryService.triggerEvent(ivrSelUserId, 'ivr.option_selected', {
+          callSid: callSid as string,
+          ivrId: ivrId as string,
+          departmentId: selectedOption.departmentId,
+          departmentLabel: selectedOption.label,
+          dtmf: String(Digits || ''),
+          language: langCode,
+          fromNumber: normalizePhoneForStorage(String(caller || '')),
+          toNumber: To ? normalizePhoneForStorage(String(To)) : null,
+          phoneNumberId: ivrConfig[0].phoneNumberId,
+          ivrEngine: 'default',
+          engine: 'twilio-default',
+        });
+      } catch (whErr) {
+        console.warn('[IVR Selection] ivr.option_selected webhook failed:', whErr);
+      }
+    }
     
     const dept = await db
       .select()
@@ -1483,9 +1584,24 @@ export async function handleIvrSelection(req: Request, res: Response) {
       sayWithVoice(response, template.holdMsg);
       const firstAgent = deptAgentsList[0].agent;
       if (firstAgent?.transferPhoneNumber) {
-        // Use the Twilio number (To) as caller ID, not the caller's number (From)
-        // Twilio requires the caller ID to be a verified/owned number in the account
-        response.dial({ callerId: To, timeout: 30, hangupOnStar: false }).number(firstAgent.transferPhoneNumber);
+        const bridgeCli = resolveTransferDialCallerId(To as string);
+        const dialStatusUrl = `${selDomain}/api/webhooks/twilio/human-dial-status`;
+        const dialActionUrl = `${selDomain}/api/webhooks/twilio/human-dial-action`;
+        const d = response.dial({
+          ...(bridgeCli ? { callerId: bridgeCli } : {}),
+          timeout: 30,
+          hangupOnStar: false,
+          action: dialActionUrl,
+          method: 'POST',
+        });
+        d.number(
+          {
+            statusCallback: dialStatusUrl,
+            statusCallbackMethod: 'POST',
+            statusCallbackEvent: 'initiated ringing answered completed',
+          },
+          firstAgent.transferPhoneNumber
+        );
       } else {
         sayWithVoice(response, template.noAgentMsg);
         response.hangup();
@@ -1496,14 +1612,47 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     const selectedAgent = selectedAgentEntry.agent;
     console.log(`📞 [IVR Selection] Connecting to agent: ${selectedAgent.name} (${selectedAgent.id}), voiceProvider: ${selectedAgent.voiceProvider || 'elevenlabs'}`);
-    
-    sayWithVoice(response, template.holdMsg);
-    
+
     if (selectedAgent.elevenLabsAgentId) {
       const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
-      console.log(`📞 [IVR Selection] Routing via ElevenLabs: ${elevenLabsUrl}`);
-      response.redirect(elevenLabsUrl);
-    } else {
+      console.log(`📞 [IVR Selection] Proxying to ElevenLabs (IVR → agent), same as direct incoming: ${elevenLabsUrl}`);
+      try {
+        const formBody = encodeTwilioWebhookFormBody(req.body as Record<string, unknown>);
+        const elevenLabsResponse = await fetch(elevenLabsUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'TwilioProxy/1.0',
+          },
+          body: formBody,
+        });
+        const twiml = await elevenLabsResponse.text();
+        console.log(`📞 [IVR Selection] ElevenLabs status=${elevenLabsResponse.status}, TwiML prefix=${twiml.substring(0, 280)}`);
+        if (!elevenLabsResponse.ok) {
+          console.error(`❌ [IVR Selection] ElevenLabs rejected: ${twiml}`);
+          const VoiceResponse = twilio.twiml.VoiceResponse;
+          const errResp = new VoiceResponse();
+          sayWithVoice(errResp, 'We are unable to connect your call at this time. Please try again shortly.');
+          errResp.hangup();
+          res.type('text/xml');
+          return res.send(errResp.toString());
+        }
+        res.type('text/xml');
+        return res.send(twiml);
+      } catch (proxyErr: any) {
+        console.error(`❌ [IVR Selection] ElevenLabs proxy failed:`, proxyErr?.message || proxyErr);
+        const VoiceResponse = twilio.twiml.VoiceResponse;
+        const errResp = new VoiceResponse();
+        sayWithVoice(errResp, 'A connection error occurred. Please try again.');
+        errResp.hangup();
+        res.type('text/xml');
+        return res.send(errResp.toString());
+      }
+    }
+
+    sayWithVoice(response, template.holdMsg);
+
+    if (!selectedAgent.elevenLabsAgentId) {
       if (selectedAgent.voiceProvider === 'elevenlabs' && !selectedAgent.elevenLabsAgentId) {
         console.warn(`⚠️ [IVR Selection] Agent "${selectedAgent.name}" is configured for ElevenLabs but has no Agent ID - falling back to OpenAI Realtime`);
       }
@@ -1571,19 +1720,21 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     console.log(`📞 [Incoming Call] From: ${From}, To: ${To}, CallSid: ${CallSid}`);
 
-    // Look up the phone number and its incoming connection
+    // Look up the phone number and its incoming connection (Twilio may send To with/without +)
+    const toNorm = normalizeTwilioPhoneParam(To);
     const phoneNumber = await db
       .select({
         id: phoneNumbers.id,
         userId: phoneNumbers.userId,
         phoneNumber: phoneNumbers.phoneNumber,
+        inboundRoutingPolicy: phoneNumbers.inboundRoutingPolicy,
       })
       .from(phoneNumbers)
-      .where(eq(phoneNumbers.phoneNumber, To))
+      .where(or(eq(phoneNumbers.phoneNumber, To), eq(phoneNumbers.phoneNumber, toNorm)))
       .limit(1);
 
     if (!phoneNumber || phoneNumber.length === 0) {
-      console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} not found in database`);
+      console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} (normalized ${toNorm}) not found in database`);
       console.error(`   🚨 [Security Audit] Unauthorized incoming call attempt: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();
@@ -1595,15 +1746,54 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     const phone = phoneNumber[0];
 
+    const fromNorm = normalizePhoneForStorage(From);
+    if (phone.userId) {
+      const routeEval = evaluateInboundRoutingPolicy(
+        phone.inboundRoutingPolicy as InboundRoutingPolicy | null,
+        fromNorm,
+        new Date()
+      );
+      if (routeEval.action === 'reject') {
+        const VoiceResponse = twilio.twiml.VoiceResponse;
+        const closed = new VoiceResponse();
+        closed.say({ voice: 'Polly.Joanna' }, routeEval.message || 'We are currently closed. Goodbye.');
+        closed.hangup();
+        res.type('text/xml');
+        return res.send(closed.toString());
+      }
+
+      try {
+        await webhookDeliveryService.triggerEvent(phone.userId, 'inbound_call.received', {
+          callId: null,
+          callSid: CallSid,
+          direction: 'inbound',
+          status: 'received',
+          fromNumber: fromNorm,
+          toNumber: normalizePhoneForStorage(To),
+          agentId: null,
+          phoneNumberId: phone.id,
+          engine: 'twilio-default',
+          isVip: routeEval.isVip,
+          outsideBusinessHours: routeEval.outsideHours,
+        });
+      } catch (e) {
+        console.warn('[Incoming Call] inbound_call.received webhook failed:', e);
+      }
+    }
+
     // Check for Human Agent Connection FIRST (direct transfer, standalone feature — not call center)
     const humanConnection = await db
       .select({
         id: humanIncomingConnections.id,
+        userId: humanIncomingConnections.userId,
         agentId: humanIncomingConnections.agentId,
         transferNumber: humanIncomingConnections.transferNumber,
         ivrEnabled: humanIncomingConnections.ivrEnabled,
         ivrGreeting: humanIncomingConnections.ivrGreeting,
         label: humanIncomingConnections.label,
+        outboundCallerPhoneNumberId: humanIncomingConnections.outboundCallerPhoneNumberId,
+        relayPhoneNumberId: humanIncomingConnections.relayPhoneNumberId,
+        relayPhoneNumberIds: humanIncomingConnections.relayPhoneNumberIds,
       })
       .from(humanIncomingConnections)
       .where(eq(humanIncomingConnections.phoneNumberId, phone.id))
@@ -1611,6 +1801,38 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     if (humanConnection && humanConnection.length > 0) {
       const hc = humanConnection[0];
+      let outboundWizardCli: string | undefined;
+      if (hc.outboundCallerPhoneNumberId) {
+        const [op] = await db
+          .select({ phoneNumber: phoneNumbers.phoneNumber })
+          .from(phoneNumbers)
+          .where(eq(phoneNumbers.id, hc.outboundCallerPhoneNumberId))
+          .limit(1);
+        if (op?.phoneNumber) {
+          outboundWizardCli = normalizeTwilioPhoneParam(op.phoneNumber);
+        }
+      }
+      // Build the ordered list of relay candidates. The new `relayPhoneNumberIds`
+      // array (primary + fallbacks) takes precedence; the legacy single
+      // `relayPhoneNumberId` is used only when the array is null/empty.
+      const relayIdList: string[] =
+        Array.isArray(hc.relayPhoneNumberIds) && hc.relayPhoneNumberIds.length > 0
+          ? (hc.relayPhoneNumberIds as string[])
+          : (hc.relayPhoneNumberId ? [hc.relayPhoneNumberId] : []);
+      let relayE164List: string[] = [];
+      if (relayIdList.length > 0) {
+        const relayRows = await db
+          .select({ id: phoneNumbers.id, phoneNumber: phoneNumbers.phoneNumber })
+          .from(phoneNumbers)
+          .where(inArray(phoneNumbers.id, relayIdList));
+        const byId = new Map(relayRows.map((r) => [r.id, r.phoneNumber]));
+        relayE164List = relayIdList
+          .map((id) => byId.get(id))
+          .filter((n): n is string => !!n)
+          .map((n) => normalizeTwilioPhoneParam(n))
+          .filter((n): n is string => !!n);
+      }
+      const relayE164: string | undefined = relayE164List[0];
 
       // If an AI agent is assigned, route to the AI agent (which can then transfer to the human number)
       if (hc.agentId) {
@@ -1648,89 +1870,164 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
         }
       }
 
-      // Direct transfer (no AI agent or AI agent fallback)
+      // Direct transfer (no AI agent or AI agent fallback): bridge on the same inbound call using <Dial>.
+      // This is a transfer-style bridge (not a separate REST-originated outbound from the toll-free), which
+      // matches operator/regulator expectations and avoids toll-free outbound-origination limits.
       console.log(`📞 [Human Agent] Found human agent connection for ${To} → transferring to ${hc.transferNumber}`);
       console.log(`📞 [Human Agent] Transfer details: From=${From}, To=${To}, CallSid=${CallSid}`);
       console.log(`📞 [Human Agent] IVR enabled: ${hc.ivrEnabled}, IVR greeting: ${hc.ivrGreeting ? 'set' : 'none'}`);
 
-      const domain = getDomain(req.headers.host as string);
-      
-      // Use conference bridge pattern: put caller in a conference room,
-      // then use REST API to call the transfer number into the same room.
-      // This avoids <Dial> verb issues with geographic permissions and toll-free numbers.
-      const conferenceRoom = `human-transfer-${CallSid}`;
-      const statusCallbackUrl = `${domain}/api/webhooks/twilio/human-dial-status`;
-
-      let twimlOutput = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>`;
-      
-      if (hc.ivrEnabled && hc.ivrGreeting) {
-        twimlOutput += `
-  <Say voice="Polly.Joanna">${hc.ivrGreeting}</Say>`;
+      const transferNorm = normalizeTransferPhoneE164(hc.transferNumber);
+      const transferTo = transferNorm.ok ? transferNorm.e164 : normalizeTwilioPhoneParam(String(hc.transferNumber || ''));
+      if (!transferNorm.ok && hc.transferNumber?.trim()) {
+        console.warn(`⚠️  [Human Agent] Transfer number not strict E.164 (${hc.transferNumber}); using ${transferTo}`);
+      }
+      if (!transferTo || !transferTo.replace(/\+/g, '').match(/\d/)) {
+        console.error(`❌ [Human Agent] Missing or invalid transfer destination for connection ${hc.id}`);
+        const errResp = new twilio.twiml.VoiceResponse();
+        errResp.say({ voice: 'Polly.Joanna' }, 'This line is not configured for transfer. Goodbye.');
+        errResp.hangup();
+        res.type('text/xml');
+        return res.send(errResp.toString());
       }
 
-      twimlOutput += `
-  <Say voice="Polly.Joanna">Please hold while we connect you.</Say>
-  <Dial>
-    <Conference startConferenceOnEnter="true" endConferenceOnExit="true" waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical" beep="false">${conferenceRoom}</Conference>
-  </Dial>
-</Response>`;
+      const baseUrl = getDomain(req.headers.host as string);
 
-      console.log(`📋 [Human Agent] Generated TwiML for conference bridge:`, twimlOutput);
+      // ─────────────────────────────────────────────────────────────────────
+      // TWO-HOP RELAY PATH (UAE inbound → conference ← REST-originated relay → agent)
+      // Activated only when the wizard configured a relay number for this connection.
+      // The customer's leg is parked in a unique conference; we then originate an
+      // outbound REST call from the relay (+1) → human agent (often UAE) presenting
+      // the relay as caller ID, and that leg joins the same conference. This avoids
+      // UAE→UAE CLI rejection on UAE-terminated PSTN.
+      // ─────────────────────────────────────────────────────────────────────
+      if (relayE164) {
+        const VoiceResponse = twilio.twiml.VoiceResponse;
+        const response = new VoiceResponse();
+        const conferenceName = `human-relay-${CallSid}`;
 
-      // Send TwiML response immediately to put caller in conference
-      res.type('text/xml');
-      res.send(twimlOutput);
-
-      // Now use REST API to call the transfer number and join the conference
-      try {
-        const twilioClient = await getTwilioClient();
-        const outboundTwiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial>
-    <Conference startConferenceOnEnter="true" endConferenceOnExit="true" beep="false">${conferenceRoom}</Conference>
-  </Dial>
-</Response>`;
-
-        // Toll-free numbers (800) cannot originate outbound calls (SIP 403).
-        // Find a local/mobile number owned by the same user to use as the outbound caller ID.
-        let outboundFromNumber = To;
-        const userLocalNumbers = await db
-          .select({ phoneNumber: phoneNumbers.phoneNumber, numberType: phoneNumbers.numberType })
-          .from(phoneNumbers)
-          .where(
-            and(
-              eq(phoneNumbers.userId, phone.userId),
-              eq(phoneNumbers.status, 'active'),
-              eq(phoneNumbers.isSystemPool, false)
-            )
-          );
-
-        const localNum = userLocalNumbers.find(n => n.numberType === 'local' || n.numberType === 'mobile');
-        if (localNum) {
-          outboundFromNumber = localNum.phoneNumber;
-          console.log(`📞 [Human Agent] Using local number ${outboundFromNumber} as outbound caller ID (toll-free cannot originate calls)`);
-        } else {
-          console.log(`⚠️  [Human Agent] No local/mobile number found — using toll-free ${To} (may fail with SIP 403)`);
+        if (hc.ivrEnabled && hc.ivrGreeting) {
+          response.say({ voice: 'Polly.Joanna' }, hc.ivrGreeting);
         }
+        response.say({ voice: 'Polly.Joanna' }, 'Please hold while we connect you.');
 
-        console.log(`📞 [Human Agent] Creating outbound call to ${hc.transferNumber} from ${outboundFromNumber} via REST API`);
-        const outboundCall = await twilioClient.calls.create({
-          to: hc.transferNumber,
-          from: outboundFromNumber,
-          twiml: outboundTwiml,
-          statusCallback: statusCallbackUrl,
-          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-          statusCallbackMethod: 'POST',
-          timeout: 30,
+        const dialStatusUrl = `${baseUrl}/api/webhooks/twilio/human-dial-status`;
+        const dialActionUrl = `${baseUrl}/api/webhooks/twilio/human-dial-action`;
+        const customerDial = response.dial({
+          timeout: 60,
+          answerOnBridge: true,
+          action: dialActionUrl,
+          method: 'POST',
         });
-        console.log(`✅ [Human Agent] Outbound call created: ${outboundCall.sid}, status: ${outboundCall.status}`);
-      } catch (callError: any) {
-        console.error(`❌ [Human Agent] Failed to create outbound call:`, callError.message);
-        console.error(`❌ [Human Agent] Error code: ${callError.code}, status: ${callError.status}`);
-        console.error(`❌ [Human Agent] Full error:`, JSON.stringify(callError, null, 2));
+        customerDial.conference(
+          {
+            startConferenceOnEnter: true,
+            endConferenceOnExit: true,
+            beep: 'false',
+            statusCallback: dialStatusUrl,
+            statusCallbackMethod: 'POST',
+            statusCallbackEvent: ['start', 'end', 'join', 'leave'],
+            waitUrl: '',
+          },
+          conferenceName,
+        );
+
+        // Kick off the first hop2 attempt asynchronously. The helper handles
+        // multi-relay fallback: on origination error it walks down the
+        // remaining relay list before giving up, and on in-flight terminal
+        // failure (`busy`/`failed`/`no-answer`/`canceled`) the status-callback
+        // handler picks up where we left off and tries the next relay before
+        // tearing down the parked customer leg.
+        void originateRelayHop2({
+          baseUrl,
+          parentCallSid: CallSid,
+          conferenceName,
+          transferTo,
+          relayE164List,
+          attempt: 1,
+          userId: hc.userId,
+          connectionId: hc.id,
+        });
+
+        console.log(
+          `[Transfer] engine=human-agent-relay-hop1 callSid=${CallSid} target=conference:${conferenceName} relay=${relayE164} finalTarget=${transferTo} inboundDid=${phone.phoneNumber} relayCandidates=${relayE164List.length}`
+        );
+
+        res.type('text/xml');
+        return res.send(response.toString());
       }
-      return;
+
+      const callerIdForBridge = resolveHumanAgentBridgeCallerId({
+        wizardOutboundPhoneE164: outboundWizardCli,
+        inboundDid: phone.phoneNumber,
+      });
+      const VoiceResponse = twilio.twiml.VoiceResponse;
+      const response = new VoiceResponse();
+
+      const dialStatusUrl = `${baseUrl}/api/webhooks/twilio/human-dial-status`;
+      const dialActionUrl = `${baseUrl}/api/webhooks/twilio/human-dial-action`;
+
+      if (hc.ivrEnabled && hc.ivrGreeting) {
+        response.say({ voice: 'Polly.Joanna' }, hc.ivrGreeting);
+      }
+      response.say({ voice: 'Polly.Joanna' }, 'Please hold while we connect you.');
+
+      const dial = response.dial({
+        ...(callerIdForBridge ? { callerId: callerIdForBridge } : {}),
+        timeout: 45,
+        answerOnBridge: true,
+        action: dialActionUrl,
+        method: 'POST',
+      });
+      dial.number(
+        {
+          statusCallback: dialStatusUrl,
+          statusCallbackMethod: 'POST',
+          statusCallbackEvent: 'initiated ringing answered completed',
+        },
+        transferTo
+      );
+
+      let transferSource: 'wizard' | 'env' | 'inbound' | 'omitted';
+      if (callerIdForBridge && outboundWizardCli && callerIdForBridge === outboundWizardCli) transferSource = 'wizard';
+      else if (callerIdForBridge && callerIdForBridge === process.env.TWILIO_TRANSFER_CALLER_ID?.trim().replace(/[\s\-().]/g, '')) transferSource = 'env';
+      else if (callerIdForBridge) transferSource = 'inbound';
+      else transferSource = 'omitted';
+      console.log(
+        `[Transfer] engine=human-agent-webhook callSid=${CallSid} target=${transferTo} callerId=${callerIdForBridge ?? '(omitted)'} source=${transferSource} inboundDid=${phone.phoneNumber}`
+      );
+
+      // Persist the resolved CLI + source so Call Detail can audit which
+      // caller ID we presented on this human-agent bridge. Matched by
+      // Twilio CallSid; the call row may already exist (created by an
+      // upstream lifecycle hook) or be created later — we update what's
+      // there best-effort and also push to Live Monitoring for the
+      // currently-active card.
+      try {
+        await db
+          .update(calls)
+          .set({
+            wasTransferred: true,
+            transferredTo: transferTo,
+            transferredAt: new Date(),
+            transferCallerId: callerIdForBridge ?? null,
+            transferCallerIdSource: transferSource,
+          })
+          .where(eq(calls.twilioSid, CallSid));
+      } catch (persistErr: any) {
+        console.error(`[Human Agent] Failed to persist transfer audit for ${CallSid}:`, persistErr.message);
+      }
+      liveCallRegistry.updateCallByTwilioSid(CallSid, {
+        wasTransferred: true,
+        transferredTo: transferTo,
+        transferCallerId: callerIdForBridge ?? null,
+        transferCallerIdSource: transferSource,
+      });
+      console.log(
+        `📋 [Human Agent] TwiML bridge Dial to ${transferTo} callerId=${callerIdForBridge ?? '(omitted)'} action=${dialActionUrl}`
+      );
+      res.type('text/xml');
+      return res.send(response.toString());
     }
 
     // Check for AI Agent Incoming Connection FIRST (direct agent routing takes priority)
@@ -1885,7 +2182,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     
     try {
       // Forward the Twilio POST body to ElevenLabs and relay the TwiML response
-      const formBody = new URLSearchParams(req.body as Record<string, string>).toString();
+      const formBody = encodeTwilioWebhookFormBody(req.body as Record<string, unknown>);
       const elevenLabsResponse = await fetch(elevenLabsUrl, {
         method: 'POST',
         headers: { 
@@ -1992,33 +2289,342 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
   }
 }
 
+/**
+ * Originate hop2 (relay → human agent) for the two-hop relay path.
+ *
+ * Walks the ordered relay-candidate list and tries each one until origination
+ * succeeds. On origination errors (network/Twilio reject) it immediately tries
+ * the next relay synchronously. The status callback URL encodes the parent
+ * inbound CallSid plus the remaining relay E.164 list (and the next attempt
+ * index) so the status-callback handler can pick up where we left off and
+ * originate the next relay on in-flight terminal failure (`busy`/`failed`/
+ * `no-answer`/`canceled`) before tearing down the parked customer leg.
+ *
+ * Persists `transferRelayPhoneNumber` (and the rest of the transfer audit
+ * fields) using whichever relay actually succeeded — so call history reflects
+ * the relay that answered, not the originally-preferred one.
+ */
+export async function originateRelayHop2(opts: {
+  baseUrl: string;
+  parentCallSid: string;
+  conferenceName: string;
+  transferTo: string;
+  /** Ordered list of remaining relay candidates (E.164). Index 0 is tried now; 1+ are encoded for the status-callback fallback. */
+  relayE164List: string[];
+  attempt: number;
+  userId?: string | null;
+  connectionId?: string | null;
+}): Promise<void> {
+  const { baseUrl, parentCallSid, conferenceName, transferTo, relayE164List, attempt, userId, connectionId } = opts;
+  if (relayE164List.length === 0) {
+    // Nothing left to try — end the parked parent leg.
+    await endParkedParentLeg(parentCallSid, 'hop2-create-failed', {
+      callSid: parentCallSid,
+      userId,
+      connectionId,
+      target: transferTo,
+      relay: null,
+    });
+    return;
+  }
+
+  const VoiceResponse = twilio.twiml.VoiceResponse;
+  const relayJoinTwiml = new VoiceResponse();
+  const relayDial = relayJoinTwiml.dial({ answerOnBridge: true });
+  relayDial.conference(
+    {
+      startConferenceOnEnter: true,
+      endConferenceOnExit: true,
+      beep: 'false',
+      waitUrl: '',
+    },
+    conferenceName,
+  );
+
+  let attemptIdx = attempt;
+  let remaining = [...relayE164List];
+
+  while (remaining.length > 0) {
+    const relayE164 = remaining[0];
+    const nextRemaining = remaining.slice(1);
+    let client: Awaited<ReturnType<typeof getTwilioClient>> | undefined;
+    try {
+      const { getTwilioClient } = await import('../services/twilio-connector');
+      client = await getTwilioClient();
+
+      const params = new URLSearchParams({
+        parentCallSid,
+        conference: conferenceName,
+        attempt: String(attemptIdx),
+        target: transferTo,
+      });
+      if (userId) params.set('userId', userId);
+      if (connectionId) params.set('connId', connectionId);
+      if (nextRemaining.length > 0) params.set('remainingRelays', nextRemaining.join(','));
+      const agentLegStatusUrl = `${baseUrl}/api/webhooks/twilio/human-dial-status?${params.toString()}`;
+
+      const created = await client.calls.create({
+        from: relayE164,
+        to: transferTo,
+        twiml: relayJoinTwiml.toString(),
+        timeout: 45,
+        statusCallback: agentLegStatusUrl,
+        statusCallbackMethod: 'POST',
+        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+      });
+      console.log(
+        `[Transfer] engine=human-agent-relay-hop2 attempt=${attemptIdx} callSid=${parentCallSid} relayCallSid=${created.sid} target=${transferTo} callerId=${relayE164} source=relay conference=${conferenceName} fallbacksRemaining=${nextRemaining.length}`
+      );
+
+      // Persist audit only after hop2 origination succeeds. The audit reflects
+      // whichever relay is currently in flight; if this leg later fails with
+      // busy/no-answer/etc and a fallback relay is tried, the audit is updated
+      // again from the status-callback handler.
+      try {
+        await db
+          .update(calls)
+          .set({
+            wasTransferred: true,
+            transferredTo: transferTo,
+            transferredAt: new Date(),
+            transferCallerId: relayE164,
+            transferCallerIdSource: 'relay',
+            transferRelayPhoneNumber: relayE164,
+          })
+          .where(eq(calls.twilioSid, parentCallSid));
+      } catch (persistErr: any) {
+        console.error(`[Human Agent Relay] Failed to persist transfer audit for ${parentCallSid}: ${persistErr.message}`);
+      }
+      liveCallRegistry.updateCallByTwilioSid(parentCallSid, {
+        wasTransferred: true,
+        transferredTo: transferTo,
+        transferCallerId: relayE164,
+        transferCallerIdSource: 'relay',
+        transferRelayPhoneNumber: relayE164,
+      });
+      return;
+    } catch (err: any) {
+      console.error(
+        `❌ [Human Agent Relay] hop2 attempt ${attemptIdx} failed to originate from ${relayE164} → ${transferTo} (callSid=${parentCallSid}): ${err?.message || err}`
+      );
+      console.log(
+        `[Transfer] engine=human-agent-relay-hop2-fallback attempt=${attemptIdx} callSid=${parentCallSid} reason=hop2-create-failed failedRelay=${relayE164} fallbacksRemaining=${nextRemaining.length}`
+      );
+      // Try the next relay synchronously, if any. If exhausted, fall through to cleanup.
+      remaining = nextRemaining;
+      attemptIdx += 1;
+    }
+  }
+
+  // All relay candidates exhausted — end the parked parent leg.
+  await endParkedParentLeg(parentCallSid, 'hop2-create-failed', {
+    callSid: parentCallSid,
+    userId,
+    connectionId,
+    target: transferTo,
+    relay: relayE164List[relayE164List.length - 1] ?? null,
+  });
+}
+
+async function endParkedParentLeg(
+  parentCallSid: string,
+  reason: 'hop2-create-failed' | 'hop2-busy' | 'hop2-failed' | 'hop2-no-answer' | 'hop2-canceled',
+  cleanupEvent: {
+    callSid: string;
+    userId?: string | null;
+    connectionId?: string | null;
+    target?: string | null;
+    relay?: string | null;
+  },
+): Promise<void> {
+  try {
+    const { getTwilioClient } = await import('../services/twilio-connector');
+    const client = await getTwilioClient();
+    await client.calls(parentCallSid).update({ status: 'completed' });
+    console.log(
+      `[Transfer] engine=human-agent-relay-cleanup callSid=${parentCallSid} action=hangup-parent reason=${reason}`
+    );
+    void recordRelayCleanup({
+      callSid: cleanupEvent.callSid,
+      userId: cleanupEvent.userId ?? undefined,
+      connectionId: cleanupEvent.connectionId ?? undefined,
+      target: cleanupEvent.target ?? undefined,
+      relay: cleanupEvent.relay ?? undefined,
+      reason,
+    });
+  } catch (cleanupErr: any) {
+    // If parent already completed, Twilio returns 21220 — safe to ignore.
+    const code = cleanupErr?.code;
+    if (code !== 21220) {
+      console.error(
+        `❌ [Human Agent Relay] Failed to hangup parent ${parentCallSid} after ${reason}: ${cleanupErr?.message || cleanupErr}`
+      );
+    }
+  }
+}
+
 export async function handleHumanDialStatusWebhook(req: Request, res: Response) {
   try {
-    const { DialCallStatus, DialCallSid, DialCallDuration, CallSid, To, From, DialBridged } = req.body;
-    console.log(`📞 [Human Dial Status] Dial result received:`);
-    console.log(`   CallSid: ${CallSid}`);
-    console.log(`   DialCallSid: ${DialCallSid}`);
-    console.log(`   DialCallStatus: ${DialCallStatus}`);
-    console.log(`   DialCallDuration: ${DialCallDuration}`);
-    console.log(`   DialBridged: ${DialBridged}`);
+    // REST calls.create status callbacks use CallStatus; <Dial> child callbacks use DialCallStatus.
+    const callStatus = (req.body.CallStatus || req.body.DialCallStatus) as string | undefined;
+    const { CallSid, To, From } = req.body;
+    // Two-hop relay: when hop2 (relay→agent) is originated via REST, we attach
+    // ?parentCallSid=<inbound>&conference=<name> so terminal failure on the agent
+    // leg can deterministically end the parked customer leg. The `remainingRelays`
+    // and `attempt` query params drive multi-relay fallback.
+    const parentCallSid = (req.query.parentCallSid as string | undefined) || undefined;
+    const conferenceName = (req.query.conference as string | undefined) || undefined;
+    const remainingRelaysParam = (req.query.remainingRelays as string | undefined) || '';
+    const attemptParam = parseInt((req.query.attempt as string | undefined) || '1', 10);
+    const targetParam = (req.query.target as string | undefined) || undefined;
+    const userIdParam = (req.query.userId as string | undefined) || undefined;
+    const connIdParam = (req.query.connId as string | undefined) || undefined;
+    const remainingRelays = remainingRelaysParam
+      ? remainingRelaysParam.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    console.log(
+      `📞 [Human Dial Status] status=${callStatus} CallSid=${CallSid} From=${From} To=${To}` +
+        (parentCallSid
+          ? ` parentCallSid=${parentCallSid} conference=${conferenceName} attempt=${attemptParam} fallbacksRemaining=${remainingRelays.length}`
+          : '')
+    );
     console.log(`   Full body:`, JSON.stringify(req.body));
 
-    const VoiceResponse = twilio.twiml.VoiceResponse;
-    const response = new VoiceResponse();
+    // Two-hop relay: persist the agent leg disposition on the parent call so
+    // operators can see "Answered" / "Missed" in call history & live monitoring
+    // without grepping logs. We update on first signal of `in-progress` (agent
+    // picked up) and on terminal failure states (busy / no-answer / failed /
+    // canceled). Only failure states overwrite a non-null value when a fallback
+    // relay is later attempted, the next one's signals will overwrite again.
+    if (parentCallSid && callStatus) {
+      let agentStatus: 'answered' | 'busy' | 'no-answer' | 'failed' | 'canceled' | null = null;
+      if (callStatus === 'in-progress' || callStatus === 'completed' || callStatus === 'answered') {
+        agentStatus = 'answered';
+      } else if (callStatus === 'busy' || callStatus === 'no-answer' || callStatus === 'failed' || callStatus === 'canceled') {
+        agentStatus = callStatus;
+      }
+      if (agentStatus) {
+        try {
+          await db
+            .update(calls)
+            .set({ transferAgentStatus: agentStatus })
+            .where(eq(calls.twilioSid, parentCallSid));
+        } catch (persistErr: any) {
+          console.error(`[Human Agent Relay] Failed to persist transferAgentStatus for ${parentCallSid}: ${persistErr?.message || persistErr}`);
+        }
+        liveCallRegistry.updateCallByTwilioSid(parentCallSid, { transferAgentStatus: agentStatus });
+      }
+    }
 
-    if (DialCallStatus === 'completed') {
-      response.hangup();
+    // Acknowledge only — do not return TwiML that hangs up the outbound leg on intermediate states
+    // (DialCallStatus is often undefined here, which previously caused immediate hangup while still ringing).
+    if (callStatus && ['busy', 'failed', 'no-answer', 'canceled'].includes(callStatus)) {
+      console.warn(`⚠️ [Human Dial Status] Outbound leg ended without answer: ${callStatus}`);
+
+      // Two-hop relay: agent leg failed. If we still have backup relays, try
+      // the next one before tearing down the parked parent. Otherwise clean up.
+      if (parentCallSid) {
+        const reason = `hop2-${callStatus}` as
+          | 'hop2-busy'
+          | 'hop2-failed'
+          | 'hop2-no-answer'
+          | 'hop2-canceled';
+
+        if (remainingRelays.length > 0 && targetParam) {
+          // Use the inbound host as the base URL for the next status-callback URL.
+          const baseUrl = getDomain(req.headers.host as string);
+          const failedRelay = (From as string | undefined) || undefined;
+          console.log(
+            `[Transfer] engine=human-agent-relay-hop2-fallback attempt=${attemptParam} callSid=${parentCallSid} reason=${reason} failedRelay=${failedRelay ?? 'unknown'} fallbacksRemaining=${remainingRelays.length}`
+          );
+          // Fire-and-forget: don't block the status-callback ack.
+          void originateRelayHop2({
+            baseUrl,
+            parentCallSid,
+            conferenceName: conferenceName || `human-relay-${parentCallSid}`,
+            transferTo: targetParam,
+            relayE164List: remainingRelays,
+            attempt: attemptParam + 1,
+            userId: userIdParam,
+            connectionId: connIdParam,
+          });
+        } else {
+          // No fallbacks left — end the parked parent so the customer is not
+          // stranded in an empty conference.
+          await endParkedParentLeg(parentCallSid, reason, {
+            callSid: parentCallSid,
+            userId: userIdParam,
+            connectionId: connIdParam,
+            target: targetParam,
+            relay: (From as string | undefined) || undefined,
+          });
+        }
+      }
+    }
+
+    return res.status(200).type('text/plain').send('');
+  } catch (error) {
+    console.error(`❌ [Human Dial Status] Error:`, error);
+    return res.status(200).type('text/plain').send('');
+  }
+}
+
+/**
+ * Twilio invokes this when &lt;Dial&gt; finishes (action URL). Returns TwiML to continue or end the caller leg.
+ * Without an action URL, Twilio ends the call when the dialed leg ends; this handler logs outcomes and
+ * plays a message when the agent leg fails (busy / no-answer / failed).
+ */
+export async function handleHumanDialActionWebhook(req: Request, res: Response) {
+  try {
+    const dialStatus = req.body.DialCallStatus as string | undefined;
+    const dialBridged = req.body.DialBridged as string | undefined;
+    const parentCallSid = req.body.CallSid as string | undefined;
+    console.log(
+      `[Human Dial Action] DialCallStatus=${dialStatus} DialBridged=${dialBridged} CallSid=${parentCallSid} To=${req.body.To}`
+    );
+    console.log(`   Full body:`, JSON.stringify(req.body));
+
+    // Persist the agent leg disposition for the legacy single-leg <Dial>
+    // bridge so call history & live monitoring can show "Answered" / "Missed".
+    if (parentCallSid && dialStatus) {
+      let agentStatus: 'answered' | 'busy' | 'no-answer' | 'failed' | 'canceled' | null = null;
+      if (dialStatus === 'completed' || dialStatus === 'answered') {
+        agentStatus = 'answered';
+      } else if (dialStatus === 'busy' || dialStatus === 'no-answer' || dialStatus === 'failed' || dialStatus === 'canceled') {
+        agentStatus = dialStatus;
+      }
+      if (agentStatus) {
+        try {
+          await db
+            .update(calls)
+            .set({ transferAgentStatus: agentStatus })
+            .where(eq(calls.twilioSid, parentCallSid));
+        } catch (persistErr: any) {
+          console.error(`[Human Dial Action] Failed to persist transferAgentStatus for ${parentCallSid}: ${persistErr?.message || persistErr}`);
+        }
+        liveCallRegistry.updateCallByTwilioSid(parentCallSid, { transferAgentStatus: agentStatus });
+      }
+    }
+
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+
+    if (dialStatus && ['busy', 'no-answer', 'failed', 'canceled'].includes(dialStatus)) {
+      twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, we could not connect you to an agent. Please try again later.');
+      twiml.hangup();
     } else {
-      response.say('The person you are trying to reach is not available. Please try again later.');
-      response.hangup();
+      twiml.hangup();
     }
 
     res.type('text/xml');
-    return res.send(response.toString());
+    return res.send(twiml.toString());
   } catch (error) {
-    console.error(`❌ [Human Dial Status] Error:`, error);
+    console.error(`❌ [Human Dial Action] Error:`, error);
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+    twiml.hangup();
     res.type('text/xml');
-    return res.send('<Response><Hangup/></Response>');
+    return res.send(twiml.toString());
   }
 }
 
@@ -2028,7 +2634,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
     console.log(`   Query params:`, req.query);
     console.log(`   Body:`, req.body);
     
-    const { callId } = req.query;
+    const { callId: callIdQuery } = req.query;
     const { 
       CallStatus, 
       CallDuration, 
@@ -2041,9 +2647,37 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
       CallerName
     } = req.body;
     
+    let callId = typeof callIdQuery === 'string' ? callIdQuery : undefined;
+
     if (!callId) {
-      console.error(`❌ [Status Webhook] Missing call ID`);
-      return res.status(400).send('Missing call ID');
+      // Phone-number StatusCallback is often configured without ?callId=…
+      // (Twilio Console / startup sync). Acknowledge so Twilio does not retry
+      // with error 15003; try to resolve the call by CallSid when present.
+      if (CallSid) {
+        try {
+          const [bySid] = await db
+            .select({ id: calls.id })
+            .from(calls)
+            .where(eq(calls.twilioSid, CallSid))
+            .limit(1);
+          if (bySid?.id) {
+            callId = bySid.id;
+          } else {
+            console.warn(`⚠️  [Status Webhook] No callId query and no calls row for CallSid=${CallSid}; acknowledging`);
+            return res.status(200).send('OK');
+          }
+        } catch (lookupErr: any) {
+          console.warn(`⚠️  [Status Webhook] CallSid lookup failed: ${lookupErr?.message || lookupErr}`);
+          return res.status(200).send('OK');
+        }
+      } else {
+        console.warn(`⚠️  [Status Webhook] Missing callId and CallSid; acknowledging`);
+        return res.status(200).send('OK');
+      }
+    }
+
+    if (!callId) {
+      return res.status(200).send('OK');
     }
 
     const statusMap: Record<string, string> = {
@@ -2707,20 +3341,21 @@ async function getAllWebhookSecrets(): Promise<string[]> {
       }
     }
     
-    // Add global fallback secret
+    // Add global fallback secret(s) — accept both dev and prod webhook secrets
+    // so signatures from either environment's ElevenLabs webhook verify successfully.
     const dbSecretSetting = await storage.getGlobalSetting('elevenlabs_hmac_secret');
-    const globalSecret = (dbSecretSetting?.value as string) || process.env.ELEVENLABS_WEBHOOK_SECRET;
-    if (globalSecret) {
-      secrets.add(globalSecret);
-    }
+    const dbSecret = dbSecretSetting?.value as string | undefined;
+    if (dbSecret) secrets.add(dbSecret);
+    if (process.env.ELEVENLABS_WEBHOOK_SECRET) secrets.add(process.env.ELEVENLABS_WEBHOOK_SECRET);
+    if (process.env.ELEVENLABS_WEBHOOK_SECRET_PROD) secrets.add(process.env.ELEVENLABS_WEBHOOK_SECRET_PROD);
   } catch (err: any) {
     console.warn(`   ⚠️ Error fetching credential secrets: ${err.message}`);
-    // Try global fallback
+    // Try global fallback (both dev and prod)
     const dbSecretSetting = await storage.getGlobalSetting('elevenlabs_hmac_secret');
-    const globalSecret = (dbSecretSetting?.value as string) || process.env.ELEVENLABS_WEBHOOK_SECRET;
-    if (globalSecret) {
-      secrets.add(globalSecret);
-    }
+    const dbSecret = dbSecretSetting?.value as string | undefined;
+    if (dbSecret) secrets.add(dbSecret);
+    if (process.env.ELEVENLABS_WEBHOOK_SECRET) secrets.add(process.env.ELEVENLABS_WEBHOOK_SECRET);
+    if (process.env.ELEVENLABS_WEBHOOK_SECRET_PROD) secrets.add(process.env.ELEVENLABS_WEBHOOK_SECRET_PROD);
   }
   
   return Array.from(secrets);
@@ -3261,6 +3896,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                   transcript: syncedData.transcript,
                   aiSummary: syncedData.aiSummary,
                   classification: syncedData.classification,
+                  sentiment: syncedData.sentiment,
                   recordingUrl: syncedData.recordingUrl,
                   endedAt: new Date(),
                   metadata: {
@@ -3421,6 +4057,7 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
                 transcript: syncedData.transcript,
                 aiSummary: syncedData.aiSummary,
                 classification: syncedData.classification,
+                sentiment: syncedData.sentiment,
                 recordingUrl: syncedData.recordingUrl,
                 endedAt: new Date(),
                 metadata: {
@@ -3491,6 +4128,9 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
       }
       if (syncedData.classification && !callRecord.classification) {
         updates.classification = syncedData.classification;
+      }
+      if (syncedData.sentiment && !callRecord.sentiment) {
+        updates.sentiment = syncedData.sentiment;
       }
       if (syncedData.recordingUrl && !callRecord.recordingUrl) {
         updates.recordingUrl = syncedData.recordingUrl;
@@ -4345,6 +4985,26 @@ export async function handleAppointmentToolWebhook(req: Request, res: Response) 
     console.log(`📅 [Appointment Webhook] Created appointment ${appointmentId}`);
     console.log(`   Contact: ${finalContactName} (${finalContactPhone})`);
     console.log(`   Date/Time: ${finalDate} at ${finalTime}`);
+
+    // Best-effort: create calendar event for connected providers.
+    try {
+      await createCalendarEventForAppointment({
+        userId,
+        appointment: {
+          id: appointmentId,
+          contactName: finalContactName,
+          contactPhone: finalContactPhone,
+          contactEmail: contactEmail || null,
+          appointmentDate: finalDate,
+          appointmentTime: finalTime,
+          duration: duration || 30,
+          serviceName: serviceName || null,
+          notes: notes || null,
+        },
+      });
+    } catch (calendarError: any) {
+      console.error(`📅 [Appointment Webhook] Calendar sync failed:`, calendarError.message);
+    }
     
     // Trigger appointment.booked webhook event
     try {

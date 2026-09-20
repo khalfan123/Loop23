@@ -35,6 +35,16 @@ router.get("/billing/overview", async (_req: Request, res: Response) => {
   }
 });
 
+// Compatibility aliases (Admin CP calls /billing/* paths)
+router.get("/billing/plans", async (_req: Request, res: Response) => {
+  try {
+    const allPlans = await storage.getAllPlans();
+    res.json(allPlans);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to fetch plans" });
+  }
+});
+
 router.get("/plans", async (_req: Request, res: Response) => {
   try {
     const allPlans = await storage.getAllPlans();
@@ -118,6 +128,16 @@ router.post("/plans/:id/duplicate", async (req: Request, res: Response) => {
     res.status(201).json(newPlan);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to duplicate plan" });
+  }
+});
+
+// Compatibility alias (Admin CP calls /billing/* paths)
+router.get("/billing/credit-packages", async (_req: Request, res: Response) => {
+  try {
+    const packages = await storage.getAllCreditPackages();
+    res.json(packages);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to fetch credit packages" });
   }
 });
 

@@ -19,6 +19,11 @@
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import crypto from "crypto";
+import {
+  PLATFORM_WEBHOOK_EVENTS,
+  WEBHOOK_PAYLOAD_SCHEMA_FOR_PROMPT,
+  isValidPlatformWebhookEvent,
+} from "../constants/platform-webhook-events";
 
 export function createUserWebhookRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -46,6 +51,10 @@ export function createUserWebhookRoutes(ctx: RouteContext): Router {
   router.post("/api/webhooks", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { name, url, events, campaignIds, authType, authCredentials, description } = req.body;
+      
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'webhook-create-pre',hypothesisId:'A',location:'server/routes/user-webhook-routes.ts:48',message:'Create webhook request received',data:{userIdPresent:!!req.userId,namePresent:!!name,urlPresent:!!url,eventsType:Array.isArray(events)?'array':typeof events,eventsLen:Array.isArray(events)?events.length:null,campaignIdsType:Array.isArray(campaignIds)?'array':typeof campaignIds,campaignIdsLen:Array.isArray(campaignIds)?campaignIds.length:null,campaignIdsSample:Array.isArray(campaignIds)?campaignIds.slice(0,3):null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
       if (!name || !url || !events || !Array.isArray(events) || events.length === 0) {
         return res.status(400).json({ error: "Name, URL, and at least one event are required" });
@@ -75,31 +84,21 @@ export function createUserWebhookRoutes(ctx: RouteContext): Router {
         for (const campaignId of campaignIds) {
           const campaign = await storage.getCampaign(campaignId);
           if (!campaign || campaign.userId !== req.userId) {
+            // #region agent log
+            fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'webhook-create-pre',hypothesisId:'B',location:'server/routes/user-webhook-routes.ts:78',message:'Webhook campaign validation failed',data:{campaignId:String(campaignId),campaignFound:!!campaign,campaignUserMatches:campaign?campaign.userId===req.userId:false},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             return res.status(404).json({ error: `Campaign ${campaignId} not found` });
           }
         }
       }
 
-      // Validate events
-      const validEvents = [
-        // Campaign events
-        'campaign.started', 'campaign.paused', 'campaign.resumed', 'campaign.completed', 'campaign.failed', 'campaign.cancelled',
-        // Call events (outbound)
-        'call.started', 'call.ringing', 'call.answered', 'call.completed', 'call.failed', 'call.transferred', 'call.no_answer', 'call.busy', 'call.voicemail',
-        // Call events (inbound)
-        'inbound_call.received', 'inbound_call.answered', 'inbound_call.completed', 'inbound_call.missed',
-        // Flow events
-        'flow.started', 'flow.completed', 'flow.failed',
-        // Appointment events
-        'appointment.booked', 'appointment.confirmed', 'appointment.cancelled', 'appointment.rescheduled', 'appointment.completed', 'appointment.no_show',
-        // Form events
-        'form.submitted', 'form.lead_created'
-      ];
-      
-      const invalidEvents = events.filter((e: string) => !validEvents.includes(e));
+      const invalidEvents = events.filter((e: string) => !isValidPlatformWebhookEvent(e));
       if (invalidEvents.length > 0) {
-        return res.status(400).json({ 
-          error: `Invalid events: ${invalidEvents.join(', ')}. Valid events: ${validEvents.join(', ')}`
+        // #region agent log
+        fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'webhook-create-pre',hypothesisId:'C',location:'server/routes/user-webhook-routes.ts:101',message:'Webhook invalid events rejected',data:{invalidEvents:invalidEvents.slice(0,10),totalInvalid:invalidEvents.length,totalEvents:Array.isArray(events)?events.length:null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        return res.status(400).json({
+          error: `Invalid events: ${invalidEvents.join(", ")}. See GET /api/webhooks/event-catalog`,
         });
       }
 
@@ -119,11 +118,34 @@ export function createUserWebhookRoutes(ctx: RouteContext): Router {
         authCredentials: authCredentials || null,
         isActive: true,
       });
+      
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'webhook-create-pre',hypothesisId:'D',location:'server/routes/user-webhook-routes.ts:123',message:'Webhook created',data:{webhookId:(webhook as any)?.id || null,campaignIdsNull:(webhook as any)?.campaignIds===null,eventsLen:Array.isArray((webhook as any)?.events)?(webhook as any).events.length:null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
       res.json(webhook);
     } catch (error: any) {
       console.error("Create webhook error:", error);
       res.status(500).json({ error: "Failed to create webhook" });
+    }
+  });
+
+  /** Public catalog for UI + n8n: event names and payload documentation */
+  router.get("/api/webhooks/event-catalog", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+      res.json({
+        events: [...PLATFORM_WEBHOOK_EVENTS],
+        payloadDocumentation: WEBHOOK_PAYLOAD_SCHEMA_FOR_PROMPT,
+        hmac: {
+          header: "X-Webhook-Signature",
+          format: "sha256=<hex digest of raw JSON body>",
+          algorithm: "HMAC-SHA256 with your webhook secret",
+        },
+      });
+    } catch (error: any) {
+      console.error("Event catalog error:", error);
+      res.status(500).json({ error: "Failed to load event catalog" });
     }
   });
 
@@ -167,7 +189,16 @@ export function createUserWebhookRoutes(ctx: RouteContext): Router {
       if (name !== undefined) updates.name = name;
       if (description !== undefined) updates.description = description;
       if (url !== undefined) updates.url = url;
-      if (events !== undefined) updates.events = events;
+      if (events !== undefined) {
+        if (!Array.isArray(events) || events.length === 0) {
+          return res.status(400).json({ error: "events must be a non-empty array" });
+        }
+        const bad = (events as string[]).filter((e) => !isValidPlatformWebhookEvent(e));
+        if (bad.length > 0) {
+          return res.status(400).json({ error: `Invalid events: ${bad.join(", ")}` });
+        }
+        updates.events = events;
+      }
       if (campaignIds !== undefined) updates.campaignIds = campaignIds && campaignIds.length > 0 ? campaignIds : null;
       if (authType !== undefined) updates.authType = authType;
       if (authCredentials !== undefined) updates.authCredentials = authCredentials;

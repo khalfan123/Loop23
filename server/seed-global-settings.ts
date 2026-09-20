@@ -24,23 +24,53 @@ const GLOBAL_SETTINGS_SEED_DATA = [
   // ============================================
   {
     key: "company_name",
-    value: "",
+    value: "Loop9",
     description: "Company name displayed throughout the platform",
   },
   {
     key: "company_tagline",
-    value: "AI-Powered Bulk Calling Platform",
+    value: "AI call center",
     description: "Company tagline for branding",
   },
   {
     key: "company_logo_url",
-    value: "",
-    description: "URL to company logo image",
+    value: "/images/loop9-wordmark.png",
+    description: "URL to company logo image (legacy key, kept for backwards compatibility)",
   },
   {
     key: "company_favicon_url",
-    value: "",
-    description: "URL to favicon",
+    value: "/images/loop9-icon.png",
+    description: "URL to favicon (legacy key, kept for backwards compatibility)",
+  },
+  {
+    key: "logo_url",
+    value: "/images/loop9-wordmark.png",
+    description: "Canonical logo URL served by /api/branding and /api/init",
+  },
+  {
+    key: "logo_url_light",
+    value: "/images/loop9-wordmark.png",
+    description: "Logo variant for light mode (served by /api/branding)",
+  },
+  {
+    key: "logo_url_dark",
+    value: "/images/loop9-icon.png",
+    description: "Logo variant for dark mode (served by /api/branding)",
+  },
+  {
+    key: "favicon_url",
+    value: "/images/loop9-icon.png",
+    description: "Canonical favicon URL served by /api/branding and /api/init",
+  },
+  {
+    key: "app_name",
+    value: "Loop9",
+    description: "Application name shown in the browser tab and across the UI",
+  },
+  {
+    key: "app_tagline",
+    value: "AI call center",
+    description: "Application tagline shown with branding",
   },
   {
     key: "support_email",
@@ -352,6 +382,11 @@ const GLOBAL_SETTINGS_SEED_DATA = [
     key: "campaign_batch_concurrency",
     value: 10,
     description: "Number of concurrent calls per campaign batch",
+  },
+  {
+    key: "elevenlabs_audio_isolation_on_recordings",
+    value: false,
+    description: "When true, run ElevenLabs Audio Isolation on call recordings after they are saved (extra cost/latency)",
   },
 
   // ============================================

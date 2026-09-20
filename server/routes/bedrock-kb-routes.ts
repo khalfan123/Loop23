@@ -88,7 +88,7 @@ export function registerBedrockKBRoutes(app: Router, authMiddleware?: any) {
         ...status,
         configured: bedrockKBService.isConfigured(),
         aiModel: "Claude Sonnet 4.6",
-        aiModelId: "us.anthropic.claude-sonnet-4-6",
+        aiModelId: "global.anthropic.claude-sonnet-4-6",
         fallbackModel: "Claude Opus 4.5",
         fallbackModelId: "us.anthropic.claude-opus-4-5-20251101-v1:0",
         embeddingModel: "Amazon Titan Embed Text v2",

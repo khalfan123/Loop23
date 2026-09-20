@@ -10,6 +10,9 @@ interface ThreeColumnLayoutProps {
   subPanelWidth?: "sm" | "md" | "lg";
   subPanelHeader?: React.ReactNode;
   className?: string;
+  contentClassName?: string;
+  /** Extra class on the scrollable main content padding wrapper */
+  mainClassName?: string;
 }
 
 export function ThreeColumnLayout({
@@ -18,41 +21,49 @@ export function ThreeColumnLayout({
   subPanelWidth = "md",
   subPanelHeader,
   className,
+  contentClassName,
+  mainClassName,
 }: ThreeColumnLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const subPanelWidthClass = {
-    sm: "w-60",
+    sm: "w-[208px]",
     md: "w-72",
     lg: "w-80",
   };
 
   return (
-    <div className={cn("flex w-[calc(100%+2rem)] md:w-[calc(100%+4rem)] lg:w-[calc(100%+6rem)] -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6", className)} style={{ height: 'calc(100vh - 48px)', minHeight: 'calc(100vh - 48px)' }}>
+    <div
+      className={cn(
+        "flex w-[calc(100%+2rem)] md:w-[calc(100%+4rem)] lg:w-[calc(100%+6rem)] -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6",
+        className,
+      )}
+      style={{ height: "calc(100vh - var(--l9-topbar-height))", minHeight: "calc(100vh - var(--l9-topbar-height))" }}
+    >
       {subPanel && (
         <>
           <aside
             className={cn(
-              "hidden lg:flex flex-col flex-shrink-0 glass-panel border-r border-white/40 dark:border-white/[0.06] h-full",
-              subPanelWidthClass[subPanelWidth]
+              "hidden md:flex flex-col flex-shrink-0 bg-[var(--l9-surface)] border-r border-[var(--l9-border)] h-full",
+              subPanelWidthClass[subPanelWidth],
             )}
           >
             {subPanelHeader && (
-              <div className="px-5 py-4 border-b border-black/[0.04] dark:border-white/[0.06]">
-                <h2 className="text-[15px] font-semibold text-foreground tracking-tight">
+              <div className="px-4 pt-5 pb-2">
+                <h2 className="text-[17px] font-bold tracking-[-0.02em] text-[var(--l9-text)] px-1">
                   {subPanelHeader}
                 </h2>
               </div>
             )}
-            <div className="flex-1 overflow-auto scrollbar-none px-3 py-3">
+            <div className="flex-1 overflow-auto scrollbar-none px-3 py-2">
               {subPanel}
             </div>
           </aside>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetContent side="left" className="w-72 p-0 glass-panel">
-              <SheetHeader className="px-5 py-4 border-b border-black/[0.04] dark:border-white/[0.06]">
-                <SheetTitle className="text-[15px] font-semibold text-foreground tracking-tight">
+            <SheetContent side="left" className="w-72 p-0 bg-[var(--l9-surface)]">
+              <SheetHeader className="px-5 py-4 border-b border-[var(--l9-border)]">
+                <SheetTitle className="text-[17px] font-bold tracking-tight text-[var(--l9-text)]">
                   {subPanelHeader || "Menu"}
                 </SheetTitle>
               </SheetHeader>
@@ -63,27 +74,33 @@ export function ThreeColumnLayout({
           </Sheet>
         </>
       )}
-      
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-background">
+
+      <div
+        className={cn(
+          "flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-[var(--l9-bg-page)]",
+          contentClassName,
+        )}
+      >
         {subPanel && (
-          <div className="lg:hidden flex items-center gap-2 px-4 pt-3">
+          <div className="md:hidden flex items-center gap-2 px-4 pt-3">
             <Button
               size="icon"
               variant="outline"
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
               data-testid="button-mobile-menu-toggle"
+              className="rounded-[10px] border-[var(--l9-border-control)]"
             >
               <PanelLeft className="h-4 w-4" />
             </Button>
             {subPanelHeader && (
-              <span className="text-sm font-medium text-foreground">
+              <span className="text-sm font-medium text-[var(--l9-text)]">
                 {subPanelHeader}
               </span>
             )}
           </div>
         )}
-        <div className="flex-1 overflow-auto p-6">
+        <div className={cn("flex-1 overflow-auto px-[30px] pt-[26px] pb-[34px]", mainClassName)}>
           {children}
         </div>
       </div>
@@ -103,15 +120,9 @@ export function SubPanelSection({
   className,
 }: SubPanelSectionProps) {
   return (
-    <div className={cn("mb-3", className)}>
-      {title && (
-        <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
-          {title}
-        </h3>
-      )}
-      <div>
-        {children}
-      </div>
+    <div className={cn("mb-1", className)}>
+      {title && <div className="l9-grp !pt-2">{title}</div>}
+      <div>{children}</div>
     </div>
   );
 }
@@ -139,27 +150,28 @@ export function SubPanelItem({
     <button
       onClick={onClick}
       data-testid={dataTestId}
+      data-active={isActive ? "true" : undefined}
       className={cn(
-        "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-left transition-all duration-200 hover-elevate active-elevate-2",
-        isActive 
-          ? "bg-primary/10 text-primary font-medium" 
-          : "text-muted-foreground",
-        className
+        "w-full flex items-center gap-2.5 px-[11px] py-[9px] rounded-[9px] text-[13.5px] text-left transition-colors duration-150",
+        isActive
+          ? "bg-[var(--l9-primary-tint)] text-[var(--l9-primary)] font-semibold"
+          : "text-[var(--l9-text-secondary)] hover:bg-[var(--l9-hover)]",
+        className,
       )}
     >
       {icon && (
-        <span className={cn(
-          "flex-shrink-0 w-4 h-4",
-          isActive ? "text-primary" : "text-muted-foreground/70"
-        )}>
+        <span
+          className={cn(
+            "flex-shrink-0 w-[17px] h-[17px] flex items-center justify-center",
+            isActive ? "text-[var(--l9-primary)]" : "text-[var(--l9-text-faint)]",
+          )}
+        >
           {icon}
         </span>
       )}
       <span className="flex-1 truncate">{label}</span>
       {badge && (
-        <span className="text-[12px] text-muted-foreground font-medium">
-          {badge}
-        </span>
+        <span className="text-[12px] text-[var(--l9-text-muted)] font-medium">{badge}</span>
       )}
     </button>
   );
@@ -183,7 +195,7 @@ export function ContentGrid({
   };
 
   return (
-    <div className={cn("grid gap-4", columnClass[columns], className)}>
+    <div className={cn("grid gap-[18px]", columnClass[columns], className)}>
       {children}
     </div>
   );

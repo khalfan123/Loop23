@@ -28,6 +28,22 @@ export interface LiveCall {
   sentimentScore?: number;
   sentimentAlert?: boolean;
   sentimentReason?: string | null;
+  // Transfer audit (UAE-safe caller ID resolution).
+  // Populated by AI-engine and human-agent webhook bridges when they
+  // dispatch the bridge leg, so Live Monitoring can show what CLI was
+  // presented and where it came from.
+  wasTransferred?: boolean;
+  transferredTo?: string | null;
+  transferCallerId?: string | null;
+  transferCallerIdSource?: 'wizard' | 'env' | 'inbound' | 'omitted' | 'relay' | null;
+  // Two-hop relay path: hop2 (relay → human agent) caller-ID. NULL on
+  // single-leg <Dial> calls. Useful in Live Monitoring to distinguish
+  // calls that traversed the +1 relay from direct CLI bridges.
+  transferRelayPhoneNumber?: string | null;
+  // Final disposition of the human-agent bridged leg, populated from the
+  // hop2 status callback / single-leg <Dial> action callback. NULL while
+  // ringing or for non-transferred calls.
+  transferAgentStatus?: 'answered' | 'no-answer' | 'busy' | 'failed' | 'canceled' | null;
 }
 
 export type LiveCallEvent = 
@@ -157,6 +173,23 @@ class LiveCallRegistry extends EventEmitter {
       return Array.from(this.activeCalls.values()).filter(c => c.userId === userId).length;
     }
     return this.activeCalls.size;
+  }
+
+  /**
+   * Apply partial updates to an active call identified by its Twilio CallSid
+   * (rather than the internal callId). Used by transfer dispatchers in the
+   * AI-engine bridges, which only have the Twilio SID in scope at transfer time.
+   */
+  updateCallByTwilioSid(callSid: string, updates: Partial<LiveCall>): void {
+    const entries = Array.from(this.activeCalls.entries());
+    for (let i = 0; i < entries.length; i++) {
+      const [callId, call] = entries[i];
+      if (call.twilioCallSid === callSid) {
+        this.updateCall(callId, updates);
+        return;
+      }
+    }
+    console.log(`📞 [LiveRegistry] updateCallByTwilioSid skipped - no call found for SID: ${callSid}`);
   }
 
   endCallByTwilioSid(callSid: string): void {

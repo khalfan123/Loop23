@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import VoiceSearchPicker from "@/components/VoiceSearchPicker";
+import { VoiceClonePicker } from "@/components/VoiceClonePicker";
 import VoicePreviewButton from "@/components/VoicePreviewButton";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
@@ -65,7 +66,8 @@ interface Agent {
   voiceStability: number | null;
   voiceSimilarityBoost: number | null;
   voiceSpeed: number | null;
-  voiceProvider: 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia' | null;
+  voiceProvider: string | null;
+  localCloneVoiceId?: string | null;
   telephonyProvider: string | null;
   openaiVoice: string | null;
   sourceTemplateId: string | null;
@@ -154,7 +156,9 @@ export default function AgentEditor() {
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
     telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+    voiceProvider: "elevenlabs" as "elevenlabs" | "local_clone" | "aws_polly",
     openaiVoice: "alloy",
+    localCloneVoiceId: "",
     sipPhoneNumberId: "",
     sourceTemplateId: "" as string,
     isFromTemplate: false,
@@ -256,9 +260,7 @@ export default function AgentEditor() {
         voiceTone: existingAgent.voiceTone || "professional",
         personality: existingAgent.personality || "helpful",
         systemPrompt: existingAgent.systemPrompt || "",
-        elevenLabsVoiceId: existingAgent.voiceProvider === 'cartesia' 
-          ? (existingAgent.openaiVoice || "") 
-          : (existingAgent.elevenLabsVoiceId || ""),
+        elevenLabsVoiceId: existingAgent.elevenLabsVoiceId || "",
         language: existingAgent.language || "en",
         llmModel: existingAgent.llmModel || "gpt-4o-mini",
         firstMessage: existingAgent.firstMessage || "Hello! How can I help you today?",
@@ -279,7 +281,14 @@ export default function AgentEditor() {
         voiceSimilarityBoost: existingAgent.voiceSimilarityBoost ?? 0.85,
         voiceSpeed: existingAgent.voiceSpeed ?? 1.0,
         telephonyProvider: (existingAgent.telephonyProvider as any) || "twilio",
+        voiceProvider: ((existingAgent.voiceProvider as any) || "elevenlabs") as
+          | "elevenlabs"
+          | "local_clone"
+          | "aws_polly",
         openaiVoice: existingAgent.openaiVoice || "alloy",
+        localCloneVoiceId:
+          existingAgent.localCloneVoiceId ||
+          (existingAgent.voiceProvider === "local_clone" ? existingAgent.openaiVoice || "" : ""),
         sipPhoneNumberId: "",
         sourceTemplateId: existingAgent.sourceTemplateId || "",
         isFromTemplate: existingAgent.isFromTemplate || false,
@@ -359,7 +368,11 @@ export default function AgentEditor() {
 
     if (formData.type === 'incoming') {
       const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
-      const hasValidVoice = isOpenAIVoice ? !!formData.openaiVoice : !!formData.elevenLabsVoiceId;
+      const hasValidVoice = isOpenAIVoice
+        ? !!formData.openaiVoice
+        : formData.voiceProvider === "local_clone"
+          ? !!formData.localCloneVoiceId
+          : !!formData.elevenLabsVoiceId;
       if (!hasValidVoice) {
         toast({
           title: t('agents.toast.missingFields'),
@@ -406,7 +419,11 @@ export default function AgentEditor() {
         return;
       }
       const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
-      const hasValidVoice = isOpenAIVoice ? !!formData.openaiVoice : !!formData.elevenLabsVoiceId;
+      const hasValidVoice = isOpenAIVoice
+        ? !!formData.openaiVoice
+        : formData.voiceProvider === "local_clone"
+          ? !!formData.localCloneVoiceId
+          : !!formData.elevenLabsVoiceId;
       if (!hasValidVoice) {
         toast({
           title: t('agents.toast.missingFields'),
@@ -446,6 +463,7 @@ export default function AgentEditor() {
   };
 
   const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+  const isLocalCloneVoice = !isOpenAIVoice && formData.voiceProvider === "local_clone";
 
   if (agentLoading) {
     return (
@@ -657,6 +675,22 @@ export default function AgentEditor() {
                   <Label>{t('agents.create.voiceRequired')} <span className="text-destructive">*</span></Label>
                   <InfoTooltip content={t('agents.create.voiceTooltip')} />
                 </div>
+                {!isOpenAIVoice && (
+                  <Select
+                    value={formData.voiceProvider === "local_clone" ? "local_clone" : "elevenlabs"}
+                    onValueChange={(value: "elevenlabs" | "local_clone") =>
+                      setFormData({ ...formData, voiceProvider: value })
+                    }
+                  >
+                    <SelectTrigger data-testid="select-voice-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                      <SelectItem value="local_clone">Instant Clone (local)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 {isOpenAIVoice ? (
                   <div className="flex items-center gap-2">
                     <Select
@@ -676,6 +710,18 @@ export default function AgentEditor() {
                     </Select>
                     <OpenAIVoicePreviewButton voiceId={formData.openaiVoice} />
                   </div>
+                ) : isLocalCloneVoice ? (
+                  <VoiceClonePicker
+                    value={formData.localCloneVoiceId}
+                    onChange={(voiceId) =>
+                      setFormData({
+                        ...formData,
+                        localCloneVoiceId: voiceId,
+                        openaiVoice: voiceId,
+                        voiceProvider: "local_clone",
+                      })
+                    }
+                  />
                 ) : (
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
@@ -856,7 +902,7 @@ export default function AgentEditor() {
                           </Label>
                           <Input
                             id="transfer-phone"
-                            placeholder="+1234567890"
+                            placeholder={t('agents.systemTools.transferPhonePlaceholder')}
                             value={formData.transferPhoneNumber}
                             onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
                             data-testid="input-transfer-phone"
@@ -1051,6 +1097,22 @@ export default function AgentEditor() {
                   <Label>{t('agents.create.voiceRequired')} <span className="text-destructive">*</span></Label>
                   <InfoTooltip content={t('agents.create.voiceTooltip')} />
                 </div>
+                {!isOpenAIVoice && (
+                  <Select
+                    value={formData.voiceProvider === "local_clone" ? "local_clone" : "elevenlabs"}
+                    onValueChange={(value: "elevenlabs" | "local_clone") =>
+                      setFormData({ ...formData, voiceProvider: value })
+                    }
+                  >
+                    <SelectTrigger data-testid="select-voice-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                      <SelectItem value="local_clone">Instant Clone (local)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 {isOpenAIVoice ? (
                   <div className="flex items-center gap-2">
                     <Select
@@ -1070,6 +1132,18 @@ export default function AgentEditor() {
                     </Select>
                     <OpenAIVoicePreviewButton voiceId={formData.openaiVoice} />
                   </div>
+                ) : isLocalCloneVoice ? (
+                  <VoiceClonePicker
+                    value={formData.localCloneVoiceId}
+                    onChange={(voiceId) =>
+                      setFormData({
+                        ...formData,
+                        localCloneVoiceId: voiceId,
+                        openaiVoice: voiceId,
+                        voiceProvider: "local_clone",
+                      })
+                    }
+                  />
                 ) : (
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
@@ -1250,7 +1324,7 @@ export default function AgentEditor() {
                           </Label>
                           <Input
                             id="flow-transfer-phone"
-                            placeholder="+1234567890"
+                            placeholder={t('agents.systemTools.transferPhonePlaceholder')}
                             value={formData.transferPhoneNumber}
                             onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
                             data-testid="input-flow-transfer-phone"

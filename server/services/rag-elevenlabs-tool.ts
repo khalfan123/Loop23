@@ -139,7 +139,7 @@ export async function handleAskKnowledgeToolCall(
   query: string,
   knowledgeBaseIds: string[],
   userId: string
-): Promise<{ response: string; sources: Array<{ id: string; relevance: number }> }> {
+): Promise<{ response: string; sources: Array<{ id: string; relevance: number }>; confidence?: number; topScore?: number; sourcesCount?: number; lowConfidence?: boolean; nextAction?: string }> {
   console.log(`[RAG Tool] Processing query: "${query.substring(0, 50)}..."`);
   
   if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
@@ -150,7 +150,7 @@ export async function handleAskKnowledgeToolCall(
   }
 
   try {
-    const { results, extractedAnswer } = await RAGKnowledgeService.enhancedSearch(
+    const { results, extractedAnswer, meta } = await RAGKnowledgeService.enhancedSearch(
       query,
       knowledgeBaseIds,
       userId,
@@ -171,13 +171,22 @@ export async function handleAskKnowledgeToolCall(
     }
 
     const response = extractedAnswer || RAGKnowledgeService.formatResultsForAgent(results, 1500);
+    const confidence = meta?.confidence ?? (results[0]?.score || 0);
+    const topScore = meta?.topScore ?? (results[0]?.score || 0);
+    const sourcesCount = meta?.sourcesCount ?? results.length;
+    const lowConfidence = confidence < 0.55 || topScore < 0.5;
 
     return {
       response,
       sources: results.map(r => ({
         id: r.chunk.knowledgeBaseId,
         relevance: r.score
-      }))
+      })),
+      confidence,
+      topScore,
+      sourcesCount,
+      lowConfidence,
+      nextAction: lowConfidence ? 'ask_one_clarifying_question_then_search_again' : 'answer',
     };
   } catch (error: any) {
     console.error("[RAG Tool] Enhanced search error, falling back to basic:", error.message);

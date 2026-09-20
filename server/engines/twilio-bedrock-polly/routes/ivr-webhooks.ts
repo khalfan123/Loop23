@@ -12,11 +12,137 @@ import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
 import { OpenAIPoolService } from '../../../services/openai-pool.service';
 import { TWILIO_OPENAI_CONFIG } from '../../twilio-openai/config/twilio-openai-config';
 import { liveCallRegistry } from '../../../services/live-call-registry';
-import { cartesiaTTSService } from '../../../services/cartesia-tts';
 import { ElevenLabsService } from '../../../services/elevenlabs';
+import { webhookDeliveryService } from '../../../services/webhook-delivery';
+import { normalizePhoneForStorage } from '../../../utils/phone-e164';
+import { callErrorLogger } from '../../../services/call-error-logger';
 
 function isOpenAIRealtimeAgent(agent: typeof agents.$inferSelect): boolean {
   return agent.telephonyProvider === 'twilio_openai';
+}
+
+const OPENAI_REALTIME_VOICE_IDS = new Set([
+  'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'cedar', 'marin',
+]);
+
+type IvrConnectRouting = {
+  engine: 'openai-realtime' | 'bedrock-polly';
+  ttsProvider?: 'elevenlabs' | 'cartesia' | 'aws_polly' | 'local_clone';
+  elevenLabsVoiceId?: string;
+  cartesiaVoiceId?: string;
+  localCloneVoiceId?: string;
+  voiceForCallRecord: string;
+  openaiModel: string;
+};
+
+/**
+ * Choose post-IVR engine from the agent's configured voice provider.
+ * Do not force OpenAI Realtime — that remaps ElevenLabs voices and breaks greetings.
+ */
+function resolveIvrConnectRouting(agent: typeof agents.$inferSelect): IvrConnectRouting {
+  const provider = String(agent.voiceProvider || (agent as { ttsProvider?: string }).ttsProvider || '').toLowerCase();
+  const openaiVoice = String(agent.openaiVoice || '');
+  const hasElId = !!agent.elevenLabsVoiceId;
+
+  // Explicit OpenAI Realtime agents always use the Realtime stream.
+  if (
+    isOpenAIRealtimeAgent(agent) ||
+    provider === 'openai' ||
+    provider === 'openai_realtime' ||
+    provider === 'twilio_openai'
+  ) {
+    return {
+      engine: 'openai-realtime',
+      voiceForCallRecord: openaiVoice || TWILIO_OPENAI_CONFIG.defaultVoice,
+      openaiModel: TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
+    };
+  }
+
+  if (provider === 'local_clone') {
+    const cloneId = agent.openaiVoice || undefined;
+    return {
+      engine: 'bedrock-polly',
+      ttsProvider: 'local_clone',
+      localCloneVoiceId: cloneId,
+      voiceForCallRecord: cloneId || agent.awsPollyVoiceId || 'Joanna',
+      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+    };
+  }
+
+  if (
+    provider === 'elevenlabs' ||
+    hasElId ||
+    isElevenLabsVoice(openaiVoice) ||
+    resolveElevenLabsVoiceId(openaiVoice)
+  ) {
+    const elId =
+      agent.elevenLabsVoiceId ||
+      resolveElevenLabsVoiceId(openaiVoice) ||
+      openaiVoice ||
+      undefined;
+    return {
+      engine: 'bedrock-polly',
+      ttsProvider: 'elevenlabs',
+      elevenLabsVoiceId: elId,
+      voiceForCallRecord: elId || openaiVoice || 'Joanna',
+      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+    };
+  }
+
+  if (provider === 'cartesia' || isCartesiaVoiceForIvr(openaiVoice)) {
+    const cartesiaId = openaiVoice.replace(/^cartesia_/, '') || openaiVoice;
+    return {
+      engine: 'bedrock-polly',
+      ttsProvider: 'cartesia',
+      cartesiaVoiceId: cartesiaId,
+      voiceForCallRecord: cartesiaId,
+      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+    };
+  }
+
+  // Known Realtime voice names (without Polly voice) → Realtime.
+  if (OPENAI_REALTIME_VOICE_IDS.has(openaiVoice) && !agent.awsPollyVoiceId) {
+    return {
+      engine: 'openai-realtime',
+      voiceForCallRecord: openaiVoice || TWILIO_OPENAI_CONFIG.defaultVoice,
+      openaiModel: TWILIO_OPENAI_CONFIG.openaiRealtimeModel,
+    };
+  }
+
+  const pollyVoice = safePollyVoiceId(
+    agent.awsPollyVoiceId || openaiVoice || BEDROCK_POLLY_CONFIG.defaultVoice
+  );
+  return {
+    engine: 'bedrock-polly',
+    ttsProvider: 'aws_polly',
+    voiceForCallRecord: pollyVoice,
+    openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+  };
+}
+
+function applyTtsMetadata(callMetadata: Record<string, unknown>, routing: IvrConnectRouting, agent: typeof agents.$inferSelect): void {
+  if (routing.ttsProvider === 'elevenlabs') {
+    callMetadata.ttsProvider = 'elevenlabs';
+    callMetadata.elevenLabsVoiceId = routing.elevenLabsVoiceId || agent.elevenLabsVoiceId;
+    callMetadata.elevenLabsApiKey = (agent as { elevenLabsApiKey?: string }).elevenLabsApiKey;
+    callMetadata.elevenLabsModelId = (agent as { elevenLabsModelId?: string | null }).elevenLabsModelId || undefined;
+    callMetadata.voiceStability = agent.voiceStability ?? 0.55;
+    callMetadata.voiceSimilarityBoost = agent.voiceSimilarityBoost ?? 0.85;
+    callMetadata.voiceSpeed = agent.voiceSpeed ?? 1.0;
+    callMetadata.voiceStyle = (agent as { voiceStyle?: number | null }).voiceStyle ?? 0;
+    callMetadata.voiceSpeakerBoost = (agent as { voiceSpeakerBoost?: boolean | null }).voiceSpeakerBoost ?? true;
+  } else if (routing.ttsProvider === 'cartesia') {
+    callMetadata.ttsProvider = 'cartesia';
+    callMetadata.cartesiaVoiceId = routing.cartesiaVoiceId;
+  } else if (routing.ttsProvider === 'local_clone') {
+    callMetadata.ttsProvider = 'local_clone';
+    callMetadata.localCloneVoiceId = routing.localCloneVoiceId || agent.openaiVoice || undefined;
+    callMetadata.localCloneApiKey = process.env.LOCAL_CLONE_TTS_API_KEY || undefined;
+    callMetadata.localCloneModelId = process.env.LOCAL_CLONE_TTS_MODEL || undefined;
+    callMetadata.voiceSpeed = agent.voiceSpeed ?? 1.0;
+  } else if (routing.ttsProvider === 'aws_polly') {
+    callMetadata.ttsProvider = 'aws_polly';
+  }
 }
 
 const POLLY_TO_OPENAI_VOICE_MAP: Record<string, string> = {
@@ -79,7 +205,8 @@ const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invali
 
 const NUMBER_WORDS: Record<string, string[]> = {
   en: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
-  ar: ['صفر', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'],
+  // Prefer Gulf-friendly everyday forms to improve TTS pronunciation for IVR prompts.
+  ar: ['صفر', 'واحد', 'اثنين', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'],
   es: ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'],
   fr: ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'],
   de: ['null', 'eins', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun'],
@@ -104,8 +231,16 @@ function getTemplate(lang: string) {
   return IVR_TEMPLATES[lang] || IVR_TEMPLATES['en'];
 }
 
+const ARABIC_INDIC_DIGITS = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'] as const;
+
 function getNumberWord(lang: string, digit: number): string {
   const words = NUMBER_WORDS[lang] || NUMBER_WORDS['en'];
+  // For Arabic, include both the digit and the spoken word to reduce mispronunciation.
+  if (lang === 'ar' && digit >= 0 && digit <= 9) {
+    const d = ARABIC_INDIC_DIGITS[digit] || String(digit);
+    const w = words[digit] || String(digit);
+    return `${d} (${w})`;
+  }
   return words[digit] || String(digit);
 }
 
@@ -132,6 +267,12 @@ function isElevenLabsVoice(voiceId: string): boolean {
 
 function isRawElevenLabsId(voiceId: string): boolean {
   return /^[a-zA-Z0-9]{10,30}$/.test(voiceId) && !KNOWN_POLLY_VOICES_EARLY.has(voiceId);
+}
+
+function resolveElevenLabsVoiceId(voiceId: string): string | null {
+  if (isElevenLabsVoice(voiceId)) return EL_ALIAS_TO_REAL_ID[voiceId] || null;
+  if (isRawElevenLabsId(voiceId)) return voiceId;
+  return null;
 }
 
 function isCartesiaVoiceForIvr(voiceId: string): boolean {
@@ -256,30 +397,67 @@ function sayWithPolly(voiceId: string, text: string): string {
   return `<Say voice="Polly.${escapeXml(pollyName)}"${langAttr}>${escapeXml(corrected)}</Say>`;
 }
 
-const CARTESIA_UNSUPPORTED_LANGUAGES = new Set(['ar']);
+function getIvrPollyFallbackVoice(language: string): string {
+  const lang = (language || 'en').toLowerCase();
+  if (lang === 'ar') return 'Hala';
+  if (lang === 'hi') return 'Kajal';
+  if (lang === 'zh') return 'Zhiyu';
+  if (lang === 'es') return 'Lupe';
+  if (lang === 'fr') return 'Lea';
+  if (lang === 'de') return 'Vicki';
+  if (lang === 'it') return 'Bianca';
+  if (lang === 'pt') return 'Camila';
+  return 'Joanna';
+}
 
-function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, speed: number = 0.92, language: string = 'en'): string {
-  if (isCartesiaVoiceForIvr(voiceId) && !CARTESIA_UNSUPPORTED_LANGUAGES.has(language)) {
+/**
+ * IVR audio must be immediate/reliable. ElevenLabs can add seconds of latency per prompt
+ * (and can fail transiently), so we always use Polly for IVR prompts and reserve ElevenLabs
+ * for the live agent TTS in the media stream.
+ */
+function sayOrPlay(
+  voiceId: string,
+  text: string,
+  _ivrId: string,
+  addBreakAfter: boolean = false,
+  speed: number = 0.92,
+  language: string = 'en'
+): string {
+  // Support BOTH:
+  // - Polly voices (fast/reliable) by default
+  // - ElevenLabs voices when IVR config uses el_* or a raw ElevenLabs voice id
+  const elevenVoice = resolveElevenLabsVoiceId(voiceId);
+  if (elevenVoice && process.env.ELEVENLABS_API_KEY) {
     const baseUrl = buildBaseUrl();
-    const cleanVoiceId = voiceId.startsWith('cartesia_') ? voiceId.slice(9) : voiceId;
-    const audioUrl = `${baseUrl}/api/deprock/ivr/tts-audio?voiceId=${encodeURIComponent(cleanVoiceId)}&provider=cartesia&speed=${speed}&language=${encodeURIComponent(language)}&text=${encodeURIComponent(text)}`;
-    return `<Play>${escapeXml(audioUrl)}</Play>`;
+    const q = new URLSearchParams({
+      provider: 'elevenlabs',
+      voiceId: elevenVoice,
+      text,
+      speed: String(speed || 1.0),
+      // cache-bust whenever voice/text/speed changes (so IVR updates reflect immediately)
+      v: `${elevenVoice}:${speed}:${text.length}`,
+    });
+    return `<Play>${escapeXml(`${baseUrl}/api/deprock/ivr/tts-audio?${q.toString()}`)}</Play>`;
   }
+
+  // Fallback to Polly (including mapping el_* to a language-appropriate Polly voice).
   if (isElevenLabsVoice(voiceId) || isRawElevenLabsId(voiceId)) {
-    const baseUrl = buildBaseUrl();
-    const realId = EL_ALIAS_TO_REAL_ID[voiceId] || voiceId;
-    const audioUrl = `${baseUrl}/api/deprock/ivr/tts-audio?voiceId=${encodeURIComponent(realId)}&provider=elevenlabs&speed=${speed}&text=${encodeURIComponent(text)}`;
-    return `<Play>${escapeXml(audioUrl)}</Play>`;
-  }
-  if (isCartesiaVoiceForIvr(voiceId)) {
-    const CARTESIA_LANG_POLLY_FALLBACK: Record<string, string> = { ar: 'Hala', hi: 'Kajal', zh: 'Zhiyu', es: 'Lupe', fr: 'Lea' };
-    const fallbackPolly = CARTESIA_LANG_POLLY_FALLBACK[language] || 'Joanna';
-    return sayWithPolly(fallbackPolly, text);
+    // Prefer the alias→Polly map (el_fatima→Hala) over a language-only Joanna fallback.
+    const mapped = isElevenLabsVoice(voiceId) ? EL_TO_POLLY_MAP[voiceId] : undefined;
+    const pollyVoice = mapped || getIvrPollyFallbackVoice(language);
+    return sayWithPolly(pollyVoice, text);
   }
   return sayWithPolly(safePollyVoiceId(voiceId), text);
 }
 
 function buildBaseUrl(): string {
+  // Prefer the public custom domain. Stale APP_DOMAIN values like
+  // https://loop9-production.up.railway.app can 404 and break <Play> TTS,
+  // which makes Twilio fall back to the wrong webhook / greeting.
+  const publicDomain = (process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || '').trim();
+  if (publicDomain) {
+    return publicDomain.startsWith('http') ? publicDomain : `https://${publicDomain}`;
+  }
   return getDomain();
 }
 
@@ -315,21 +493,7 @@ router.get('/tts-audio', async (req: Request, res: Response) => {
     }
 
     if (provider === 'cartesia') {
-      if (!cartesiaTTSService.isConfigured()) {
-        return res.status(500).send('Cartesia not configured');
-      }
-      const language = (req.query.language as string) || 'en';
-      const result = await cartesiaTTSService.synthesizeSpeech({
-        text,
-        voiceId,
-        language,
-        sampleRate: 24000,
-        speed: speed !== 1.0 ? speed : undefined,
-        outputContainer: 'wav',
-      });
-      res.setHeader('Content-Type', 'audio/wav');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      return res.send(result.audioStream);
+      return res.status(400).send('Cartesia Sonic has been deprecated and removed');
     } else if (provider === 'elevenlabs') {
       const apiKey = process.env.ELEVENLABS_API_KEY;
       if (!apiKey) {
@@ -342,6 +506,7 @@ router.get('/tts-audio', async (req: Request, res: Response) => {
         voiceSettings: { speed },
       });
       res.setHeader('Content-Type', 'audio/mpeg');
+      // Cache-busting is done via the `v` query param in TwiML generation.
       res.setHeader('Cache-Control', 'public, max-age=3600');
       return res.send(audioBuffer);
     }
@@ -382,6 +547,23 @@ router.post('/answer', async (req: Request, res: Response) => {
       return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>This service is not available. Goodbye.</Say><Hangup/></Response>`);
     }
 
+    if (config.userId) {
+      try {
+        await webhookDeliveryService.triggerEvent(config.userId, 'ivr.started', {
+          callSid: CallSid || null,
+          ivrId: config.id,
+          ivrName: config.name || null,
+          fromNumber: normalizePhoneForStorage(From || ''),
+          toNumber: To ? normalizePhoneForStorage(To) : null,
+          phoneNumberId: config.phoneNumberId,
+          ivrEngine: 'bedrock-polly',
+          engine: 'deprock-ivr',
+        });
+      } catch (e) {
+        logger.error(`[Deprock IVR] ivr.started webhook failed: ${(e as Error).message}`, e, 'DeprockIVR');
+      }
+    }
+
     if (attempt > 3) {
       const baseUrl = buildBaseUrl();
       res.type('text/xml');
@@ -395,29 +577,26 @@ router.post('/answer', async (req: Request, res: Response) => {
     const defaultSpeed = langOptions?.[0]?.speed ?? 0.92;
 
     const baseUrl = buildBaseUrl();
+    const greetingRaw = (config.greetingMessage || '').trim();
+    logger.info(
+      `[Deprock IVR] /answer ivrId=${ivrId} voiceId=${voiceId} multiLang=${!!isMultiLanguage} ` +
+        `greeting="${greetingRaw.substring(0, 120)}${greetingRaw.length > 120 ? '…' : ''}"`,
+      undefined,
+      'DeprockIVR'
+    );
 
     if (isMultiLanguage && langOptions) {
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
 
       const actionUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&attempt=1`;
       const langHints = langOptions.map((_, i) => String(i + 1)).join(' ') + ' 0';
-      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${langHints}" action="${escapeXml(actionUrl)}" method="POST">`;
+      // DTMF-only + no barge-in to prevent accidental auto-selection from noise/speech.
+      twiml += `<Gather input="dtmf" bargeIn="false" timeout="10" numDigits="1" hints="${langHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
-      if (config.greetingMessage) {
-        twiml += sayOrPlay(voiceId, config.greetingMessage, ivrId, false, defaultSpeed);
-      } else {
-        twiml += sayOrPlay(voiceId, getTemplate('en').greeting, ivrId, false, defaultSpeed);
-        langOptions.forEach((opt, index) => {
-          const digit = index + 1;
-          const langTemplate = getTemplate(opt.language);
-          const langVoice = opt.voiceId || voiceId;
-          const langName = LANGUAGE_NAMES[opt.language] || opt.language;
-          const isLast = index === langOptions.length - 1;
-          const langSpeed = opt.speed ?? defaultSpeed;
-          twiml += sayOrPlay(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, ivrId, !isLast, langSpeed, opt.language);
-        });
-      }
-      twiml += sayOrPlay(voiceId, getTemplate('en').repeatMsg, ivrId, false, defaultSpeed, 'en');
+      // Language selection: play EXACTLY the saved greetingMessage + greeting voice.
+      // Do not append auto-generated "For English, press 1" lines — the user owns the full script.
+      const spokenGreeting = greetingRaw || getTemplate('en').greeting;
+      twiml += sayOrPlay(voiceId, spokenGreeting, ivrId, false, defaultSpeed, 'en');
 
       twiml += `</Gather>`;
 
@@ -445,7 +624,8 @@ router.post('/answer', async (req: Request, res: Response) => {
 
       const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&lang=${encodeURIComponent(lang)}&attempt=1`;
       const menuHints = menuOptions.map(opt => opt.key).join(' ') + ' 0';
-      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${menuHints}" action="${escapeXml(actionUrl)}" method="POST">`;
+      // DTMF-only + no barge-in to prevent accidental auto-selection from noise/speech.
+      twiml += `<Gather input="dtmf" bargeIn="false" timeout="10" numDigits="1" hints="${menuHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
       menuOptions.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
@@ -534,7 +714,7 @@ router.post('/handle-language', async (req: Request, res: Response) => {
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
       twiml += sayOrPlay(voiceId, template.invalidMsg, ivrId, false, defaultSpeed, 'en');
       const retryHints = langOptions.map((_, i) => String(i + 1)).join(' ') + ' 0';
-      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${retryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
+      twiml += `<Gather input="dtmf" bargeIn="false" timeout="10" numDigits="1" hints="${retryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
       langOptions.forEach((opt, index) => {
         const digit = index + 1;
         const langTemplate = getTemplate(opt.language);
@@ -557,6 +737,24 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     const langSpeed = selectedLang.speed ?? defaultSpeed;
     const template = getTemplate(lang);
 
+    if (config.userId) {
+      try {
+        await webhookDeliveryService.triggerEvent(config.userId, 'ivr.language_selected', {
+          callSid,
+          ivrId: config.id,
+          language: lang,
+          languageOptionId: selectedLang.id,
+          fromNumber: normalizePhoneForStorage(caller || ''),
+          toNumber: req.body.To ? normalizePhoneForStorage(String(req.body.To)) : null,
+          phoneNumberId: config.phoneNumberId,
+          ivrEngine: 'bedrock-polly',
+          engine: 'deprock-ivr',
+        });
+      } catch (e) {
+        logger.error(`[Deprock IVR] ivr.language_selected webhook failed: ${(e as Error).message}`, e, 'DeprockIVR');
+      }
+    }
+
     let menuOpts = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> | null;
 
     if (selectedLang.selectedDepartments && selectedLang.selectedDepartments.length > 0 && menuOpts) {
@@ -576,7 +774,7 @@ router.post('/handle-language', async (req: Request, res: Response) => {
 
     let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
     const deptHints = menuOpts.map(opt => opt.key).join(' ') + ' 0';
-    twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${deptHints}" action="${escapeXml(actionUrl)}" method="POST">`;
+    twiml += `<Gather input="dtmf" bargeIn="false" timeout="10" numDigits="1" hints="${deptHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
     if (selectedLang.greeting) {
       twiml += sayOrPlay(langVoice, selectedLang.greeting, ivrId, false, langSpeed, lang);
@@ -680,7 +878,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
       twiml += sayOrPlay(langVoice, template.invalidMsg, ivrId, false, langSpeed, lang);
       const selRetryHints = menuOpts.map(opt => opt.key).join(' ') + ' 0';
-      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${selRetryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
+      twiml += `<Gather input="dtmf" bargeIn="false" timeout="10" numDigits="1" hints="${selRetryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
       menuOpts.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
@@ -698,12 +896,32 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
     const departmentId = selectedOption.departmentId;
     logger.info(`[Deprock IVR] Department selected: ${departmentId}`, undefined, 'DeprockIVR');
 
+    if (config.userId) {
+      try {
+        await webhookDeliveryService.triggerEvent(config.userId, 'ivr.option_selected', {
+          callSid,
+          ivrId: config.id,
+          departmentId: selectedOption.departmentId,
+          departmentLabel: selectedOption.label,
+          dtmf: String(Digits || ''),
+          language: lang,
+          fromNumber: normalizePhoneForStorage(caller || ''),
+          toNumber: To ? normalizePhoneForStorage(String(To)) : null,
+          phoneNumberId: config.phoneNumberId,
+          ivrEngine: 'bedrock-polly',
+          engine: 'deprock-ivr',
+        });
+      } catch (e) {
+        logger.error(`[Deprock IVR] ivr.option_selected webhook failed: ${(e as Error).message}`, e, 'DeprockIVR');
+      }
+    }
+
     const baseUrl = buildBaseUrl();
     const connectUrl = `${baseUrl}/api/deprock/ivr/connect-agent?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang)}&departmentId=${encodeURIComponent(departmentId)}&optionLabel=${encodeURIComponent(selectedOption.label)}`;
 
+    // Hold prompt is played in /connect-agent immediately before <Stream> (avoids double hold).
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  ${sayOrPlay(langVoice, template.holdMsg, ivrId, false, langSpeed, lang)}
   <Redirect method="POST">${escapeXml(connectUrl)}</Redirect>
 </Response>`;
 
@@ -727,7 +945,7 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
     const departmentId = req.query.departmentId as string;
     const optionLabel = req.query.optionLabel as string || '';
 
-    logger.info(`[Deprock IVR] /connect-agent - ivrId=${ivrId}, dept=${departmentId}, lang=${lang}`, undefined, 'DeprockIVR');
+    logger.info(`[Deprock IVR] /connect-agent - ivrId=${ivrId}, dept=${departmentId}, lang=${lang}, callSid=${callSid}`, undefined, 'DeprockIVR');
 
     const [config] = await db
       .select()
@@ -797,27 +1015,35 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
     }
 
     const callId = nanoid();
-    const useOpenAIRealtime = isOpenAIRealtimeAgent(agent);
+    const routing = resolveIvrConnectRouting(agent);
 
-    const agentLanguage = lang || agent.language || 'en';
-    const engineLabel = useOpenAIRealtime ? 'openai-realtime' : 'bedrock-polly';
+    // IVR-selected language is authoritative for this call.
+    const selectedLanguage = (lang || 'en').toLowerCase();
+    const englishFallbackGreeting = 'Hello, thank you for calling. How can I help you today?';
+    // Never overwrite a configured agent greeting — use canvas/agent firstMessage as-is.
+    const resolvedFirstMessage = agent.firstMessage || englishFallbackGreeting;
     const callMetadata: Record<string, unknown> = {
       ivrId: config.id,
       departmentId,
       departmentAgentId: bestAgent.departmentAgent.id,
-      language: agentLanguage,
+      language: selectedLanguage,
+      // If caller chose a language in IVR, do not auto-switch mid-call.
+      languageLocked: true,
+      languageLockMode: 'ivr',
       selectedOption: optionLabel,
-      engine: engineLabel,
+      engine: routing.engine,
       ivrRouted: true,
       systemPrompt: agent.systemPrompt,
-      firstMessage: agent.firstMessage,
+      firstMessage: resolvedFirstMessage,
       temperature: agent.temperature,
       knowledgeBaseIds: agent.knowledgeBaseIds || [],
       transferEnabled: agent.transferEnabled,
       transferPhoneNumber: agent.transferPhoneNumber,
       endConversationEnabled: agent.endConversationEnabled,
-      detectLanguageEnabled: agent.detectLanguageEnabled,
+      // Language detection can cause unwanted switching even when IVR already selected a language.
+      detectLanguageEnabled: false,
       appointmentBookingEnabled: agent.appointmentBookingEnabled,
+      voiceProvider: agent.voiceProvider || routing.ttsProvider || null,
     };
 
     if (agent.type === 'flow' && agent.flowId) {
@@ -832,7 +1058,8 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
           callMetadata.isFlowAgent = true;
           callMetadata.flowId = flow.id;
           callMetadata.systemPrompt = flow.compiledSystemPrompt;
-          callMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
+          callMetadata.firstMessage =
+            flow.compiledFirstMessage || agent.firstMessage || englishFallbackGreeting;
           callMetadata.compiledTools = flow.compiledTools;
         }
       } catch (flowErr: any) {
@@ -840,45 +1067,44 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
       }
     }
 
-    if (agent.voiceProvider === 'cartesia' || (agent as any).ttsProvider === 'cartesia') {
-      callMetadata.ttsProvider = 'cartesia';
-      callMetadata.cartesiaVoiceId = agent.openaiVoice;
-    } else if (agent.voiceProvider === 'elevenlabs' || (agent as any).ttsProvider === 'elevenlabs') {
-      callMetadata.ttsProvider = 'elevenlabs';
-      callMetadata.elevenLabsVoiceId = agent.elevenLabsVoiceId;
-      callMetadata.elevenLabsApiKey = (agent as any).elevenLabsApiKey;
-    }
-
-    const isCartesiaAgent = agent.voiceProvider === 'cartesia';
+    applyTtsMetadata(callMetadata, routing, agent);
 
     let openaiCredentialId: string | null = null;
-    let agentVoice: string;
-    let openaiModel: string;
+    let agentVoice = routing.voiceForCallRecord;
+    let openaiModel = routing.openaiModel;
 
-    if (useOpenAIRealtime) {
+    if (routing.engine === 'openai-realtime') {
+      const { OpenAIAgentFactory } = await import('../../twilio-openai/services/openai-agent-factory');
       const credential = await OpenAIPoolService.reserveSlot();
+      agentVoice = OpenAIAgentFactory.validateVoice(
+        (agent.openaiVoice as string) || TWILIO_OPENAI_CONFIG.defaultVoice
+      );
+      openaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
+      callMetadata.engine = 'openai-realtime';
       if (!credential) {
-        logger.warn(`[Deprock IVR] No OpenAI capacity available, falling back to Bedrock+Polly for call ${callSid}`, undefined, 'DeprockIVR');
-        agentVoice = isCartesiaAgent
-          ? (agent.openaiVoice || BEDROCK_POLLY_CONFIG.defaultVoice)
-          : (agent.awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice);
-        openaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
-        callMetadata.engine = 'bedrock-polly';
-        callMetadata.openaiRealtimeFallback = true;
+        logger.warn(
+          `[Deprock IVR] OpenAI pool at capacity; using env-key fallback for call ${callSid}`,
+          undefined,
+          'DeprockIVR'
+        );
+        openaiCredentialId = null;
+        callMetadata.openaiRealtimeEnvFallback = true;
       } else {
         openaiCredentialId = credential.id;
-        agentVoice = mapPollyVoiceToOpenAI(agent.awsPollyVoiceId, agent.openaiVoice);
-        openaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
-        logger.info(`[Deprock IVR] OpenAI Realtime slot reserved (credential: ${credential.id}) for agent ${agent.id}`, undefined, 'DeprockIVR');
+        logger.info(
+          `[Deprock IVR] OpenAI Realtime slot reserved (credential: ${credential.id}) for agent ${agent.id}`,
+          undefined,
+          'DeprockIVR'
+        );
       }
     } else {
-      agentVoice = isCartesiaAgent
-        ? (agent.openaiVoice || BEDROCK_POLLY_CONFIG.defaultVoice)
-        : (agent.awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice);
+      callMetadata.engine = 'bedrock-polly';
+      agentVoice = routing.voiceForCallRecord;
       openaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
     }
 
     const actualEngine = callMetadata.engine as string;
+    const firstMessageLen = String(callMetadata.firstMessage || '').length;
 
     await db.insert(twilioOpenaiCalls).values({
       id: callId,
@@ -898,7 +1124,14 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
       metadata: callMetadata,
     });
 
-    logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}, engine: ${actualEngine}, flow: ${callMetadata.isFlowAgent ? 'yes' : 'no'}, lang: ${agentLanguage}`, undefined, 'DeprockIVR');
+    logger.info(
+      `[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}, engine: ${actualEngine}, ` +
+        `voiceProvider: ${agent.voiceProvider || routing.ttsProvider || 'n/a'}, voice: ${agentVoice}, ` +
+        `tts: ${routing.ttsProvider || 'n/a'}, firstMessageLen: ${firstMessageLen}, ` +
+        `flow: ${callMetadata.isFlowAgent ? 'yes' : 'no'}, lang: ${selectedLanguage}`,
+      undefined,
+      'DeprockIVR'
+    );
 
     const recordingPromise = (async () => {
       try {
@@ -925,28 +1158,40 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
       toNumber: To || phoneRecord?.phoneNumber || '',
       agentId: agent.id,
       agentName: agent.name || undefined,
-      engine: actualEngine === 'openai-realtime' ? 'twilio-openai' : 'bedrock-polly',
+      engine: actualEngine === 'openai-realtime' ? 'twilio-openai' : 'twilio-bedrock-polly',
       startedAt: new Date(),
       answeredAt: new Date(),
     });
 
     const baseUrl = buildBaseUrl();
-    const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'wss://');
+    // Twilio <Stream> should use wss://. If the app is misconfigured to an http:// domain,
+    // we still emit a best-effort ws:// URL for local/dev debugging (Twilio will generally
+    // require TLS in production).
+    const wsUrl = baseUrl.startsWith('https://')
+      ? baseUrl.replace('https://', 'wss://')
+      : baseUrl.replace('http://', 'ws://');
 
     let streamUrl: string;
     if (actualEngine === 'openai-realtime') {
       streamUrl = `${wsUrl}/api/twilio-openai/stream/${callSid}`;
-      logger.info(`[Deprock IVR] Routing to OpenAI Realtime stream: ${streamUrl}`, undefined, 'DeprockIVR');
     } else {
       streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
     }
 
+    logger.info(
+      `[Deprock IVR] Connecting agent ${agent.id} via ${actualEngine} stream: ${streamUrl}`,
+      undefined,
+      'DeprockIVR'
+    );
+
     recordingPromise.catch(() => {});
 
+    const holdSpeed = langOption?.speed ?? 0.92;
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  ${sayOrPlay(langVoice, template.holdMsg, ivrId, false, holdSpeed, lang)}
   <Connect>
-    <Stream url="${escapeXml(streamUrl)}">
+    <Stream url="${escapeXml(streamUrl)}" statusCallback="${escapeXml(`${baseUrl}/api/deprock/ivr/stream-status?callSid=${encodeURIComponent(callSid)}&engine=${encodeURIComponent(actualEngine)}`)}" statusCallbackMethod="POST">
       <Parameter name="callId" value="${escapeXml(callId)}" />
       <Parameter name="agentId" value="${escapeXml(agent.id)}" />
     </Stream>
@@ -958,9 +1203,47 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
 
   } catch (error: any) {
     logger.error('[Deprock IVR] Error in /connect-agent', error, 'DeprockIVR');
+    try {
+      // Persist a breadcrumb so we can debug "connect then error occurred" reports.
+      await callErrorLogger.logCallError({
+        callId: (req.query.callSid as string) || (req.body?.CallSid as string) || 'unknown',
+        engineType: 'ivr',
+        errorCategory: 'ivr_connect_agent_failed',
+        severity: 'error',
+        message: error?.message || 'connect-agent failed',
+        metadata: {
+          ivrId: req.query.ivrId,
+          departmentId: req.query.departmentId,
+          lang: req.query.lang,
+        },
+      });
+    } catch {}
     res.type('text/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>An error occurred. Please try again later.</Say><Hangup/></Response>`);
   }
+});
+
+// Twilio <Stream> status callbacks: useful when Twilio can't open the WebSocket (no upgrade logs).
+router.post('/stream-status', async (req: Request, res: Response) => {
+  try {
+    const callSid = (req.query.callSid as string) || (req.body?.CallSid as string) || '';
+    const engine = (req.query.engine as string) || '';
+    // Twilio sends fields like StreamSid, StreamEvent, Timestamp, etc.
+    await callErrorLogger.logCallError({
+      engineType: 'twilio-openai',
+      errorCategory: 'stream_init',
+      severity: 'info',
+      message: 'twilio_stream_status',
+      metadata: {
+        callSid,
+        engine,
+        body: req.body ?? null,
+      },
+    });
+  } catch {
+    // ignore
+  }
+  res.sendStatus(204);
 });
 
 router.post('/fallback', async (req: Request, res: Response) => {
@@ -998,7 +1281,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
     }
 
     const voiceId = config.voiceId || 'Joanna';
-    const langOptions = config.languageOptions as Array<{ language: string; speed?: number }> | null;
+    const langOptions = config.languageOptions as Array<{ language: string; voiceId?: string; speed?: number }> | null;
     const langOpt = langOptions?.find(l => l.language === lang);
     const fallbackSpeed = langOpt?.speed ?? 0.92;
     const template = getTemplate(lang);
@@ -1038,48 +1321,65 @@ router.post('/fallback', async (req: Request, res: Response) => {
     }
 
     const callId = nanoid();
-    const useOpenAIRealtime = isOpenAIRealtimeAgent(agent);
+    const routing = resolveIvrConnectRouting(agent);
 
     let fbOpenaiCredentialId: string | null = null;
-    let fbAgentVoice: string;
-    let fbOpenaiModel: string;
-    let fbEngineLabel = useOpenAIRealtime ? 'openai-realtime' : 'bedrock-polly';
+    let fbAgentVoice = routing.voiceForCallRecord;
+    let fbOpenaiModel = routing.openaiModel;
+    let fbEngineLabel = routing.engine;
 
-    if (useOpenAIRealtime) {
+    if (routing.engine === 'openai-realtime') {
+      const { OpenAIAgentFactory } = await import('../../twilio-openai/services/openai-agent-factory');
       const credential = await OpenAIPoolService.reserveSlot();
+      fbAgentVoice = OpenAIAgentFactory.validateVoice(
+        (agent.openaiVoice as string) || TWILIO_OPENAI_CONFIG.defaultVoice
+      );
+      fbOpenaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
+      fbEngineLabel = 'openai-realtime';
       if (!credential) {
-        logger.warn(`[Deprock IVR] No OpenAI capacity for fallback, using Bedrock+Polly for call ${callSid}`, undefined, 'DeprockIVR');
-        fbAgentVoice = agent.awsPollyVoiceId || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
-        fbOpenaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
-        fbEngineLabel = 'bedrock-polly';
+        logger.warn(
+          `[Deprock IVR] OpenAI pool at capacity for fallback; using env-key fallback for call ${callSid}`,
+          undefined,
+          'DeprockIVR'
+        );
+        fbOpenaiCredentialId = null;
       } else {
         fbOpenaiCredentialId = credential.id;
-        fbAgentVoice = mapPollyVoiceToOpenAI(agent.awsPollyVoiceId, agent.openaiVoice);
-        fbOpenaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
-        logger.info(`[Deprock IVR] OpenAI Realtime slot reserved for fallback (credential: ${credential.id})`, undefined, 'DeprockIVR');
+        logger.info(
+          `[Deprock IVR] OpenAI Realtime slot reserved for fallback (credential: ${credential.id})`,
+          undefined,
+          'DeprockIVR'
+        );
       }
     } else {
-      fbAgentVoice = agent.awsPollyVoiceId || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+      fbEngineLabel = 'bedrock-polly';
+      fbAgentVoice = routing.voiceForCallRecord;
       fbOpenaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
     }
 
+    const englishFallbackGreeting = 'Hello, thank you for calling. How can I help you today?';
     const fbCallMetadata: Record<string, unknown> = {
       ivrId: config.id,
       departmentId: config.fallbackDepartmentId,
       isFallback: true,
       language: lang,
+      languageLocked: true,
+      languageLockMode: 'ivr',
       engine: fbEngineLabel,
       ivrRouted: true,
       systemPrompt: agent.systemPrompt,
-      firstMessage: agent.firstMessage,
+      firstMessage: agent.firstMessage || englishFallbackGreeting,
       temperature: agent.temperature,
       knowledgeBaseIds: agent.knowledgeBaseIds || [],
       transferEnabled: agent.transferEnabled,
       transferPhoneNumber: agent.transferPhoneNumber,
       endConversationEnabled: agent.endConversationEnabled,
-      detectLanguageEnabled: agent.detectLanguageEnabled,
+      detectLanguageEnabled: false,
       appointmentBookingEnabled: agent.appointmentBookingEnabled,
+      voiceProvider: agent.voiceProvider || routing.ttsProvider || null,
     };
+
+    applyTtsMetadata(fbCallMetadata, routing, agent);
 
     if (agent.type === 'flow' && agent.flowId) {
       try {
@@ -1092,7 +1392,8 @@ router.post('/fallback', async (req: Request, res: Response) => {
           fbCallMetadata.isFlowAgent = true;
           fbCallMetadata.flowId = flow.id;
           fbCallMetadata.systemPrompt = flow.compiledSystemPrompt;
-          fbCallMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
+          fbCallMetadata.firstMessage =
+            flow.compiledFirstMessage || agent.firstMessage || englishFallbackGreeting;
           fbCallMetadata.compiledTools = flow.compiledTools;
         }
       } catch (flowErr: any) {
@@ -1118,7 +1419,14 @@ router.post('/fallback', async (req: Request, res: Response) => {
       metadata: fbCallMetadata,
     });
 
-    logger.info(`[Deprock IVR] Fallback call record created: ${callId}, agent: ${agent.id}, engine: ${fbEngineLabel}`, undefined, 'DeprockIVR');
+    const fbFirstMessageLen = String(fbCallMetadata.firstMessage || '').length;
+    logger.info(
+      `[Deprock IVR] Fallback call record created: ${callId}, agent: ${agent.id}, engine: ${fbEngineLabel}, ` +
+        `voiceProvider: ${agent.voiceProvider || routing.ttsProvider || 'n/a'}, voice: ${fbAgentVoice}, ` +
+        `firstMessageLen: ${fbFirstMessageLen}`,
+      undefined,
+      'DeprockIVR'
+    );
 
     try {
       const twilioClient = await getTwilioClient();
@@ -1143,21 +1451,28 @@ router.post('/fallback', async (req: Request, res: Response) => {
       toNumber: phoneRecord?.phoneNumber || '',
       agentId: agent.id,
       agentName: agent.name || undefined,
-      engine: fbEngineLabel === 'openai-realtime' ? 'twilio-openai' : 'bedrock-polly',
+      engine: fbEngineLabel === 'openai-realtime' ? 'twilio-openai' : 'twilio-bedrock-polly',
       startedAt: new Date(),
       answeredAt: new Date(),
     });
 
     const baseUrl = buildBaseUrl();
-    const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'wss://');
+    const wsUrl = baseUrl.startsWith('https://')
+      ? baseUrl.replace('https://', 'wss://')
+      : baseUrl.replace('http://', 'ws://');
 
     let fbStreamUrl: string;
     if (fbEngineLabel === 'openai-realtime') {
       fbStreamUrl = `${wsUrl}/api/twilio-openai/stream/${callSid}`;
-      logger.info(`[Deprock IVR] Fallback routing to OpenAI Realtime stream`, undefined, 'DeprockIVR');
     } else {
       fbStreamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
     }
+
+    logger.info(
+      `[Deprock IVR] Fallback connecting agent ${agent.id} via ${fbEngineLabel}: ${fbStreamUrl}`,
+      undefined,
+      'DeprockIVR'
+    );
 
     const fbLangOpt = langOptions?.find(l => l.language === lang);
     const langVoice = fbLangOpt?.voiceId || voiceId;
@@ -1166,7 +1481,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
 <Response>
   ${sayOrPlay(langVoice, template.holdMsg, ivrId, false, fallbackSpeed, lang)}
   <Connect>
-    <Stream url="${escapeXml(fbStreamUrl)}">
+    <Stream url="${escapeXml(fbStreamUrl)}" statusCallback="${escapeXml(`${baseUrl}/api/deprock/ivr/stream-status?callSid=${encodeURIComponent(callSid)}&engine=${encodeURIComponent(fbEngineLabel)}`)}" statusCallbackMethod="POST">
       <Parameter name="callId" value="${escapeXml(callId)}" />
       <Parameter name="agentId" value="${escapeXml(agent.id)}" />
     </Stream>

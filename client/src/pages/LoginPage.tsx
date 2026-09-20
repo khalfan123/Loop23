@@ -71,7 +71,7 @@ const FloatingCard = ({ children, className, delay = 0 }: { children: React.Reac
 
 const CallCenterIllustration = () => (
   <div className="relative w-full h-full flex items-center justify-center overflow-hidden select-none">
-    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700" />
+    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-violet-600 to-purple-700" />
     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.3),transparent_60%)]" />
 
@@ -238,7 +238,8 @@ export default function LoginPage() {
   };
 
   const handleCheckEmail = useCallback(async (email: string) => {
-    if (!email || !z.string().email().safeParse(email).success) {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !z.string().email().safeParse(normalized).success) {
       setEmailChecked(false);
       setEmailExists(null);
       setShowPasswordField(false);
@@ -250,12 +251,13 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalized }),
       });
       const result = await response.json();
       setEmailChecked(true);
       setEmailExists(result.exists);
       if (result.exists) {
+        loginForm.setValue("email", normalized);
         setShowPasswordField(true);
       }
     } catch {
@@ -263,15 +265,18 @@ export default function LoginPage() {
     } finally {
       setIsCheckingEmail(false);
     }
-  }, []);
+  }, [loginForm]);
 
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
+      const email = data.email.trim().toLowerCase();
+      const password = data.password.trim();
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
       });
 
       const result = await response.json();
@@ -282,12 +287,6 @@ export default function LoginPage() {
 
       AuthStorage.setAuthData(result.token, result.user, result.refreshToken, result.expiresIn);
       setUserName(result.user.name || result.user.email.split('@')[0]);
-
-      if (result.user.kycStatus === "pending" || result.user.kycStatus === "submitted") {
-        toast({ title: "Account under review", description: "Your trade license is still being reviewed" });
-        setLocation("/onboarding");
-        return;
-      }
 
       toast({ title: "Welcome back!", description: "Login successful" });
 
@@ -425,7 +424,7 @@ export default function LoginPage() {
 
   const inputClassName = "w-full h-[46px] px-4 rounded-xl bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200/80 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/25 focus-visible:ring-offset-0 focus-visible:border-blue-400 transition-all duration-200 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500";
 
-  const primaryButtonClassName = "w-full h-[46px] rounded-xl bg-blue-500 text-white font-semibold text-[15px] border-0 shadow-lg shadow-blue-500/25 no-default-hover-elevate no-default-active-elevate hover:bg-blue-600 hover:shadow-xl hover:shadow-blue-500/30 active:bg-blue-700 active:scale-[0.98] transition-all duration-200 cursor-pointer";
+  const primaryButtonClassName = "w-full h-[46px] rounded-xl bg-gradient-to-r from-blue-500 via-violet-600 to-purple-700 bg-[length:150%_100%] bg-left text-white font-semibold text-[15px] border-0 shadow-lg shadow-violet-500/25 no-default-hover-elevate no-default-active-elevate hover:bg-right hover:shadow-xl hover:shadow-violet-500/30 active:scale-[0.98] transition-all duration-300 cursor-pointer";
 
   const secondaryButtonClassName = "w-full h-[48px] rounded-full border-2 border-gray-300 dark:border-white/20 bg-white dark:bg-white/[0.04] text-gray-900 dark:text-gray-100 font-semibold text-[15px] tracking-wide flex items-center justify-center gap-3 hover:bg-gray-50 dark:hover:bg-white/[0.08] hover:border-gray-400 dark:hover:border-white/30 hover:shadow-md active:scale-[0.98] transition-all duration-200 cursor-pointer";
 
@@ -446,25 +445,31 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ...spring }}
-              className="mb-5"
+              className="mb-8"
             >
               <Link href="/">
-                <div className="inline-flex items-center cursor-pointer group" data-testid="button-back-home">
-                  {currentLogo ? (
+                <div className="inline-flex items-center gap-3 sm:gap-4 cursor-pointer group" data-testid="button-back-home">
+                  {branding.favicon_url ? (
+                    <img
+                      src={branding.favicon_url}
+                      alt=""
+                      className="h-14 w-14 sm:h-16 sm:w-16 object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 ring-1 ring-black/5 transition-transform duration-300 group-hover:scale-105">
+                      <Bot className="w-7 h-7" />
+                    </div>
+                  )}
+                  {currentLogo && currentLogo !== branding.favicon_url ? (
                     <img
                       src={currentLogo}
                       alt={branding.app_name}
-                      className="h-[100px] sm:h-[120px] w-auto max-w-[360px] object-contain object-left transition-transform duration-300 group-hover:scale-[1.02]"
+                      className="h-11 sm:h-14 w-auto max-w-[min(100%,280px)] object-contain object-left transition-transform duration-300 group-hover:scale-[1.02]"
                     />
                   ) : (
-                    <div className="flex items-center gap-3">
-                      <div className="w-[48px] h-[48px] bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-1 ring-black/5 transition-transform duration-300 group-hover:scale-105">
-                        <Bot className="w-6 h-6" />
-                      </div>
-                      <span className="text-[1.5rem] font-bold text-gray-900 dark:text-white tracking-tight">
-                        {branding.app_name || "AgentLabs"}
-                      </span>
-                    </div>
+                    <span className="text-[1.75rem] sm:text-[2rem] font-bold text-gray-900 dark:text-white tracking-tight">
+                      {branding.app_name || "Loop9"}
+                    </span>
                   )}
                 </div>
               </Link>
@@ -538,6 +543,11 @@ export default function LoginPage() {
                                 <Input
                                   id="login-email"
                                   type="email"
+                                  inputMode="email"
+                                  autoCapitalize="none"
+                                  autoCorrect="off"
+                                  autoComplete="email"
+                                  spellCheck={false}
                                   placeholder="jane.smith@example.com"
                                   className={`${inputClassName} pr-12`}
                                   {...loginForm.register("email", {
@@ -550,7 +560,7 @@ export default function LoginPage() {
                                   })}
                                   ref={(e) => {
                                     loginForm.register("email").ref(e);
-                                    (emailRef as any).current = e;
+                                    emailRef.current = e;
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -668,12 +678,13 @@ export default function LoginPage() {
                                 <Input
                                   id="login-password"
                                   type={showPassword ? "text" : "password"}
+                                  autoComplete="current-password"
                                   placeholder="Enter your password"
                                   className={`${inputClassName} pr-12`}
                                   {...loginForm.register("password")}
                                   ref={(e) => {
                                     loginForm.register("password").ref(e);
-                                    (passwordRef as any).current = e;
+                                    passwordRef.current = e;
                                   }}
                                   data-testid="input-login-password"
                                 />
@@ -941,7 +952,7 @@ export default function LoginPage() {
 
           <div className="px-6 sm:px-10 lg:px-12 xl:px-16 py-4 border-t border-gray-100 dark:border-white/5">
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              &copy; {new Date().getFullYear()} {branding.app_name || "AgentLabs"}. All rights reserved.
+              &copy; {new Date().getFullYear()} {branding.app_name || "Loop9"}. All rights reserved.
             </p>
           </div>
         </div>

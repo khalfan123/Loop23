@@ -17,8 +17,9 @@ function validateInternalApiKey(req: Request, res: Response, next: NextFunction)
     return res.status(503).json({ error: "Internal API not configured" });
   }
 
-  const provided = req.headers["x-internal-api-key"];
-  if (!provided || provided !== secret) {
+  const raw = req.headers["x-internal-api-key"];
+  const provided = Array.isArray(raw) ? raw[0] : raw;
+  if (!provided || String(provided).trim() !== String(secret).trim()) {
     return res.status(401).json({ error: "Invalid API key" });
   }
 
@@ -26,6 +27,20 @@ function validateInternalApiKey(req: Request, res: Response, next: NextFunction)
 }
 
 router.use(validateInternalApiKey);
+
+function kycErrorToHttp(error: any): { status: number; body: { error: string } } {
+  const message = String(error?.message || "KYC operation failed");
+  const lower = message.toLowerCase();
+
+  if (lower.includes("user not found")) return { status: 404, body: { error: message } };
+  if (lower.includes("document not found")) return { status: 404, body: { error: message } };
+  if (lower.includes("cannot approve kyc") || lower.includes("cannot reject kyc")) {
+    return { status: 422, body: { error: message } };
+  }
+
+  // Most thrown errors from the KYC service are validation/state errors.
+  return { status: 422, body: { error: message } };
+}
 
 router.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -248,7 +263,8 @@ router.get("/users/:userId/kyc", async (req: Request, res: Response) => {
     const status = await KycService.getUserKycStatus(userId);
     res.json(status);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch user KYC" });
+    const mapped = kycErrorToHttp(error);
+    res.status(mapped.status).json(mapped.body);
   }
 });
 
@@ -258,7 +274,8 @@ router.get("/users/:userId/kyc/documents", async (req: Request, res: Response) =
     const documents = await KycService.getUserDocuments(userId);
     res.json(documents);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to fetch user KYC documents" });
+    const mapped = kycErrorToHttp(error);
+    res.status(mapped.status).json(mapped.body);
   }
 });
 
@@ -268,7 +285,8 @@ router.post("/users/:userId/kyc/approve", async (req: Request, res: Response) =>
     const status = await KycService.approveKyc(userId);
     res.json(status);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || "Failed to approve KYC" });
+    const mapped = kycErrorToHttp(error);
+    res.status(mapped.status).json(mapped.body);
   }
 });
 
@@ -279,7 +297,8 @@ router.post("/users/:userId/kyc/reject", async (req: Request, res: Response) => 
     const status = await KycService.rejectKyc(userId, reason);
     res.json(status);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || "Failed to reject KYC" });
+    const mapped = kycErrorToHttp(error);
+    res.status(mapped.status).json(mapped.body);
   }
 });
 

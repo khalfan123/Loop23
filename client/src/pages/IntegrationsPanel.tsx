@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -41,9 +41,6 @@ import type { IntegrationApp, UserIntegration, Campaign } from "@shared/schema";
 const CATEGORY_CONFIG: { value: string; labelKey: string; icon: React.ReactNode }[] = [
   { value: "all", labelKey: "integrations.panel.categories.all", icon: <LayoutGrid className="w-4 h-4" /> },
   { value: "crm", labelKey: "integrations.panel.categories.crm", icon: <Users className="w-4 h-4" /> },
-  { value: "telephony", labelKey: "integrations.panel.categories.telephony", icon: <Phone className="w-4 h-4" /> },
-  { value: "ai_llm", labelKey: "integrations.panel.categories.aiLlm", icon: <Brain className="w-4 h-4" /> },
-  { value: "voice_speech", labelKey: "integrations.panel.categories.voiceSpeech", icon: <Mic className="w-4 h-4" /> },
   { value: "marketing", labelKey: "integrations.panel.categories.marketing", icon: <Mail className="w-4 h-4" /> },
   { value: "communication", labelKey: "integrations.panel.categories.communication", icon: <MessageSquare className="w-4 h-4" /> },
   { value: "support", labelKey: "integrations.panel.categories.support", icon: <Headphones className="w-4 h-4" /> },
@@ -161,6 +158,16 @@ interface WebhookDelivery {
   createdAt: string;
 }
 
+interface ApiKeyListItem {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  isActive: boolean;
+  createdAt: string;
+  lastUsedAt?: string | null;
+}
+
 interface User {
   id: string;
   email: string;
@@ -175,6 +182,18 @@ export default function IntegrationsPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "marketplace" || tab === "connected" || tab === "webhooks") {
+        setActiveTab(tab);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
     queryKey: ["/api/integrations/apps"],
@@ -229,6 +248,13 @@ export default function IntegrationsPanel() {
           data-testid="link-marketplace-tab"
         />
         <SubPanelItem
+          icon={<MessageSquare className="w-4 h-4" />}
+          label="Developer Concierge"
+          isActive={false}
+          onClick={() => navigate("/app/integrations/concierge")}
+          data-testid="link-concierge-tab"
+        />
+        <SubPanelItem
           icon={<Zap className="w-4 h-4" />}
           label={t("integrations.panel.tabs.myIntegrations")}
           isActive={activeTab === "connected"}
@@ -245,37 +271,21 @@ export default function IntegrationsPanel() {
         />
       </SubPanelSection>
 
-      {activeTab === "marketplace" && (
-        <SubPanelSection title={t("integrations.panel.sidebar.categories")}>
-          {CATEGORY_CONFIG.map((cat) => (
-            <SubPanelItem
-              key={cat.value}
-              icon={cat.icon}
-              label={t(cat.labelKey)}
-              isActive={categoryFilter === cat.value}
-              badge={categoryCounts[cat.value] || 0}
-              onClick={() => { setActiveTab("marketplace"); setCategoryFilter(cat.value); }}
-              data-testid={`filter-category-${cat.value}`}
-            />
-          ))}
-        </SubPanelSection>
-      )}
-
-      <SubPanelSection title={t("integrations.panel.sidebar.overview")}>
-        <div className="px-3 py-2 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t("integrations.panel.sidebar.total")}</span>
-            <span className="font-medium">{apps?.length || 0}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t("integrations.panel.sidebar.connected")}</span>
-            <span className="font-medium text-emerald-600">{connectedAppIds.size}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t("integrations.panel.sidebar.available")}</span>
-            <span className="font-medium text-blue-600">{(apps?.length || 0) - connectedAppIds.size}</span>
-          </div>
-        </div>
+      <SubPanelSection title={t("integrations.panel.sidebar.categories")}>
+        {CATEGORY_CONFIG.map((cat) => (
+          <SubPanelItem
+            key={cat.value}
+            icon={cat.icon}
+            label={t(cat.labelKey)}
+            isActive={cat.value !== "all" && categoryFilter === cat.value && activeTab === "marketplace"}
+            badge={categoryCounts[cat.value] || 0}
+            onClick={() => {
+              setActiveTab("marketplace");
+              setCategoryFilter(cat.value);
+            }}
+            data-testid={`filter-category-${cat.value}`}
+          />
+        ))}
       </SubPanelSection>
     </div>
   );
@@ -288,53 +298,36 @@ export default function IntegrationsPanel() {
     >
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="page-integrations-panel">
         <div className="py-4 px-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="marketplace" data-testid="tab-marketplace">
-                <LayoutGrid className="w-4 h-4 mr-2" />
-                {t("integrations.panel.tabs.marketplace")}
-              </TabsTrigger>
-              <TabsTrigger value="connected" data-testid="tab-connected">
-                <Zap className="w-4 h-4 mr-2" />
-                {t("integrations.panel.tabs.myIntegrations")}
-              </TabsTrigger>
-              <TabsTrigger value="webhooks" data-testid="tab-webhooks">
-                <Webhook className="w-4 h-4 mr-2" />
-                {t("integrations.panel.tabs.apiWebhooks")}
-              </TabsTrigger>
-            </TabsList>
+          {activeTab === "marketplace" && (
+            <MarketplaceTab
+              apps={apps}
+              isLoading={appsLoading || connectedLoading}
+              connectedMap={connectedMap}
+              connectedAppIds={connectedAppIds}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              categoryFilter={categoryFilter}
+              setCategoryFilter={setCategoryFilter}
+              navigate={navigate}
+            />
+          )}
 
-            <TabsContent value="marketplace" className="mt-4">
-              <MarketplaceTab
-                apps={apps}
-                isLoading={appsLoading || connectedLoading}
-                connectedMap={connectedMap}
-                connectedAppIds={connectedAppIds}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                categoryFilter={categoryFilter}
-                setCategoryFilter={setCategoryFilter}
-                navigate={navigate}
-              />
-            </TabsContent>
+          {activeTab === "connected" && (
+            <MyIntegrationsTab
+              connected={connected}
+              isLoading={connectedLoading}
+              navigate={navigate}
+            />
+          )}
 
-            <TabsContent value="connected" className="mt-4">
-              <MyIntegrationsTab
-                connected={connected}
-                isLoading={connectedLoading}
-                navigate={navigate}
-              />
-            </TabsContent>
-
-            <TabsContent value="webhooks" className="mt-4">
-              <WebhooksTab />
-            </TabsContent>
-          </Tabs>
+          {activeTab === "webhooks" && <WebhooksTab />}
         </div>
       </div>
     </ThreeColumnLayout>
   );
 }
+
+// Concierge moved to /app/integrations/concierge
 
 function MarketplaceTab({
   apps,
@@ -757,12 +750,15 @@ function WebhooksTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [apiWebhooksTab, setApiWebhooksTab] = useState<"apiKeys" | "webhooks">("apiKeys");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDeliveryLogsOpen, setIsDeliveryLogsOpen] = useState(false);
   const [selectedWebhookId, setSelectedWebhookId] = useState<string | null>(null);
   const [webhookToDelete, setWebhookToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", url: "", campaignId: "" });
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [generatedApiKeyById, setGeneratedApiKeyById] = useState<Record<string, string>>({});
+  const [isCreateApiKeyOpen, setIsCreateApiKeyOpen] = useState(false);
+  const [newApiKeyName, setNewApiKeyName] = useState("");
   const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
 
   const { data: user, isLoading: userLoading, isError: userError } = useQuery<User>({
@@ -780,6 +776,85 @@ function WebhooksTab() {
   const { data: deliveryLogs = [] } = useQuery<WebhookDelivery[]>({
     queryKey: ["/api/webhooks", selectedWebhookId, "deliveries"],
     enabled: !!selectedWebhookId && isDeliveryLogsOpen,
+  });
+
+  const { data: apiKeysResp } = useQuery<{ success: boolean; data: ApiKeyListItem[] }>({
+    queryKey: ["/api/user/api-keys"],
+  });
+
+  const apiKeys = apiKeysResp?.data || [];
+
+  // #region agent log
+  fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-webhooks-ui-pre',hypothesisId:'UI1',location:'client/src/pages/IntegrationsPanel.tsx:WebhooksTab',message:'WebhooksTab render snapshot',data:{apiKeysCount:apiKeys.length,webhooksCount:Array.isArray(webhooks)?webhooks.length:null,campaignsCount:Array.isArray(campaigns)?campaigns.length:null,userLoaded:!!user,isFreeUser:user?.planType==='free',isCreateDialogOpen,isDeliveryLogsOpen},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  const createApiKeyMutation = useMutation({
+    mutationFn: async () => {
+      const name = newApiKeyName.trim();
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-multi-pre',hypothesisId:'K4',location:'client/src/pages/IntegrationsPanel.tsx:createApiKeyMutation',message:'Create API key submit',data:{nameLen:name.length},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      const res = await apiRequest("POST", "/api/user/api-keys", { name });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const key = data?.data?.key ? String(data.data.key) : null;
+      const id = data?.data?.id ? String(data.data.id) : null;
+      if (key) {
+        if (id) {
+          setGeneratedApiKeyById((prev) => ({ ...prev, [id]: key }));
+        }
+        navigator.clipboard.writeText(key);
+      }
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-multi-pre',hypothesisId:'K5',location:'client/src/pages/IntegrationsPanel.tsx:createApiKeyMutation',message:'Create API key success (client)',data:{hasKey:!!key,keyPrefix:data?.data?.keyPrefix||null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      setIsCreateApiKeyOpen(false);
+      setNewApiKeyName("");
+      queryClient.invalidateQueries({ queryKey: ["/api/user/api-keys"] });
+      toast({ title: "API key generated", description: "Copied to clipboard." });
+    },
+    onError: (error: Error) => {
+      // #region agent log
+      fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'api-key-multi-pre',hypothesisId:'K6',location:'client/src/pages/IntegrationsPanel.tsx:createApiKeyMutation',message:'Create API key failed (client)',data:{name:error.name,message:error.message,status:(error as any)?.status||null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      toast({ title: "Create API key failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const regenerateNamedApiKeyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/user/api-keys/${id}/regenerate`, {});
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const key = data?.data?.key ? String(data.data.key) : null;
+      const id = data?.data?.id ? String(data.data.id) : null;
+      if (key) {
+        if (id) {
+          setGeneratedApiKeyById((prev) => ({ ...prev, [id]: key }));
+        }
+        navigator.clipboard.writeText(key);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/user/api-keys"] });
+      toast({ title: "API key regenerated", description: "Copied to clipboard." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Regenerate failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteApiKeyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/user/api-keys/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/api-keys"] });
+      toast({ title: "API key deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
   });
 
   const createWebhookMutation = useMutation({
@@ -833,8 +908,11 @@ function WebhooksTab() {
       const res = await apiRequest("POST", "/api/api-keys/regenerate", {});
       return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    onSuccess: (data: any) => {
+      if (data?.apiKey) {
+        setGeneratedApiKey(String(data.apiKey));
+        setShowApiKey(true);
+      }
       setIsRegeneratingKey(false);
       toast({ title: t("integrations.apiKeys.regenerated"), description: t("integrations.apiKeys.regeneratedDesc") });
     },
@@ -849,6 +927,9 @@ function WebhooksTab() {
       toast({ title: t("integrations.toast.missingFields"), description: t("integrations.toast.missingFieldsDesc"), variant: "destructive" });
       return;
     }
+    // #region agent log
+    fetch('http://localhost:7746/ingest/ec574942-2377-44b6-882c-8880d97b9664',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec03c4'},body:JSON.stringify({sessionId:'ec03c4',runId:'webhook-create-pre',hypothesisId:'A',location:'client/src/pages/IntegrationsPanel.tsx:handleCreateWebhook',message:'Submitting create webhook from UI',data:{nameLen:formData.name?.length||0,urlLen:formData.url?.length||0,campaignIdValue:formData.campaignId||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     createWebhookMutation.mutate({ name: formData.name, url: formData.url, campaignId: formData.campaignId || null });
   };
 
@@ -917,224 +998,376 @@ function WebhooksTab() {
   }
 
   return (
-    <div className="space-y-6 max-h-[calc(100vh-320px)] overflow-y-auto">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-primary" />
-            <CardTitle>{t("integrations.apiKeys.title")}</CardTitle>
-          </div>
-          <CardDescription>{t("integrations.apiKeys.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t("integrations.apiKeys.keyLabel")}</Label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
-                <code className="text-sm flex-1 truncate" data-testid="text-api-key">
-                  {showApiKey ? (user?.apiKey || t("integrations.apiKeys.noKey")) : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}
-                </code>
-                <Button variant="ghost" size="icon" onClick={() => setShowApiKey(!showApiKey)} data-testid="button-toggle-api-key">
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-                {user?.apiKey && (
-                  <Button variant="ghost" size="icon" onClick={() => copyToClipboard(user.apiKey!)} data-testid="button-copy-api-key">
-                    <Copy className="w-4 h-4" />
-                  </Button>
+    <div className="space-y-6">
+      <Tabs value={apiWebhooksTab} onValueChange={(v) => setApiWebhooksTab(v as any)}>
+        <div className="rounded-2xl border border-border/60 bg-muted/30 p-1">
+          <TabsList className="grid h-11 w-full grid-cols-2 bg-transparent p-0">
+          <TabsTrigger
+            value="apiKeys"
+            data-testid="tab-api-keys"
+            className="h-10 rounded-xl text-muted-foreground data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Key className="w-4 h-4 mr-2" />
+            API keys
+          </TabsTrigger>
+          <TabsTrigger
+            value="webhooks"
+            data-testid="tab-webhooks"
+            className="h-10 rounded-xl text-muted-foreground data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Webhook className="w-4 h-4 mr-2" />
+            Webhooks
+          </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="apiKeys" className="mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-primary" />
+                <CardTitle>{t("integrations.apiKeys.title")}</CardTitle>
+              </div>
+              <CardDescription>{t("integrations.apiKeys.description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-sm text-muted-foreground">
+                  {apiKeys.length} key(s)
+                </div>
+                <Dialog open={isCreateApiKeyOpen} onOpenChange={setIsCreateApiKeyOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-open-create-api-key">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Generate API key
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Generate API key</DialogTitle>
+                      <DialogDescription>Give your key a name (e.g. “Production”, “Zapier”, “n8n”).</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                      <Label>Name</Label>
+                      <Input
+                        value={newApiKeyName}
+                        onChange={(e) => setNewApiKeyName(e.target.value)}
+                        placeholder="Production key"
+                        data-testid="input-api-key-name"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsCreateApiKeyOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => createApiKeyMutation.mutate()}
+                        disabled={createApiKeyMutation.isPending || !newApiKeyName.trim()}
+                        data-testid="button-create-api-key"
+                      >
+                        {createApiKeyMutation.isPending ? "Generating…" : "Generate"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                <div className="text-sm font-medium mb-2">Your API keys</div>
+                {apiKeys.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No API keys yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {apiKeys.map((k) => (
+                      <div key={k.id} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">{k.name}</div>
+                          <div className="text-xs text-muted-foreground">{k.keyPrefix}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const key = generatedApiKeyById[k.id];
+                              if (key) {
+                                copyToClipboard(key);
+                                return;
+                              }
+                              regenerateNamedApiKeyMutation.mutate(k.id);
+                            }}
+                            data-testid={`button-copy-api-key-${k.id}`}
+                            title={!generatedApiKeyById[k.id] ? "Will regenerate and copy a new key" : undefined}
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy key
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => regenerateNamedApiKeyMutation.mutate(k.id)}
+                            disabled={regenerateNamedApiKeyMutation.isPending}
+                            data-testid={`button-regenerate-named-api-key-${k.id}`}
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Regenerate
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteApiKeyMutation.mutate(k.id)}
+                            disabled={deleteApiKeyMutation.isPending}
+                            data-testid={`button-delete-api-key-${k.id}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-xs text-muted-foreground">{t("integrations.apiKeys.warning")}</p>
-            <AlertDialog open={isRegeneratingKey} onOpenChange={setIsRegeneratingKey}>
-              <Button variant="outline" size="sm" onClick={() => setIsRegeneratingKey(true)} data-testid="button-regenerate-api-key">
-                <RefreshCw className="w-3 h-3 mr-1" />
-                {t("integrations.apiKeys.regenerate")}
-              </Button>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t("integrations.apiKeys.regenerateTitle")}</AlertDialogTitle>
-                  <AlertDialogDescription>{t("integrations.apiKeys.regenerateConfirm")}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel data-testid="button-cancel-regenerate">{t("common.cancel")}</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => regenerateApiKeyMutation.mutate()} data-testid="button-confirm-regenerate">
+
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-muted-foreground">{t("integrations.apiKeys.warning")}</p>
+                <AlertDialog open={isRegeneratingKey} onOpenChange={setIsRegeneratingKey}>
+                  <Button variant="outline" size="sm" onClick={() => setIsRegeneratingKey(true)} data-testid="button-regenerate-api-key">
+                    <RefreshCw className="w-3 h-3 mr-1" />
                     {t("integrations.apiKeys.regenerate")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </CardContent>
-      </Card>
+                  </Button>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t("integrations.apiKeys.regenerateTitle")}</AlertDialogTitle>
+                      <AlertDialogDescription>{t("integrations.apiKeys.regenerateConfirm")}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid="button-cancel-regenerate">{t("common.cancel")}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => regenerateApiKeyMutation.mutate()} data-testid="button-confirm-regenerate">
+                        {t("integrations.apiKeys.regenerate")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{t("integrations.panel.webhooks.title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("integrations.panel.webhooks.subtitle")}</p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-webhook">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("integrations.createWebhook")}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("integrations.dialog.createTitle")}</DialogTitle>
-              <DialogDescription>{t("integrations.dialog.createDescription")}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">{t("integrations.form.nameLabel")}</Label>
-                <Input id="name" data-testid="input-webhook-name" placeholder={t("integrations.form.namePlaceholder")} value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="url">{t("integrations.form.urlLabel")}</Label>
-                <Input id="url" data-testid="input-webhook-url" placeholder={t("integrations.form.urlPlaceholder")} value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="campaign">{t("integrations.form.campaignLabel")}</Label>
-                <Select value={formData.campaignId || "all"} onValueChange={(value) => setFormData({ ...formData, campaignId: value === "all" ? "" : value })}>
-                  <SelectTrigger data-testid="select-webhook-campaign">
-                    <SelectValue placeholder={t("integrations.form.allCampaigns")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("integrations.form.allCampaigns")}</SelectItem>
-                    {campaigns.map((campaign) => (
-                      <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <TabsContent value="webhooks" className="mt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">{t("integrations.panel.webhooks.title")}</h2>
+              <p className="text-sm text-muted-foreground">{t("integrations.panel.webhooks.subtitle")}</p>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} data-testid="button-cancel-create">{t("common.cancel")}</Button>
-              <Button onClick={handleCreateWebhook} disabled={createWebhookMutation.isPending} data-testid="button-submit-create">
-                {createWebhookMutation.isPending ? t("integrations.actions.creating") : t("common.create")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-16 text-muted-foreground">{t("integrations.loadingWebhooks")}</div>
-      ) : webhooks.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Webhook className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">{t("integrations.empty.title")}</h3>
-            <p className="text-muted-foreground text-center mb-4">{t("integrations.empty.description")}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {webhooks.map((webhook) => (
-            <Card key={webhook.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CardTitle>{webhook.name}</CardTitle>
-                      <Badge variant={webhook.isActive ? "default" : "secondary"}>
-                        {webhook.isActive ? t("integrations.status.active") : t("integrations.status.inactive")}
-                      </Badge>
-                    </div>
-                    <CardDescription className="flex items-center gap-2 mt-2">
-                      <ExternalLink className="w-3 h-3" />
-                      {webhook.url}
-                    </CardDescription>
-                    {webhook.campaign && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {t("integrations.webhook.campaign")}: {webhook.campaign.name}
-                      </p>
-                    )}
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-webhook">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t("integrations.createWebhook")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t("integrations.dialog.createTitle")}</DialogTitle>
+                  <DialogDescription>{t("integrations.dialog.createDescription")}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">{t("integrations.form.nameLabel")}</Label>
+                    <Input id="name" data-testid="input-webhook-name" placeholder={t("integrations.form.namePlaceholder")} value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={webhook.isActive} onCheckedChange={() => handleToggleActive(webhook)} data-testid={`switch-webhook-active-${webhook.id}`} />
+                  <div className="space-y-2">
+                    <Label htmlFor="url">{t("integrations.form.urlLabel")}</Label>
+                    <Input id="url" data-testid="input-webhook-url" placeholder={t("integrations.form.urlPlaceholder")} value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign">{t("integrations.form.campaignLabel")}</Label>
+                    <Select value={formData.campaignId || "all"} onValueChange={(value) => setFormData({ ...formData, campaignId: value === "all" ? "" : value })}>
+                      <SelectTrigger data-testid="select-webhook-campaign">
+                        <SelectValue placeholder={t("integrations.form.allCampaigns")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("integrations.form.allCampaigns")}</SelectItem>
+                        {campaigns.map((campaign) => (
+                          <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md flex-1 min-w-0">
-                    <code className="text-xs truncate flex-1">
-                      {t("integrations.webhook.secret")}: {webhook.secret.substring(0, 20)}...
-                    </code>
-                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(webhook.secret)} data-testid={`button-copy-secret-${webhook.id}`}>
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => testWebhookMutation.mutate(webhook.id)} disabled={testWebhookMutation.isPending} data-testid={`button-test-webhook-${webhook.id}`}>
-                    {t("integrations.actions.testWebhook")}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} data-testid="button-cancel-create">{t("common.cancel")}</Button>
+                  <Button onClick={handleCreateWebhook} disabled={createWebhookMutation.isPending} data-testid="button-submit-create">
+                    {createWebhookMutation.isPending ? t("integrations.actions.creating") : t("common.create")}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => { setSelectedWebhookId(webhook.id); setIsDeliveryLogsOpen(true); }} data-testid={`button-view-logs-${webhook.id}`}>
-                    {t("integrations.actions.viewLogs")}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setWebhookToDelete(webhook.id)} data-testid={`button-delete-webhook-${webhook.id}`}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={isDeliveryLogsOpen} onOpenChange={setIsDeliveryLogsOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("integrations.dialog.logsTitle")}</DialogTitle>
-            <DialogDescription>{t("integrations.dialog.logsDescription")}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {deliveryLogs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">{t("integrations.logs.noLogs")}</div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="mt-4">
+            {isLoading ? (
+              <div className="text-center py-16 text-muted-foreground">{t("integrations.loadingWebhooks")}</div>
+            ) : webhooks.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <Webhook className="w-12 h-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">{t("integrations.empty.title")}</h3>
+                  <p className="text-muted-foreground text-center mb-4">{t("integrations.empty.description")}</p>
+                </CardContent>
+              </Card>
             ) : (
-              deliveryLogs.map((log) => (
-                <Card key={log.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {log.status === "success" ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
-                        <span className="font-medium">{log.status === "success" ? t("integrations.logs.success") : t("integrations.logs.failed")}</span>
-                        {log.responseCode && <Badge variant="outline">{t("integrations.logs.http")} {log.responseCode}</Badge>}
-                        <Badge variant="secondary">{t("integrations.logs.attempt")} {log.attemptCount}</Badge>
+              <div className="grid gap-4">
+                {webhooks.map((webhook) => (
+                  <Card key={webhook.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CardTitle>{webhook.name}</CardTitle>
+                            <Badge variant={webhook.isActive ? "default" : "secondary"}>
+                              {webhook.isActive ? t("integrations.status.active") : t("integrations.status.inactive")}
+                            </Badge>
+                          </div>
+                          <CardDescription className="flex items-center gap-2 mt-2">
+                            <ExternalLink className="w-3 h-3" />
+                            {webhook.url}
+                          </CardDescription>
+                          {webhook.campaign && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {t("integrations.webhook.campaign")}: {webhook.campaign.name}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={webhook.isActive}
+                            onCheckedChange={() => handleToggleActive(webhook)}
+                            data-testid={`switch-webhook-active-${webhook.id}`}
+                          />
+                        </div>
                       </div>
-                      <span className="text-sm text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
-                    </div>
-                    {log.errorMessage && <p className="text-sm text-red-600 mt-2">{log.errorMessage}</p>}
-                    {log.responseBody && (
-                      <details className="mt-2">
-                        <summary className="text-sm cursor-pointer text-muted-foreground hover:text-foreground">{t("integrations.logs.viewResponse")}</summary>
-                        <pre className="text-xs bg-muted p-2 rounded mt-2 overflow-x-auto">{log.responseBody}</pre>
-                      </details>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md flex-1 min-w-0">
+                          <code className="text-xs truncate flex-1">
+                            {t("integrations.webhook.secret")}: {webhook.secret.substring(0, 20)}...
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => copyToClipboard(webhook.secret)}
+                            data-testid={`button-copy-secret-${webhook.id}`}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => testWebhookMutation.mutate(webhook.id)}
+                          disabled={testWebhookMutation.isPending}
+                          data-testid={`button-test-webhook-${webhook.id}`}
+                        >
+                          {t("integrations.actions.testWebhook")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedWebhookId(webhook.id);
+                            setIsDeliveryLogsOpen(true);
+                          }}
+                          data-testid={`button-view-logs-${webhook.id}`}
+                        >
+                          {t("integrations.actions.viewLogs")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setWebhookToDelete(webhook.id)}
+                          data-testid={`button-delete-webhook-${webhook.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
 
-      <AlertDialog open={!!webhookToDelete} onOpenChange={() => setWebhookToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("integrations.dialog.deleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("integrations.dialog.deleteDescription")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => webhookToDelete && deleteWebhookMutation.mutate(webhookToDelete)} data-testid="button-confirm-delete">
-              {t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <Dialog open={isDeliveryLogsOpen} onOpenChange={setIsDeliveryLogsOpen}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{t("integrations.dialog.logsTitle")}</DialogTitle>
+                <DialogDescription>{t("integrations.dialog.logsDescription")}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                {deliveryLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">{t("integrations.logs.noLogs")}</div>
+                ) : (
+                  deliveryLogs.map((log) => (
+                    <Card key={log.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {log.status === "success" ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-red-600" />
+                            )}
+                            <span className="font-medium">
+                              {log.status === "success" ? t("integrations.logs.success") : t("integrations.logs.failed")}
+                            </span>
+                            {log.responseCode && (
+                              <Badge variant="outline">
+                                {t("integrations.logs.http")} {log.responseCode}
+                              </Badge>
+                            )}
+                            <Badge variant="secondary">
+                              {t("integrations.logs.attempt")} {log.attemptCount}
+                            </Badge>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
+                        </div>
+                        {log.errorMessage && <p className="text-sm text-red-600 mt-2">{log.errorMessage}</p>}
+                        {log.responseBody && (
+                          <details className="mt-2">
+                            <summary className="text-sm cursor-pointer text-muted-foreground hover:text-foreground">
+                              {t("integrations.logs.viewResponse")}
+                            </summary>
+                            <pre className="text-xs bg-muted p-2 rounded mt-2 overflow-x-auto">{log.responseBody}</pre>
+                          </details>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog open={!!webhookToDelete} onOpenChange={() => setWebhookToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("integrations.dialog.deleteTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("integrations.dialog.deleteDescription")}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete">{t("common.cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => webhookToDelete && deleteWebhookMutation.mutate(webhookToDelete)}
+                  data-testid="button-confirm-delete"
+                >
+                  {t("common.delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

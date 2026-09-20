@@ -10,7 +10,7 @@
 
 import { Router, Request, Response } from 'express';
 import { db } from '../../../db';
-import { agents, twilioOpenaiCalls, phoneNumbers, incomingConnections, users, creditTransactions, flows } from '@shared/schema';
+import { agents, twilioOpenaiCalls, phoneNumbers, incomingConnections, humanIncomingConnections, users, creditTransactions, flows } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { 
@@ -96,6 +96,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
           toNumber: normalizedTo,
           agentId: null,
           phoneNumberId: phoneRecord.id,
+          engine: 'twilio-openai',
         });
         logger.info(`Triggered inbound_call.received webhook for incoming call ${CallSid}`, undefined, 'TwilioOpenAI');
       } catch (webhookError: any) {
@@ -119,6 +120,30 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       .from(incomingConnections)
       .where(eq(incomingConnections.phoneNumberId, phoneRecord.id))
       .limit(1);
+
+    // Look up wizard-selected non-UAE outbound caller ID from the Human Agent
+    // connection (if any) on the same DID. UAE-safe transfer resolver consumes
+    // this in audio-bridge.service.ts::executeTransfer.
+    let humanWizardCli: string | undefined;
+    try {
+      const [humanConn] = await db
+        .select({ outboundCallerPhoneNumberId: humanIncomingConnections.outboundCallerPhoneNumberId })
+        .from(humanIncomingConnections)
+        .where(eq(humanIncomingConnections.phoneNumberId, phoneRecord.id))
+        .limit(1);
+      if (humanConn?.outboundCallerPhoneNumberId) {
+        const [op] = await db
+          .select({ phoneNumber: phoneNumbers.phoneNumber })
+          .from(phoneNumbers)
+          .where(eq(phoneNumbers.id, humanConn.outboundCallerPhoneNumberId))
+          .limit(1);
+        if (op?.phoneNumber) {
+          humanWizardCli = normalizePhoneForStorage(op.phoneNumber);
+        }
+      }
+    } catch (err: any) {
+      logger.info(`humanWizardCli lookup failed: ${err.message}`, undefined, 'TwilioOpenAI');
+    }
 
     if (!connection) {
       logger.info(`No agent connection for: ${normalizedTo}`, undefined, 'TwilioOpenAI');
@@ -197,6 +222,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       firstMessage: agent.firstMessage,
       temperature: agent.temperature,
       language: agent.language || 'en',
+      humanWizardCli: humanWizardCli ?? null,
     };
     
     // For flow agents, load and store compiled flow data including tools with metadata

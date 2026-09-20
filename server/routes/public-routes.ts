@@ -23,50 +23,41 @@ import { users, calls, campaigns, twilioCountries } from '@shared/schema';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
-import { runAllSeedsForInstaller } from '../seed-all';
-
 /**
  * Creates public routes for unauthenticated endpoints.
- * Includes installer, health, branding, SEO, public stats, contact form, and more.
+ * Includes health, branding, SEO, public stats, contact form, and more.
  */
 export function createPublicRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { db, storage, authenticateToken, requireRole, emailService } = ctx;
 
-  /**
-   * Check if installation is complete by checking for any users in the database.
-   */
-  async function isInstalled(): Promise<boolean> {
-    try {
-      const userCount = await db.select({ count: sql<number>`count(*)::int` }).from(users);
-      return userCount[0]?.count > 0;
-    } catch {
-      return false;
-    }
-  }
+  const maybeSetPublicCors = (req: Request, res: Response) => {
+    // For a few public JSON endpoints, allow *only* explicitly configured origins.
+    // Same-origin requests don't need CORS headers at all.
+    const origin = req.headers.origin;
+    if (!origin) return;
 
-  // ============================================
-  // INSTALLER ROUTES
-  // ============================================
+    const allowed = String(process.env.PUBLIC_CORS_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-  router.get("/api/installer/status", async (_req: Request, res: Response) => {
-    try {
-      const installed = await isInstalled();
-      res.json({ installed });
-    } catch (error: any) {
-      res.status(500).json({ message: "Failed to check installation status", error: error.message });
+    if (allowed.length === 0) return;
+    if (allowed.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
     }
-  });
+  };
 
   // ============================================
   // COMBINED INIT ENDPOINT (Performance Optimization)
   // ============================================
-  // Returns branding, installer status, and version in one request
+  // Returns branding and version in one request
   // Reduces initial page load from 5+ API calls to 1
-  router.get("/api/init", async (_req: Request, res: Response) => {
+  router.get("/api/init", async (req: Request, res: Response) => {
     // Cache for 2 minutes - reduces server load on repeat visits
     res.setHeader('Cache-Control', 'public, max-age=120');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    maybeSetPublicCors(req, res);
     
     // Get version from VERSION file (same source as /api/system/version)
     let version = '1.0.0';
@@ -79,8 +70,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     
     try {
       // Fetch all data in parallel for speed
-      const [installed, brandingSettings, seoSettings] = await Promise.all([
-        isInstalled(),
+      const [brandingSettings, seoSettings] = await Promise.all([
         (async () => {
           const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url'];
           const branding: Record<string, any> = {};
@@ -95,7 +85,6 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       
       res.json({
         success: true,
-        installed,
         branding: {
           app_name: brandingSettings.app_name || '',
           app_tagline: brandingSettings.app_tagline || '',
@@ -114,174 +103,10 @@ export function createPublicRoutes(ctx: RouteContext): Router {
       console.error('Error in /api/init:', error);
       res.json({
         success: false,
-        installed: false,
         branding: { app_name: '', app_tagline: '', logo_url: null, favicon_url: null },
         seo: null,
         version
       });
-    }
-  });
-
-  router.get("/api/installer/check", async (_req: Request, res: Response) => {
-    try {
-      const installed = await isInstalled();
-      if (installed) {
-        return res.status(403).json({ message: "Application is already installed" });
-      }
-
-      const checks = [];
-      
-      const nodeVersion = process.version;
-      const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0], 10);
-      checks.push({
-        name: "Node.js Version",
-        status: majorVersion >= 18 ? "success" : "error",
-        message: majorVersion >= 18 ? `Node.js ${nodeVersion} (Required: 18+)` : `Node.js ${nodeVersion} is too old. Upgrade to 18+`
-      });
-
-      try {
-        await db.execute(sql`SELECT 1`);
-        checks.push({
-          name: "Database Connection",
-          status: "success",
-          message: "PostgreSQL connection successful"
-        });
-      } catch (error: any) {
-        checks.push({
-          name: "Database Connection",
-          status: "error",
-          message: `Database connection failed: ${error.message}`
-        });
-      }
-
-      const requiredEnvVars = ['DATABASE_URL', 'SESSION_SECRET'];
-      const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
-      checks.push({
-        name: "Environment Variables",
-        status: missingEnvVars.length === 0 ? "success" : "error",
-        message: missingEnvVars.length === 0 ? "Required variables set" : `Missing: ${missingEnvVars.join(', ')}`
-      });
-
-      const optionalKeys = [
-        { name: 'STRIPE_SECRET_KEY', label: 'Stripe' },
-        { name: 'TWILIO_ACCOUNT_SID', label: 'Twilio' },
-        { name: 'ELEVENLABS_API_KEY', label: 'ElevenLabs' }
-      ];
-      const missingOptional = optionalKeys.filter(k => !process.env[k.name]);
-      checks.push({
-        name: "API Keys",
-        status: missingOptional.length === 0 ? "success" : "warning",
-        message: missingOptional.length === 0 ? "All optional API keys configured" : `Configure later in Settings: ${missingOptional.map(k => k.label).join(', ')}`
-      });
-
-      const hasErrors = checks.some(c => c.status === "error");
-      res.json({ checks, canInstall: !hasErrors });
-    } catch (error: any) {
-      res.status(500).json({ message: "Failed to run system checks", error: error.message });
-    }
-  });
-
-  router.post("/api/installer/install", async (req: Request, res: Response) => {
-    try {
-      const installed = await isInstalled();
-      if (installed) {
-        return res.status(403).json({ message: "Application is already installed" });
-      }
-
-      const { adminEmail, adminPassword, companyName } = req.body;
-
-      if (!adminEmail || !adminPassword || !companyName) {
-        return res.status(400).json({ message: "Missing required fields" });
-      }
-
-      if (adminPassword.length < 8) {
-        return res.status(400).json({ message: "Password must be at least 8 characters" });
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(adminEmail)) {
-        return res.status(400).json({ message: "Invalid email address" });
-      }
-
-      console.log("╔════════════════════════════════════════════════════════════╗");
-      console.log("║           🚀 Installing Platform                           ║");
-      console.log("╚════════════════════════════════════════════════════════════╝");
-
-      console.log("\n📦 Step 1: Seeding database with required data...");
-      const seedResult = await runAllSeedsForInstaller();
-      
-      if (!seedResult.success) {
-        console.error("❌ Seeding failed:", seedResult.error);
-        return res.status(500).json({ 
-          message: "Installation failed during database seeding", 
-          error: seedResult.error 
-        });
-      }
-      
-      console.log("✅ Database seeding complete!");
-      console.log(`   Seeded: ${Object.entries(seedResult.summary).map(([k, v]) => `${k}: ${v}`).join(', ')}`);
-
-      console.log("\n👤 Step 2: Creating admin account...");
-      const hashedPassword = await bcrypt.hash(adminPassword, 10);
-      
-      const [admin] = await db.insert(users).values({
-        email: adminEmail,
-        password: hashedPassword,
-        name: companyName + " Admin",
-        role: "admin",
-        planType: "pro",
-        credits: 10000,
-        isActive: true,
-      }).returning();
-
-      console.log(`✅ Admin created: ${admin.email}`);
-      console.log(`   Role: ${admin.role}`);
-      console.log(`   Plan: ${admin.planType}`);
-      console.log(`   Credits: ${admin.credits}`);
-
-      console.log("\n⚙️  Step 3: Configuring platform settings...");
-      const settingsToCreate = [
-        { key: 'company_name', value: companyName, description: 'Company name displayed across the platform' },
-        { key: 'support_email', value: adminEmail, description: 'Support email for customer inquiries' },
-      ];
-
-      for (const setting of settingsToCreate) {
-        try {
-          await db.execute(sql`
-            INSERT INTO global_settings (key, value, description, updated_at)
-            VALUES (${setting.key}, ${JSON.stringify(setting.value)}::jsonb, ${setting.description}, NOW())
-            ON CONFLICT (key) DO UPDATE 
-            SET value = EXCLUDED.value, updated_at = NOW()
-          `);
-          console.log(`   ✅ Set ${setting.key}`);
-        } catch (error: any) {
-          console.warn(`   ⚠️ Failed to set ${setting.key}: ${error.message}`);
-        }
-      }
-      console.log("✅ Platform settings configured!");
-
-      console.log("\n╔════════════════════════════════════════════════════════════╗");
-      console.log("║           🎉 Installation Complete!                        ║");
-      console.log("╚════════════════════════════════════════════════════════════╝");
-      console.log(`\n📋 Installation Summary:`);
-      console.log(`   Admin Email: ${admin.email}`);
-      console.log(`   Company: ${companyName}`);
-      console.log(`   Database Seeds: ${Object.keys(seedResult.summary).length} categories`);
-      console.log(`   Ready to use!\n`);
-
-      res.json({
-        success: true,
-        message: "Platform installed successfully!",
-        admin: {
-          email: admin.email,
-          password: adminPassword,
-          id: admin.id
-        },
-        seeds: seedResult.summary
-      });
-    } catch (error: any) {
-      console.error("Installation error:", error);
-      res.status(500).json({ message: "Installation failed", error: error.message });
     }
   });
 
@@ -335,8 +160,8 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         },
         secrets: {
           elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-          twilio_sid: !!process.env.TWILIO_ACCOUNT_SID,
-          twilio_token: !!process.env.TWILIO_AUTH_TOKEN,
+          twilio_sid: !!(process.env.TWILIO_ACCOUNT_SID_UAE || process.env.TWILIO_ACCOUNT_SID),
+          twilio_token: !!(process.env.AUTH_TWILIO_UAE || process.env.TWILIO_AUTH_TOKEN),
           stripe: !!process.env.STRIPE_SECRET_KEY,
         },
         message: 'System operational'
@@ -646,7 +471,9 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         }
       }
       
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      // Admins can update branding at any time; avoid HTTP caching so changes
+      // show up immediately after an upload without a hard refresh.
+      res.setHeader('Cache-Control', 'no-store, must-revalidate');
       res.json(branding);
     } catch (error) {
       console.error('Error fetching branding:', error);

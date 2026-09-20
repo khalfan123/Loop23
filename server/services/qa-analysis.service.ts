@@ -187,6 +187,41 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
         resolutionStatus: analysis.resolutionStatus
       }, source);
 
+      // Human-reviewed closed loop (QA_FEEDBACK_LOOP_ENABLED). Never auto-applies.
+      try {
+        const { enqueueFeedbackFromSingleQa, isQaFeedbackLoopEnabled } =
+          await import('./agent-orchestration/qa-feedback-bridge');
+        if (isQaFeedbackLoopEnabled()) {
+          const meta =
+            call.metadata && typeof call.metadata === 'object'
+              ? (call.metadata as Record<string, unknown>)
+              : {};
+          const agentId =
+            (typeof meta.agentId === 'string' && meta.agentId) ||
+            call.incomingAgentId ||
+            `user:${userId}`;
+          const callSid = call.twilioSid || callId;
+          const result = await enqueueFeedbackFromSingleQa({
+            agentId,
+            callSid,
+            qa: analysis,
+          });
+          if (result.queued.length > 0) {
+            logger.info(
+              `QA feedback queued ${result.queued.length} human-review proposal(s) for agent ${agentId}`,
+              { callId, proposalKinds: result.queued.map((p) => p.kind) },
+              source,
+            );
+          }
+        }
+      } catch (fbErr: any) {
+        logger.warn(
+          `QA feedback loop skipped for ${callId}: ${fbErr?.message || fbErr}`,
+          {},
+          source,
+        );
+      }
+
       return savedAnalysis;
     } catch (error: any) {
       logger.error(`QA analysis failed for call ${callId}`, {

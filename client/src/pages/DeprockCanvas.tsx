@@ -244,10 +244,9 @@ const DEFAULT_FIRST_MESSAGES: Record<string, string> = {
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "zh", label: "Chinese" },
-  { code: "hi", label: "Hindi" },
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
+  { code: "de", label: "German" },
   { code: "ar", label: "Arabic" },
 ];
 
@@ -335,28 +334,7 @@ const ELEVENLABS_VOICES = [
   { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
 ];
 
-const CARTESIA_DEFAULT_VOICES = [
-  { id: "cartesia_a0e99841-438c-4a64-b679-ae501e7d6091", name: "Barbershop Man (Cartesia)", gender: "male", style: "warm", languages: ["en"] },
-  { id: "cartesia_79a125e8-cd45-4c13-8a67-188112f4dd22", name: "British Lady (Cartesia)", gender: "female", style: "professional", languages: ["en"] },
-  { id: "cartesia_87748186-23bb-4571-8b85-4d0e4e7e7196", name: "Calm Lady (Cartesia)", gender: "female", style: "calm", languages: ["en"] },
-  { id: "cartesia_ee7ea9f8-c0c1-498c-9f62-dc2627e1e3ef", name: "Confident Man (Cartesia)", gender: "male", style: "professional", languages: ["en"] },
-  { id: "cartesia_c2ac25f9-ecc4-4f56-9095-651354df60c0", name: "Customer Support (Cartesia)", gender: "female", style: "friendly", languages: ["en"] },
-  { id: "cartesia_41534e16-2966-4c6b-9670-111411def906", name: "Wise Man (Cartesia)", gender: "male", style: "deep", languages: ["en"] },
-  { id: "cartesia_248be419-c632-4f23-adf1-5324ed7dbf1d", name: "Pleasant Man (Cartesia)", gender: "male", style: "friendly", languages: ["en"] },
-  { id: "cartesia_bf991597-6c13-47e4-8411-91ec2de5c466", name: "Newsman (Cartesia)", gender: "male", style: "crisp", languages: ["en"] },
-  { id: "cartesia_b7d50908-b179-4d51-8d53-8b2a5d5e1bf3", name: "Friendly Sidekick (Cartesia)", gender: "male", style: "expressive", languages: ["en"] },
-  { id: "cartesia_00a77add-48d5-4ef6-8157-71e5437b282d", name: "Sarah (Cartesia)", gender: "female", style: "soft", languages: ["en", "es", "fr", "de", "it", "pt", "zh", "hi", "ar", "ja", "ko"] },
-  { id: "cartesia_f114a467-c40a-4db8-964d-aaba89cd08fa", name: "Friendly French Man (Cartesia)", gender: "male", style: "warm", languages: ["fr"] },
-  { id: "cartesia_a3520a8f-226a-428d-9fcd-b0a4711a6829", name: "French Narrator Lady (Cartesia)", gender: "female", style: "professional", languages: ["fr"] },
-  { id: "cartesia_ab7c61f5-3daa-47dd-a23b-4ac0aac5f5c3", name: "Spanish Narrator Lady (Cartesia)", gender: "female", style: "warm", languages: ["es"] },
-  { id: "cartesia_846d6cb0-2301-48b6-9683-48f5618ea2f6", name: "Spanish Narrator Man (Cartesia)", gender: "male", style: "professional", languages: ["es"] },
-  { id: "cartesia_5c42302c-f55f-481a-b895-80c1cda8c4e2", name: "Chinese Female Voice (Cartesia)", gender: "female", style: "clear", languages: ["zh"] },
-  { id: "cartesia_daf747c6-6bc2-4083-bd59-aa94dce23f5d", name: "Hindi Female Voice (Cartesia)", gender: "female", style: "warm", languages: ["hi"] },
-  { id: "cartesia_2b568345-1d48-4047-b25f-7baccf842eb0", name: "Arabic Male Voice (Cartesia)", gender: "male", style: "professional", languages: ["ar"] },
-];
-
-const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_") || (/^[a-zA-Z0-9]{10,}$/.test(voiceId) && !voiceId.startsWith("cartesia_"));
-const isCartesiaVoice = (voiceId: string) => voiceId.startsWith("cartesia_");
+const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_") || (/^[a-zA-Z0-9]{10,}$/.test(voiceId));
 
 const LANG_CODE_MAP: Record<string, string> = {
   english: 'en', arabic: 'ar', french: 'fr', spanish: 'es', hindi: 'hi',
@@ -403,38 +381,25 @@ const getPollyVoicesForLanguage = (languageCode: string) => {
   return POLLY_VOICES.filter(voice => voice.languages.includes(languageCode));
 };
 
-const getCartesiaVoicesForLanguage = (languageCode: string, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
-  const allVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
-  return allVoices.filter(voice => voice.languages.includes(languageCode));
-};
-
 const getElevenLabsVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = []) => {
   const allElVoices = [...ELEVENLABS_VOICES, ...dynamicVoices];
   return allElVoices.filter(voice => voice.languages.includes(languageCode));
 };
 
-const getVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], voiceProvider?: VoiceProviderOption, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
-  if (voiceProvider === 'cartesia') {
-    return getCartesiaVoicesForLanguage(languageCode, dynamicCartesiaVoices);
-  }
+const getVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = []) => {
   const allVoices = [...ALL_IVR_VOICES, ...dynamicVoices];
   return allVoices.filter(voice => voice.languages.includes(languageCode));
 };
 
-const getDefaultVoiceForLanguage = (langCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], voiceProvider?: VoiceProviderOption, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
-  const voices = getVoicesForLanguage(langCode, dynamicVoices, voiceProvider, dynamicCartesiaVoices);
-  if (voiceProvider === 'cartesia') {
-    const fallbackVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
-    return voices[0]?.id || fallbackVoices[0]?.id || "cartesia_a0e99841-438c-4a64-b679-ae501e7d6091";
-  }
+const getDefaultVoiceForLanguage = (langCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = []) => {
+  const voices = getVoicesForLanguage(langCode, dynamicVoices);
   return voices[0]?.id || "el_rachel";
 };
 
-const getBestVoiceForDept = (deptType: string, langCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], voiceProvider?: VoiceProviderOption, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []): string => {
-  const voices = getVoicesForLanguage(langCode, dynamicVoices, voiceProvider, dynamicCartesiaVoices);
+const getBestVoiceForDept = (deptType: string, langCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = []): string => {
+  const voices = getVoicesForLanguage(langCode, dynamicVoices);
   if (voices.length === 0) {
-    const fallbackVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
-    return voiceProvider === 'cartesia' ? fallbackVoices[0]?.id : "el_rachel";
+    return "el_rachel";
   }
 
   const stylePreference: Record<string, string[]> = {
@@ -871,9 +836,8 @@ const departmentTemplates = [
 
 const WIZARD_STEPS = [
   { id: 1, title: "Phone Numbers", icon: Phone },
-  { id: 2, title: "Voice Provider", icon: AudioWaveform },
-  { id: 3, title: "Departments", icon: Building2 },
-  { id: 4, title: "IVR Router", icon: GitBranch },
+  { id: 2, title: "Departments", icon: Building2 },
+  { id: 3, title: "IVR Router", icon: GitBranch },
 ];
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
@@ -1024,7 +988,7 @@ function PhoneSelectionStep({
   );
 }
 
-type VoiceProviderOption = 'elevenlabs' | 'cartesia';
+type VoiceProviderOption = 'elevenlabs';
 
 function VoiceProviderStep({
   selectedProvider,
@@ -1043,22 +1007,6 @@ function VoiceProviderStep({
     color: string;
     recommended?: boolean;
   }[] = [
-    {
-      id: 'cartesia',
-      name: 'Cartesia Sonic',
-      description: 'Ultra-low latency AI voices optimized for real-time phone conversations',
-      tier: 'Standard',
-      costLabel: '~$0.02/min',
-      features: [
-        'Ultra-low latency (~200ms)',
-        '16+ languages supported',
-        'Natural conversational tone',
-        'Cost-effective — lower per-minute rate',
-        'Real-time streaming optimized',
-      ],
-      color: 'text-blue-500',
-      recommended: true,
-    },
     {
       id: 'elevenlabs',
       name: 'ElevenLabs',
@@ -1152,7 +1100,6 @@ function DepartmentCard({
   externalGeneratingNameIds,
   dynamicElVoices = [],
   voiceProvider,
-  dynamicCartesiaVoices = [],
 }: {
   dept: CanvasDepartment;
   agents: Agent[];
@@ -1165,13 +1112,13 @@ function DepartmentCard({
   externalGeneratingNameIds?: Set<string>;
   dynamicElVoices?: typeof ELEVENLABS_VOICES;
   voiceProvider: VoiceProviderOption;
-  dynamicCartesiaVoices?: typeof CARTESIA_DEFAULT_VOICES;
 }) {
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [generatingLangIds, setGeneratingLangIds] = useState<Set<string>>(new Set());
   const [generatingNameLangIds, setGeneratingNameLangIds] = useState<Set<string>>(new Set());
+  const [pendingLangAgent, setPendingLangAgent] = useState<LanguageAgent | null>(null);
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -1181,6 +1128,18 @@ function DepartmentCard({
     generatingNameLangIds.has(langId) || (externalGeneratingNameIds?.has(langId) ?? false);
 
   const languageAgents = dept.languageAgents || [];
+  // Ref tracks the latest languageAgents so async callbacks (AI generation)
+  // never write back a stale snapshot and clobber concurrent updates.
+  const languageAgentsRef = useRef<LanguageAgent[]>(languageAgents);
+  useEffect(() => {
+    languageAgentsRef.current = languageAgents;
+  }, [languageAgents]);
+
+  const uiLanguageAgents = useMemo(() => {
+    if (!pendingLangAgent) return languageAgents;
+    if (languageAgents.some((la) => la.id === pendingLangAgent.id)) return languageAgents;
+    return [...languageAgents, pendingLangAgent];
+  }, [languageAgents, pendingLangAgent]);
 
   useEffect(() => {
     audioRef.current = new Audio();
@@ -1191,6 +1150,12 @@ function DepartmentCard({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (pendingLangAgent && languageAgents.some((la) => la.id === pendingLangAgent.id)) {
+      setPendingLangAgent(null);
+    }
+  }, [languageAgents, pendingLangAgent]);
 
   const icons: Record<string, any> = {
     sales: ShoppingCart,
@@ -1240,7 +1205,7 @@ function DepartmentCard({
 
   const handleLanguageChange = (langAgentId: string, newLangCode: string) => {
     const bestAgent = dept.type !== "custom" ? getBestAgentForLang(dept.type, newLangCode) : null;
-    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, newLangCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices) : getDefaultVoiceForLanguage(newLangCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
+    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, newLangCode, dynamicElVoices) : getDefaultVoiceForLanguage(newLangCode, dynamicElVoices);
     const bestTone = dept.type !== "custom" ? getBestToneForDept(dept.type) : null;
 
     const agentFound = !!bestAgent;
@@ -1297,8 +1262,12 @@ function DepartmentCard({
       });
       const data = await response.json();
       if (data.prompt) {
+        // Use the ref (latest state) instead of the captured snapshot so we
+        // don't clobber concurrent updates (e.g. agentName / firstMessage
+        // that arrived from other generators while this one was running).
+        const latest = languageAgentsRef.current;
         onUpdate({
-          languageAgents: currentAgents.map((la) =>
+          languageAgents: latest.map((la) =>
             la.id === langAgentId ? { ...la, systemPrompt: data.prompt } : la
           ),
         });
@@ -1316,14 +1285,14 @@ function DepartmentCard({
   };
 
   const addLanguageAgent = (selectedLangCode: string) => {
-    const usedLangs = languageAgents.map((la) => la.language);
+    const usedLangs = uiLanguageAgents.map((la) => la.language);
     const availableLang = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLangCode && !usedLangs.includes(l.code));
     if (!availableLang) return;
 
     const langCode = availableLang.code;
     const langAgentId = `la-${Date.now()}`;
     const bestAgent = dept.type !== "custom" ? getBestAgentForLang(dept.type, langCode) : null;
-    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, langCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices) : null;
+    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, langCode, dynamicElVoices) : null;
     const bestTone = dept.type !== "custom" ? getBestToneForDept(dept.type) : null;
 
     const agentFound = !!bestAgent;
@@ -1346,7 +1315,9 @@ function DepartmentCard({
 
     const updatedList = [...languageAgents, newLangAgent];
     onUpdate({ languageAgents: updatedList });
-    setActiveTabIdx(languageAgents.length);
+    // Prevent flicker: keep a temporary UI-only agent until parent state updates.
+    setPendingLangAgent(newLangAgent);
+    setActiveTabIdx(uiLanguageAgents.length);
 
     generateAiAgentName(langAgentId, langCode);
 
@@ -1374,7 +1345,9 @@ function DepartmentCard({
   };
 
   const updateLanguageAgent = (id: string, updates: Partial<LanguageAgent>) => {
-    const newList = languageAgents.map((la) => {
+    // Read from ref to avoid clobbering concurrent updates from other async callbacks.
+    const source = languageAgentsRef.current;
+    const newList = source.map((la) => {
       if (la.id !== id) return la;
       const merged = { ...la, ...updates };
       if ('agentName' in updates && updates.agentName !== undefined) {
@@ -1385,6 +1358,7 @@ function DepartmentCard({
       }
       return merged;
     });
+    languageAgentsRef.current = newList;
     onUpdate({ languageAgents: newList });
   };
 
@@ -1500,7 +1474,7 @@ function DepartmentCard({
     if (agent) {
       const langAgent = languageAgents.find(la => la.id === langAgentId);
       const language = langAgent?.language || "en";
-      const bestVoice = getBestVoiceForDept(dept.type, language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
+      const bestVoice = getBestVoiceForDept(dept.type, language, dynamicElVoices);
       const bestTone = getBestToneForDept(dept.type);
       const agentUpdates: Partial<LanguageAgent> = {
         agentId: agent.id,
@@ -1560,7 +1534,7 @@ function DepartmentCard({
     }
   };
 
-  const activeLangAgent = languageAgents[activeTabIdx];
+  const activeLangAgent = uiLanguageAgents[activeTabIdx];
   const availableAgentsForActive = activeLangAgent ? getAgentsForLanguage(activeLangAgent.language) : [];
 
   const enabledFeaturesCount = [dept.enableTransfer, dept.enableLanguageDetection, dept.enableEndConversation, dept.enableAppointmentBooking, dept.enableRecording].filter(Boolean).length;
@@ -1618,7 +1592,7 @@ function DepartmentCard({
                   <DropdownMenuTrigger asChild>
                     <button
                       className="text-[10px] text-primary hover:underline font-medium disabled:opacity-50"
-                      disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
+                      disabled={uiLanguageAgents.length >= SUPPORTED_LANGUAGES.length}
                       data-testid="button-add-language"
                     >
                       + Add
@@ -1626,7 +1600,7 @@ function DepartmentCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {SUPPORTED_LANGUAGES
-                      .filter((l) => !languageAgents.some((la) => la.language === l.code))
+                      .filter((l) => !uiLanguageAgents.some((la) => la.language === l.code))
                       .map((lang) => (
                         <DropdownMenuItem
                           key={lang.code}
@@ -1640,9 +1614,9 @@ function DepartmentCard({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              {languageAgents.length > 0 ? (
+              {uiLanguageAgents.length > 0 ? (
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {languageAgents.map((la, idx) => (
+                  {uiLanguageAgents.map((la, idx) => (
                     <Badge
                       key={la.id}
                       variant={idx === activeTabIdx ? "default" : "outline"}
@@ -1665,14 +1639,58 @@ function DepartmentCard({
 
           {activeLangAgent && (
             <div className="p-2.5 space-y-2.5 border rounded bg-muted/20 relative min-h-[200px]">
-              {(isNameGenerating(activeLangAgent.id) || isLangGenerating(activeLangAgent.id) || isGeneratingPrompt) && (
-                <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md bg-primary/5 border border-primary/10" data-testid="lang-loading-overlay">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                  <span className="text-xs font-medium text-primary">
-                    {isNameGenerating(activeLangAgent.id) ? "Generating agent name..." : isLangGenerating(activeLangAgent.id) ? "Generating first message..." : "Generating system prompt..."}
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const nameBusy = isNameGenerating(activeLangAgent.id);
+                const msgBusy = isLangGenerating(activeLangAgent.id);
+                const promptBusy = isGeneratingPrompt;
+                if (!nameBusy && !msgBusy && !promptBusy) return null;
+                const steps = [
+                  { key: "name", label: "Agent name", busy: nameBusy, done: !nameBusy && !!activeLangAgent.agentName },
+                  { key: "msg", label: "First message", busy: msgBusy, done: !msgBusy && !!activeLangAgent.firstMessage },
+                  { key: "prompt", label: "System prompt", busy: promptBusy, done: !promptBusy && !!activeLangAgent.systemPrompt },
+                ];
+                return (
+                  <div
+                    className="relative overflow-hidden mb-2 rounded-md border border-primary/15 bg-gradient-to-r from-primary/[0.04] via-primary/[0.07] to-primary/[0.04] px-3 py-2 shadow-sm"
+                    data-testid="lang-loading-overlay"
+                    aria-live="polite"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-primary/80">
+                          Preparing your {SUPPORTED_LANGUAGES.find(l => l.code === activeLangAgent.language)?.label || ""} agent
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-medium text-muted-foreground shrink-0">
+                        {steps.filter(s => s.done).length}/{steps.length}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      {steps.map((s, i) => (
+                        <div key={s.key} className="flex items-center gap-3 shrink-0">
+                          {i > 0 && <div className="h-px w-6 bg-primary/15" />}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {s.busy ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            ) : s.done ? (
+                              <Check className="h-3 w-3 text-emerald-500" />
+                            ) : (
+                              <div className="h-3 w-3 rounded-full border border-muted-foreground/40 bg-background" />
+                            )}
+                            <span className={`text-[10.5px] font-medium ${s.busy ? "text-primary" : s.done ? "text-foreground/70" : "text-muted-foreground"}`}>
+                              {s.label}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden bg-primary/10">
+                      <div className="h-full w-full bg-primary/40 animate-pulse" />
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Select
@@ -1815,9 +1833,9 @@ function DepartmentCard({
                       <SelectValue placeholder="Select a voice..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).length > 0 ? (
+                      {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices).length > 0 ? (
                         <>
-                          {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).map((voice) => (
+                          {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices).map((voice) => (
                             <SelectItem key={voice.id} value={voice.id}>
                               {voice.name} - {voice.gender}, {voice.style}
                             </SelectItem>
@@ -2034,7 +2052,6 @@ function DepartmentsStep({
   toast,
   dynamicElVoices = [],
   voiceProvider,
-  dynamicCartesiaVoices = [],
 }: {
   canvasDepartments: CanvasDepartment[];
   setCanvasDepartments: (fn: (prev: CanvasDepartment[]) => CanvasDepartment[]) => void;
@@ -2042,7 +2059,6 @@ function DepartmentsStep({
   toast: ReturnType<typeof useToast>["toast"];
   dynamicElVoices?: typeof ELEVENLABS_VOICES;
   voiceProvider: VoiceProviderOption;
-  dynamicCartesiaVoices?: typeof CARTESIA_DEFAULT_VOICES;
 }) {
   const [customDeptName, setCustomDeptName] = useState("");
   const [activeDeptId, setActiveDeptId] = useState<string | null>(null);
@@ -2208,7 +2224,7 @@ function DepartmentsStep({
 
     const languageAgents: LanguageAgent[] = langsToAdd.map((langCode, idx) => {
       const langAgentId = `la-${Date.now()}-${idx}`;
-      const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices) : getDefaultVoiceForLanguage(langCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
+      const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode, dynamicElVoices) : getDefaultVoiceForLanguage(langCode, dynamicElVoices);
       const bestTone = deptType !== "custom" ? getBestToneForDept(deptType) : null;
       const bestAgent = deptType !== "custom" ? getBestAgentForDept(deptType, langCode) : null;
       const agentFound = !!bestAgent;
@@ -2494,7 +2510,6 @@ function DepartmentsStep({
             externalGeneratingNameIds={generatingNameDeptIds}
             dynamicElVoices={dynamicElVoices}
             voiceProvider={voiceProvider}
-            dynamicCartesiaVoices={dynamicCartesiaVoices}
           />
         )}
       </div>
@@ -2583,7 +2598,7 @@ function IVRRouterStep({
     const newOption: LanguageOption = {
       id: newId,
       language: availableLang.code,
-      voiceId: getDefaultVoiceForLanguage(availableLang.code, dynamicElVoices, voiceProvider, dynamicCartesiaVoices),
+      voiceId: getDefaultVoiceForLanguage(availableLang.code, dynamicElVoices),
       greeting: generateDeptGreeting(deptInfos, availableLang.code),
       selectedDepartments: allDeptIds,
     };
@@ -2603,7 +2618,7 @@ function IVRRouterStep({
             } else {
               updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
             }
-            updated.voiceId = getDefaultVoiceForLanguage(updates.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
+            updated.voiceId = getDefaultVoiceForLanguage(updates.language, dynamicElVoices);
           }
           return updated;
         }
@@ -2750,12 +2765,12 @@ function IVRRouterStep({
                         <SelectValue placeholder="Select a voice..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {getVoicesForLanguage('en', dynamicElVoices, voiceProvider, dynamicCartesiaVoices).map((voice) => (
+                        {getVoicesForLanguage('en', dynamicElVoices).map((voice) => (
                           <SelectItem key={voice.id} value={voice.id}>
                             {voice.name} - {voice.gender}, {voice.style}
                           </SelectItem>
                         ))}
-                        {getVoicesForLanguage('en', dynamicElVoices, voiceProvider, dynamicCartesiaVoices).length === 0 && (
+                        {getVoicesForLanguage('en', dynamicElVoices).length === 0 && (
                           <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices available</div>
                         )}
                       </SelectContent>
@@ -2891,9 +2906,9 @@ function IVRRouterStep({
                                 <SelectValue placeholder="Select a voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {getVoicesForLanguage(activeOpt.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).length > 0 ? (
+                                {getVoicesForLanguage(activeOpt.language, dynamicElVoices).length > 0 ? (
                                   <>
-                                    {getVoicesForLanguage(activeOpt.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).map((voice) => (
+                                    {getVoicesForLanguage(activeOpt.language, dynamicElVoices).map((voice) => (
                                       <SelectItem key={voice.id} value={voice.id}>
                                         {voice.name} - {voice.gender}, {voice.style}
                                       </SelectItem>
@@ -2992,7 +3007,7 @@ function IVRRouterStep({
                       setLanguageOptions([{
                         id: "default",
                         language: "en",
-                        voiceId: getDefaultVoiceForLanguage('en', dynamicElVoices, voiceProvider, dynamicCartesiaVoices),
+                        voiceId: getDefaultVoiceForLanguage('en', dynamicElVoices),
                         greeting: e.target.value,
                       }]);
                     } else {
@@ -3032,7 +3047,7 @@ function IVRRouterStep({
                       {(() => {
                         const lang = languageOptions[0]?.language || 'en';
                         const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === lang)?.label || 'English';
-                        const allVoices = getVoicesForLanguage(lang, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
+                        const allVoices = getVoicesForLanguage(lang, dynamicElVoices);
                         return (
                           <>
                             {allVoices.map((voice) => (
@@ -3128,27 +3143,7 @@ export default function DeprockCanvas() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: apiCartesiaVoices = [] } = useQuery<any[], Error, typeof CARTESIA_DEFAULT_VOICES>({
-    queryKey: ["/api/deprock/cartesia-voices"],
-    select: (data) => {
-      if (!Array.isArray(data) || data.length === 0) return CARTESIA_DEFAULT_VOICES;
-      const seenIds = new Set<string>();
-      return data
-        .filter((v: any) => {
-          if (seenIds.has(v.id)) return false;
-          seenIds.add(v.id);
-          return true;
-        })
-        .map((v: any) => ({
-          id: `cartesia_${v.id}`,
-          name: `${v.name || "Unknown"} (Cartesia)`,
-          gender: (v.gender || "unknown") as string,
-          style: "professional",
-          languages: [v.language || "en"],
-        }));
-    },
-    staleTime: 10 * 60 * 1000,
-  });
+  const apiCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = [];
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
@@ -3318,8 +3313,7 @@ export default function DeprockCanvas() {
 
   const canGoNext = useMemo(() => {
     if (currentStep === 1) return selectedPhoneIds.length > 0;
-    if (currentStep === 2) return !!selectedVoiceProvider;
-    if (currentStep === 3) return canvasDepartments.length > 0;
+    if (currentStep === 2) return canvasDepartments.length > 0;
     return true;
   }, [currentStep, selectedPhoneIds.length, selectedVoiceProvider, canvasDepartments.length]);
 
@@ -3462,12 +3456,6 @@ export default function DeprockCanvas() {
             />
           )}
           {currentStep === 2 && (
-            <VoiceProviderStep
-              selectedProvider={selectedVoiceProvider}
-              onSelectProvider={setSelectedVoiceProvider}
-            />
-          )}
-          {currentStep === 3 && (
             <DepartmentsStep
               canvasDepartments={canvasDepartments}
               setCanvasDepartments={setCanvasDepartments}
@@ -3475,10 +3463,9 @@ export default function DeprockCanvas() {
               toast={toast}
               dynamicElVoices={dynamicElVoices}
               voiceProvider={selectedVoiceProvider}
-              dynamicCartesiaVoices={apiCartesiaVoices}
             />
           )}
-          {currentStep === 4 && (
+          {currentStep === 3 && (
             <IVRRouterStep
               ivrEnabled={ivrEnabled}
               setIvrEnabled={setIvrEnabled}
@@ -3501,7 +3488,6 @@ export default function DeprockCanvas() {
               toast={toast}
               dynamicElVoices={dynamicElVoices}
               voiceProvider={selectedVoiceProvider}
-              dynamicCartesiaVoices={apiCartesiaVoices}
               customizedDeptGreetings={customizedDeptGreetings}
             />
           )}

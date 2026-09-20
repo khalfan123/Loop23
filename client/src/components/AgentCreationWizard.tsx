@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { WizardStepper } from "@/components/ui/wizard-stepper";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -255,6 +255,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
+    voiceStyle: 0,
+    voiceSpeakerBoost: true,
     telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
@@ -365,6 +367,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
       voiceStability: 0.55,
       voiceSimilarityBoost: 0.85,
       voiceSpeed: 1.0,
+      voiceStyle: 0,
+      voiceSpeakerBoost: true,
       telephonyProvider: "twilio",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
@@ -395,6 +399,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         voiceStability: formData.voiceStability,
         voiceSimilarityBoost: formData.voiceSimilarityBoost,
         voiceSpeed: formData.voiceSpeed,
+        voiceStyle: formData.voiceStyle ?? 0,
+        voiceSpeakerBoost: formData.voiceSpeakerBoost ?? true,
         temperature: formData.temperature,
         telephonyProvider: formData.telephonyProvider,
         openaiVoice: isOpenAIVoice ? formData.openaiVoice : undefined,
@@ -704,6 +710,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                           stability: formData.voiceStability,
                           similarity_boost: formData.voiceSimilarityBoost,
                           speed: formData.voiceSpeed,
+                          style: formData.voiceStyle ?? 0,
+                          use_speaker_boost: formData.voiceSpeakerBoost ?? true,
                         }}
                         onSettingsChange={(settings) => {
                           setFormData(prev => ({
@@ -711,6 +719,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                             voiceStability: settings.stability,
                             voiceSimilarityBoost: settings.similarity_boost,
                             voiceSpeed: settings.speed ?? prev.voiceSpeed,
+                            voiceStyle: settings.style ?? 0,
+                            voiceSpeakerBoost: settings.use_speaker_boost ?? true,
                           }));
                         }}
                         compact
@@ -1029,6 +1039,18 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                       stability: formData.voiceStability,
                       similarity_boost: formData.voiceSimilarityBoost,
                       speed: formData.voiceSpeed,
+                      style: formData.voiceStyle ?? 0,
+                      use_speaker_boost: formData.voiceSpeakerBoost ?? true,
+                    }}
+                    onSettingsChange={(settings) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        voiceStability: settings.stability,
+                        voiceSimilarityBoost: settings.similarity_boost,
+                        voiceSpeed: settings.speed ?? prev.voiceSpeed,
+                        voiceStyle: settings.style ?? 0,
+                        voiceSpeakerBoost: settings.use_speaker_boost ?? true,
+                      }));
                     }}
                     previewText={formData.firstMessage || "Hello! This is a preview of how I'll sound when answering calls."}
                   />
@@ -1133,32 +1155,25 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     }}>
       <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                <Wand2 className="h-5 w-5 text-primary" />
-                Create AI Agent
-              </DialogTitle>
-              <DialogDescription>
-                Step {currentStepIndex + 1} of {steps.length}: {steps[currentStepIndex].title}
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              {steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`h-2 w-2 rounded-full transition-colors ${
-                    index < currentStepIndex
-                      ? "bg-emerald-500"
-                      : index === currentStepIndex
-                      ? "bg-primary"
-                      : "bg-muted"
-                  }`}
-                />
-              ))}
-            </div>
+          <div>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-5 w-5 text-primary" />
+              Create AI Agent
+            </DialogTitle>
+            <DialogDescription>
+              Step {currentStepIndex + 1} of {steps.length}: {steps[currentStepIndex].title}
+            </DialogDescription>
           </div>
-          <Progress value={progress} className="h-1 mt-4" />
+          {/* Shared premium stepper (see components/ui/wizard-stepper): consistent
+              progress + completed/current states, click-to-jump on reached steps. */}
+          <WizardStepper
+            steps={steps}
+            currentIndex={currentStepIndex}
+            completed={steps.slice(0, currentStepIndex).map((s) => s.id)}
+            progress={progress / 100}
+            onStepClick={(index) => setCurrentStep(steps[index].id)}
+            className="mt-4"
+          />
         </DialogHeader>
 
         <ScrollArea className="flex-1 max-h-[55vh]">

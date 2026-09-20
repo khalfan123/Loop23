@@ -576,6 +576,13 @@ IMPORTANT: Do NOT just say you will book the appointment - you MUST actually cal
       const personalityText = params.personality ? `Personality: ${params.personality}.` : '';
       enhancedPrompt = `${toneText}${toneText && personalityText ? ' ' : ''}${personalityText}\n\n${params.prompt}`;
     }
+
+    // Apply phone-human best practices for natural agents (skip if already present)
+    // Flow/scripted agents use different construction path.
+    try {
+      const { applyPhoneHumanPolicy } = await import('./phone-human-policy');
+      enhancedPrompt = applyPhoneHumanPolicy(enhancedPrompt, 'balanced');
+    } catch {}
     
     // Enhance prompt with system tools instructions (including knowledge base if present)
     const hasKnowledgeBase = params.knowledge_bases && params.knowledge_bases.length > 0;
@@ -807,6 +814,15 @@ ABSOLUTE RULES - NEVER BREAK THESE:
 IMPORTANT: Each workflow step will have "CRITICAL INSTRUCTION" with the exact text to say. Copy that text exactly.
 
 You are a script reader, not a conversational AI. Execute the workflow mechanically.`;
+
+    // If user provided a non-scripted custom system prompt, apply phone-human policy.
+    // Never touch the default scripted prompt.
+    if (params.systemPrompt && !basePrompt.includes('SCRIPTED phone agent')) {
+      try {
+        const { applyPhoneHumanPolicy } = await import('./phone-human-policy');
+        basePrompt = applyPhoneHumanPolicy(basePrompt, 'balanced');
+      } catch {}
+    }
 
     // Add language detection instructions if enabled
     if (params.detectLanguageEnabled) {
@@ -2086,6 +2102,44 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
   }
 
   /**
+   * Remove background noise from an audio file via ElevenLabs Audio Isolation.
+   * POST /v1/audio-isolation — returns cleaned audio bytes.
+   */
+  async isolateAudio(
+    audio: Buffer,
+    options?: { fileFormat?: 'pcm_s16le_16' | 'other'; filename?: string }
+  ): Promise<Buffer> {
+    const fileFormat = options?.fileFormat || 'other';
+    const filename = options?.filename || 'recording.mp3';
+    const form = new FormData();
+    const bytes = new Uint8Array(audio);
+    form.append(
+      'audio',
+      new Blob([bytes], {
+        type: fileFormat === 'pcm_s16le_16' ? 'application/octet-stream' : 'audio/mpeg',
+      }),
+      filename
+    );
+    form.append('file_format', fileFormat);
+
+    const response = await fetch(`${ELEVENLABS_V1_BASE_URL}/audio-isolation`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': this.apiKey,
+      },
+      body: form as any,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`ElevenLabs Audio Isolation error ${response.status}: ${errorText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  /**
    * Generate voice preview audio using ElevenLabs TTS API
    * Returns audio buffer in mp3 format
    */
@@ -2096,6 +2150,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       stability?: number;
       similarity_boost?: number;
       speed?: number;
+      style?: number;
       use_speaker_boost?: boolean;
     };
     modelId?: string;
@@ -2110,12 +2165,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       model_id: modelId || "eleven_multilingual_v2",
     };
     
-    // Add voice settings if provided (style excluded - not supported by Conversational AI)
+    // Full TTS voice_settings for preview (including style + speaker boost).
     if (voiceSettings) {
       requestBody.voice_settings = {
         stability: voiceSettings.stability ?? 0.5,
         similarity_boost: voiceSettings.similarity_boost ?? 0.75,
         speed: voiceSettings.speed ?? 1.0,
+        style: voiceSettings.style ?? 0,
         use_speaker_boost: voiceSettings.use_speaker_boost ?? true,
       };
     }

@@ -9,7 +9,6 @@
 import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { 
   discoverPlugins, 
   getPluginStatus, 
@@ -19,18 +18,18 @@ import {
 } from '../plugins/loader';
 import { getUserPlanCapabilities } from '../services/membership-service';
 
-// Handle both ESM (development) and CJS (production bundle) contexts
-const getDirname = () => {
-  try {
-    if (typeof import.meta?.url === 'string') {
-      return path.dirname(fileURLToPath(import.meta.url));
-    }
-  } catch {}
-  return __dirname ?? process.cwd();
-};
+function resolvePluginsDir(): string {
+  const candidates = [
+    path.join(process.cwd(), 'plugins'),
+    path.resolve(process.cwd(), 'plugins'),
+  ];
+  for (const dir of candidates) {
+    if (fs.existsSync(dir)) return dir;
+  }
+  return candidates[0];
+}
 
-const currentDir = getDirname();
-const pluginsDir = path.resolve(currentDir, '../../plugins');
+const pluginsDir = resolvePluginsDir();
 
 const router = Router();
 

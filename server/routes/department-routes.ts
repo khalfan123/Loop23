@@ -6,6 +6,7 @@ import { eq, and, desc, asc, inArray } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
+import { cleanupDepartmentReferences } from "../services/department-cleanup";
 import { textToSpeech } from "../replit_integrations/audio/client";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { nanoid } from "nanoid";
@@ -392,7 +393,15 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         console.log(`[Departments] Deleted ${linkedAgentIds.length} linked agent(s) for department ${id}`);
       }
 
-      res.json({ success: true, deletedAgents: linkedAgentIds.length });
+      const cleanup = await cleanupDepartmentReferences(req.userId!, id);
+
+      res.json({
+        success: true,
+        deletedAgents: linkedAgentIds.length,
+        ivrsUpdated: cleanup.ivrsUpdated,
+        ivrsDeleted: cleanup.ivrsDeleted,
+        phonesFreed: cleanup.phonesFreed,
+      });
     } catch (error: any) {
       console.error("[Departments] Delete error:", error);
       res.status(500).json({ error: "Failed to delete department" });
@@ -450,7 +459,17 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       if (systemPrompt || voiceId || voiceTone) {
         const agentUpdate: Record<string, any> = {};
         if (systemPrompt) agentUpdate.systemPrompt = systemPrompt;
-        if (voiceId) agentUpdate.openaiVoice = voiceId;
+        if (voiceId) {
+          // Canvas may pass ElevenLabs aliases (el_*). Deprock IVR routes to
+          // OpenAI Realtime — store a Realtime-safe voice so session.update doesn't fail.
+          const { OpenAIAgentFactory } = await import('../engines/twilio-openai/services/openai-agent-factory');
+          agentUpdate.openaiVoice = OpenAIAgentFactory.validateVoice(voiceId);
+          if (isElevenLabsVoiceId(voiceId)) {
+            agentUpdate.voiceProvider = 'elevenlabs';
+            const realId = getElevenLabsVoiceId(voiceId);
+            if (realId) agentUpdate.elevenLabsVoiceId = realId;
+          }
+        }
         if (voiceTone) agentUpdate.voiceTone = voiceTone;
 
         await db
@@ -1011,7 +1030,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         messages: [
           {
             role: "system",
-            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. If company knowledge base information is provided, use it to personalize the prompt with real company details — reference actual products, services, policies, and brand identity instead of using generic placeholders. The entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
+            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent.\n\nHARD REQUIREMENTS:\n- The prompt MUST be written for a live phone call and must sound human.\n- Keep replies short by default (1–2 sentences), ask one question at a time, and confirm intent before giving steps.\n- The prompt MUST include a clearly-delimited policy block with the marker PHONE_HUMAN_POLICY_V1.\n- The prompt MUST enforce knowledge-base adherence: the agent must never guess; it must use the KB tool first for factual questions.\n- The prompt MUST enforce a low-confidence protocol: if KB results are weak/low-confidence, the agent must ask EXACTLY ONE clarifying question and then re-check the KB before answering.\n\nIf company knowledge base information is provided, use it to personalize the prompt with real company details — reference actual products, services, policies, and brand identity instead of using generic placeholders.\n\nThe entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
           },
           {
             role: "user",

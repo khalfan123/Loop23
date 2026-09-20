@@ -114,6 +114,9 @@ interface Agent {
   voiceStability: number | null;
   voiceSimilarityBoost: number | null;
   voiceSpeed: number | null;
+  voiceStyle: number | null;
+  voiceSpeakerBoost: boolean | null;
+  elevenLabsModelId: string | null;
   transferEnabled: boolean | null;
   transferPhoneNumber: string | null;
   detectLanguageEnabled: boolean | null;
@@ -121,7 +124,7 @@ interface Agent {
   appointmentBookingEnabled: boolean | null;
   knowledgeBaseOnly: boolean | null;
   telephonyProvider: 'twilio' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
-  voiceProvider: 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia' | null;
+  voiceProvider: string | null;
   openaiVoice: string | null;
   awsPollyVoiceId: string | null;
   sourceTemplateId: string | null;
@@ -267,6 +270,7 @@ export default function Agents() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
+  const [brokenAvatarByAgentId, setBrokenAvatarByAgentId] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     type: "incoming" as 'incoming' | 'flow',
     name: "",
@@ -294,6 +298,9 @@ export default function Agents() {
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
+    voiceStyle: 0,
+    voiceSpeakerBoost: true,
+    elevenLabsModelId: "" as string,
     telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
@@ -338,19 +345,10 @@ export default function Agents() {
     queryKey: ["/api/elevenlabs/voices"],
   });
 
-  const { data: cartesiaVoices = [] } = useQuery<Array<{ id: string; name: string; language: string }>>({
-    queryKey: ["/api/deprock/cartesia-voices"],
-    staleTime: 60000,
-  });
-
   const getVoiceName = useMemo(() => {
     const voiceMap = new Map(voices.map(v => [v.voice_id, v.name]));
-    const cartesiaMap = new Map(cartesiaVoices.map(v => [v.id, v.name]));
     return (agent: Agent): string => {
       const provider = agent.voiceProvider;
-      if (provider === 'cartesia' && agent.openaiVoice) {
-        return cartesiaMap.get(agent.openaiVoice) || agent.openaiVoice;
-      }
       if (provider === 'aws_polly' && agent.awsPollyVoiceId) {
         return agent.awsPollyVoiceId;
       }
@@ -363,7 +361,7 @@ export default function Agents() {
       }
       return 'Not set';
     };
-  }, [voices, cartesiaVoices]);
+  }, [voices]);
 
   const availableVoiceLanguages = useMemo(() => {
     const langMap = new Map<string, string>();
@@ -658,6 +656,9 @@ export default function Agents() {
       voiceStability: 0.55,
       voiceSimilarityBoost: 0.85,
       voiceSpeed: 1.0,
+      voiceStyle: 0,
+      voiceSpeakerBoost: true,
+      elevenLabsModelId: "",
       telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
@@ -745,7 +746,7 @@ export default function Agents() {
     // Legacy dialog-based edit (kept for reference)
     setEditingAgent(agent);
     setFormData({
-      type: agent.type || "incoming",
+      type: (agent.type === 'inbound' ? 'incoming' : agent.type) || "incoming",
       name: agent.name,
       voiceTone: agent.voiceTone || "professional",
       personality: agent.personality || "helpful",
@@ -770,6 +771,9 @@ export default function Agents() {
       voiceStability: agent.voiceStability ?? 0.55,
       voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
       voiceSpeed: agent.voiceSpeed ?? 1.0,
+      voiceStyle: agent.voiceStyle ?? 0,
+      voiceSpeakerBoost: agent.voiceSpeakerBoost ?? true,
+      elevenLabsModelId: agent.elevenLabsModelId || "",
       telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: agent.openaiVoice || "alloy",
       sipPhoneNumberId: (agent as any).sipPhoneNumberId || "",
@@ -1107,7 +1111,11 @@ export default function Agents() {
           <div className="flex items-center justify-between p-3 md:p-4 border-b glass-surface">
             <h2 className="text-base md:text-lg font-semibold tracking-tight">
               {voiceLanguage === 'all' 
-                ? (voiceProvider === 'elevenlabs' ? 'ElevenLabs Voices' : 'OpenAI Voices')
+                ? (voiceProvider === 'elevenlabs'
+                    ? 'ElevenLabs Voices'
+                    : voiceProvider === 'clone' || voiceProvider === 'local_clone'
+                      ? 'Instant Clone'
+                      : 'OpenAI Voices')
                 : `${availableVoiceLanguages.find(l => l.value === voiceLanguage)?.label || 'Voices'} Voices`}
             </h2>
           </div>
@@ -1116,7 +1124,6 @@ export default function Agents() {
               externalProvider={voiceProvider} 
               externalLanguage={voiceLanguage} 
               hideHeader 
-              hideProviderTabs 
             />
           </div>
         </div>
@@ -1327,11 +1334,14 @@ export default function Agents() {
                           <TableCell>
                             <div className="flex items-center gap-2 md:gap-3">
                               <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab hidden md:block" />
-                              {agent.avatarUrl ? (
+                              {agent.avatarUrl && !brokenAvatarByAgentId[agent.id] ? (
                                 <img 
                                   src={agent.avatarUrl} 
                                   alt={agent.name}
                                   className="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover border-2 border-background shadow-sm flex-shrink-0"
+                                  onError={() => {
+                                    setBrokenAvatarByAgentId(prev => ({ ...prev, [agent.id]: true }));
+                                  }}
                                 />
                               ) : (
                                 <div className={`h-8 w-8 md:h-10 md:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -1944,6 +1954,8 @@ export default function Agents() {
                           stability: formData.voiceStability ?? 0.5,
                           similarity_boost: formData.voiceSimilarityBoost ?? 0.75,
                           speed: formData.voiceSpeed ?? 1.0,
+                          style: formData.voiceStyle ?? 0,
+                          use_speaker_boost: formData.voiceSpeakerBoost ?? true,
                         }}
                         onSettingsChange={(settings) => {
                           setFormData({
@@ -1951,6 +1963,8 @@ export default function Agents() {
                             voiceStability: settings.stability,
                             voiceSimilarityBoost: settings.similarity_boost,
                             voiceSpeed: settings.speed,
+                            voiceStyle: settings.style ?? 0,
+                            voiceSpeakerBoost: settings.use_speaker_boost ?? true,
                           });
                         }}
                         compact
@@ -2385,6 +2399,8 @@ export default function Agents() {
                         stability: formData.voiceStability ?? 0.5,
                         similarity_boost: formData.voiceSimilarityBoost ?? 0.75,
                         speed: formData.voiceSpeed ?? 1.0,
+                        style: formData.voiceStyle ?? 0,
+                        use_speaker_boost: formData.voiceSpeakerBoost ?? true,
                       }}
                       onSettingsChange={(settings) => {
                         setFormData({
@@ -2392,6 +2408,8 @@ export default function Agents() {
                           voiceStability: settings.stability,
                           voiceSimilarityBoost: settings.similarity_boost,
                           voiceSpeed: settings.speed,
+                          voiceStyle: settings.style ?? 0,
+                          voiceSpeakerBoost: settings.use_speaker_boost ?? true,
                         });
                       }}
                       compact
@@ -2812,7 +2830,7 @@ export default function Agents() {
                       </Label>
                       <Input
                         id="transfer-phone"
-                        placeholder="+1234567890"
+                        placeholder={t('agents.systemTools.transferPhonePlaceholder')}
                         value={formData.transferPhoneNumber}
                         onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
                         data-testid="input-transfer-phone"

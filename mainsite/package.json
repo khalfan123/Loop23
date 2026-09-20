@@ -1,0 +1,12 @@
+{
+  "name": "loop9-mainsite",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module"
+}

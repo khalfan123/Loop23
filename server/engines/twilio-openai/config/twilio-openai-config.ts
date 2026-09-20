@@ -22,7 +22,7 @@ export interface TwilioOpenAIConfig {
 
 export const TWILIO_OPENAI_CONFIG: TwilioOpenAIConfig = {
   openaiRealtimeUrl: 'wss://api.openai.com/v1/realtime',
-  openaiRealtimeModel: 'gpt-4o-realtime-preview',
+  openaiRealtimeModel: 'gpt-realtime-mini',
   defaultVoice: 'alloy',
   defaultTemperature: 0.7,
   webhookTimeout: 15000,
@@ -84,10 +84,11 @@ export function generateTwiML(options: {
 </Response>`;
 }
 
-export function generateTransferTwiML(phoneNumber: string, callerId: string): string {
+export function generateTransferTwiML(phoneNumber: string, callerId?: string): string {
+  const callerIdAttr = callerId ? ` callerId="${escapeXml(callerId)}"` : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial callerId="${escapeXml(callerId)}" timeout="30" hangupOnStar="false">
+  <Dial${callerIdAttr} timeout="30" hangupOnStar="false">
     <Number>${escapeXml(phoneNumber)}</Number>
   </Dial>
 </Response>`;
